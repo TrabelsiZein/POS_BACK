@@ -9,10 +9,15 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class UnitOfMeasure extends _BaseEntity {
+public class SeriesHeader extends _BaseEntity {
 
 	@Column(unique = true, nullable = false, length = 20)
 	private String code;
 	@Column(unique = true, nullable = false, length = 100)
 	private String description;
+	private Boolean defaultNo;
+	private Boolean manualNo;
+	private Boolean chronologicalOrder;
+	private SeriesHeaderType type;
+
 }

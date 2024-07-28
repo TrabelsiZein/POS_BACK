@@ -24,6 +24,7 @@ public class Permission extends _BaseEntity {
 	@Column(nullable = false)
 	private PermissionAction action;
 
+	@Column(length = 100)
 	private String description;
 
 }
