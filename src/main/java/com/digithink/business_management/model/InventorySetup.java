@@ -16,21 +16,21 @@ import lombok.EqualsAndHashCode;
 public class InventorySetup extends _BaseEntity {
 
 	private Boolean isLocationMondatory;
-	// Item Entity
+	// SeriesHeader Entity
 	@Column(length = 20)
 	private String temNo;
 	private AutomaticCostAdjustment automaticCostAdjustment;
 	private Boolean avoidNegativeStock;
-	// Transfer Order Entity
+	// SeriesHeader Entity
 	@Column(length = 20)
 	private String transferOrderNo;
-	// Registred Transfer Entity
+	// SeriesHeader Transfer Entity
 	@Column(length = 20)
-	private String registeredTransferNo;
-	// Registred Reception Entity
+	private String registeredTransferShipmentNo;
+	// SeriesHeader Reception Entity
 	@Column(length = 20)
-	private String registeredReceptionferNo;
-	// Inventory Entity
+	private String registeredTransferReceiptNo;
+	// SeriesHeader Entity
 	@Column(length = 20)
 	private String inventoryNo;
 	private StockEvaluationMode defaultStockEvaluationMode;
