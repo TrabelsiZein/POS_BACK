@@ -4,7 +4,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 
 import com.digithink.business_management.model.enumeration.DefaultAccountingDate;
-import com.digithink.business_management.model.enumeration.DefaultQuantityToShip;
+import com.digithink.business_management.model.enumeration.DefaultQuantityToReceive;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -12,25 +12,23 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class SalesSetup extends _BaseEntity {
+public class PurchaseSetup extends _BaseEntity {
 
-	private Boolean creditAlert;
-	private Boolean outOfStockAlert;
 	private Boolean mandatoryExtDocNo;
 	private Boolean calculateInvoiceDiscount;
 	private Boolean allowVATDifference;
 	private DefaultAccountingDate defaultAccountingDate;
-	private DefaultQuantityToShip defaultQuantityToShip;
+	private DefaultQuantityToReceive defaultQuantityToReceive;
 	private Boolean archiveCurrencies;
 	private Boolean archiveOrders;
 	private Boolean archiveOpenOrders;
 	private Boolean archiveReturns;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String customerNo;
+	private String vendorNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String currencyNo;
+	private String requestQuoteNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
 	private String orderNo;
@@ -45,10 +43,7 @@ public class SalesSetup extends _BaseEntity {
 	private String creditMemoNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String registredCreditMemoNo;
-	// SeriesHeader Entity
-	@Column(length = 20)
-	private String registeredShipmentNo;
+	private String registeredCreditMemoNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
 	private String openOrderNo;
@@ -57,6 +52,5 @@ public class SalesSetup extends _BaseEntity {
 	private String returnNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String registeredReturnReceiptNo;
-
+	private String registeredReturnShipmentNo;
 }
