@@ -1,0 +1,12 @@
+{"properties": [
+  {
+    "name": "micorsoftnav.getStockByCodeUrl",
+    "type": "java.lang.String",
+    "description": "A description for 'micorsoftnav.getStockByCodeUrl'"
+  },
+  {
+    "name": "adapter.datasource.hibernate.dialect",
+    "type": "java.lang.String",
+    "description": "A description for 'adapter.datasource.hibernate.dialect'"
+  }
+]}
