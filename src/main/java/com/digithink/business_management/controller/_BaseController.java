@@ -15,7 +15,7 @@ import com.digithink.business_management.model._BaseEntity;
 import com.digithink.business_management.service._BaseService;
 
 @RestController
-public class _BaseController<T extends _BaseEntity, ID, S extends _BaseService<T, ID>> {
+public abstract class _BaseController<T extends _BaseEntity, ID, S extends _BaseService<T, ID>> {
 
 	@Autowired
 	protected S service;

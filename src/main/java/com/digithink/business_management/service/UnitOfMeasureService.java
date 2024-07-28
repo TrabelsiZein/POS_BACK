@@ -2,10 +2,12 @@ package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.model.UnitOfMeasure;
 import com.digithink.business_management.repository.UnitOfMeasureRepository;
 
+@Service
 public class UnitOfMeasureService extends _BaseService<UnitOfMeasure, Long> {
 
 	@Autowired

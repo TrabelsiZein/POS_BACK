@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 public class InventoryPostingGroup extends _BaseEntity {
 
 	@Column(length = 20, nullable = false, unique = true)
-	private String code;
+	private String no;
 	@Column(length = 100, nullable = false, unique = true)
 	private String description;
 

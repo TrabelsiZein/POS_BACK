@@ -8,10 +8,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.digithink.business_management.model.Permission;
-import com.digithink.business_management.model.PermissionAction;
-import com.digithink.business_management.model.PermissionPage;
 import com.digithink.business_management.model.Role;
 import com.digithink.business_management.model.UserAccount;
+import com.digithink.business_management.model.enumeration.PermissionAction;
+import com.digithink.business_management.model.enumeration.PermissionPage;
 import com.digithink.business_management.repository.PermissionRepository;
 import com.digithink.business_management.repository.RoleRepository;
 import com.digithink.business_management.repository.UserAccountRepository;

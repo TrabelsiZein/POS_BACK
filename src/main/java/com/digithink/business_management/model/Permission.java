@@ -6,6 +6,9 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
+import com.digithink.business_management.model.enumeration.PermissionAction;
+import com.digithink.business_management.model.enumeration.PermissionPage;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

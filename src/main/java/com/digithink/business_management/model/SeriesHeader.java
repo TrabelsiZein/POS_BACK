@@ -3,6 +3,8 @@ package com.digithink.business_management.model;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 
+import com.digithink.business_management.model.enumeration.SeriesHeaderType;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -12,7 +14,7 @@ import lombok.EqualsAndHashCode;
 public class SeriesHeader extends _BaseEntity {
 
 	@Column(unique = true, nullable = false, length = 20)
-	private String code;
+	private String no;
 	@Column(unique = true, nullable = false, length = 100)
 	private String description;
 	private Boolean defaultNo;

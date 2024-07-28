@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 public class UnitOfMeasure extends _BaseEntity {
 
 	@Column(unique = true, nullable = false, length = 20)
-	private String code;
+	private String no;
 	@Column(unique = true, nullable = false, length = 100)
 	private String description;
 }
