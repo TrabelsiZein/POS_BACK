@@ -10,12 +10,10 @@ import com.digithink.business_management.model.enumeration.PermissionAction;
 import com.digithink.business_management.model.enumeration.PermissionPage;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Entity
 @Data
-@EqualsAndHashCode(callSuper = false)
-public class Permission extends _BaseEntity {
+public class Permission {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,8 +24,5 @@ public class Permission extends _BaseEntity {
 
 	@Column(nullable = false)
 	private PermissionAction action;
-
-	@Column(length = 100)
-	private String description;
 
 }

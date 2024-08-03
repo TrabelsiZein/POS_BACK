@@ -17,6 +17,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.digithink.business_management.repository.PermissionRepository;
+
 @Configuration
 @Order(1)
 @EnableWebSecurity
@@ -28,6 +30,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
+
+	@Autowired
+	private PermissionRepository permissionRepository;
 
 	@Autowired
 	@Override
@@ -42,7 +47,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.antMatchers("/sse-endpoint/**", "/login/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
 						"/thymeleaf/**")
 				.permitAll().anyRequest().authenticated().and()
-				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean()))
+				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean(), permissionRepository))
 				.addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
 	}
 

@@ -1,5 +1,6 @@
 package com.digithink.business_management.security;
 
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -19,6 +20,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		UserAccount user = utilisateurRepo.findByUsername(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+		Hibernate.initialize(user.getRoles());
 		return user;
 	}
 

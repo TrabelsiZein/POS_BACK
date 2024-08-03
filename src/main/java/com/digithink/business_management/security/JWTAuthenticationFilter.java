@@ -1,9 +1,7 @@
 package com.digithink.business_management.security;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -20,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.digithink.business_management.model.UserAccount;
+import com.digithink.business_management.repository.PermissionRepository;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -29,6 +28,7 @@ import lombok.extern.log4j.Log4j2;
 public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
 	private final AuthenticationManager authenticationManager;
+	private PermissionRepository permissionRepository;
 
 	@Override
 	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
@@ -56,9 +56,6 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 			Authentication authResult) throws IOException, ServletException {
 		log.info("Successful authentication");
 		UserAccount user = (UserAccount) authResult.getPrincipal();
-		List<String> authorities = new ArrayList<>();
-
-		authResult.getAuthorities().forEach(a -> authorities.add(a.getAuthority()));
 
 		Date expirationDate = new Date(System.currentTimeMillis() + SecurityParams.EXPIRATION);
 		String token = JWT.create().withIssuer(request.getRequestURI()).withSubject(user.getUsername())
@@ -68,9 +65,10 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		response.addHeader(SecurityParams.JWT_HEADER_NAME, SecurityParams.HEADER_PREFIX + token);
 
 		JSONObject authRep = new JSONObject();
+
+		authRep.put("abilities", permissionRepository.getUserPermissions(user.getUsername()));
 		authRep.put("token", token);
 		authRep.put("status", 200);
-		authRep.put("authorities", authorities);
 
 		response.setContentType("application/json");
 		response.setCharacterEncoding("UTF-8");

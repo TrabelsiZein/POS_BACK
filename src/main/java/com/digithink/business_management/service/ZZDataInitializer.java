@@ -1,7 +1,9 @@
 package com.digithink.business_management.service;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,35 +35,35 @@ public class ZZDataInitializer {
 
 //	@PostConstruct
 	public void init() {
+		initSysAdminUser(initSysAdminRole());
+	}
 
-		Permission readPermission = new Permission();
-		readPermission.setAction(PermissionAction.READ);
-		readPermission.setPage(PermissionPage.InventoryPostingGroup);
-		permissionRepository.save(readPermission);
+	private Role initSysAdminRole() {
+		Role role = new Role();
+		role.setName("SysAdmin");
+		role.setDescription("System Administrator");
+		for (PermissionPage iterable_element : Arrays.stream(PermissionPage.values()).collect(Collectors.toList())) {
+			for (PermissionAction _iterable_element : Arrays.stream(PermissionAction.values())
+					.collect(Collectors.toList())) {
+				Permission permission = new Permission();
+				permission.setPage(iterable_element);
+				permission.setAction(_iterable_element);
+				permissionRepository.save(permission);
+			}
+		}
+		role.setPermissions(new HashSet<Permission>(permissionRepository.findAll()));
+		return roleRepository.save(role);
+	}
 
-		Permission writePermission = new Permission();
-		writePermission.setAction(PermissionAction.DELETE);
-		writePermission.setPage(PermissionPage.ItemUnitOfMeasure);
-		permissionRepository.save(writePermission);
-
-		// Create admin role and assign permissions
-		Role adminRole = new Role();
-		adminRole.setName("ROLE_ADMIN");
-		Set<Permission> adminPermissions = new HashSet<>();
-		adminPermissions.add(readPermission);
-		adminPermissions.add(writePermission);
-		adminRole.setPermissions(adminPermissions);
-		roleRepository.save(adminRole);
-
-		// Create admin user and assign role
-		UserAccount adminUser = new UserAccount();
-		adminUser.setUsername("admin");
-		adminUser.setPassword(passwordEncoder.encode("admin123"));
-		adminUser.setEmail("admin@gmail.com");
-		Set<Role> adminRoles = new HashSet<>();
-		adminRoles.add(adminRole);
-		adminUser.setRoles(adminRoles);
-		userRepository.save(adminUser);
-
+	private void initSysAdminUser(Role role) {
+		UserAccount user = new UserAccount();
+		user.setUsername("sys_admin");
+		user.setPassword(passwordEncoder.encode("P@ssw0rd"));
+		user.setEmail("sys_admin@gmail.com");
+		user.setActive(true);
+		Set<Role> sysAdminRoles = new HashSet<>();
+		sysAdminRoles.add(role);
+		user.setRoles(sysAdminRoles);
+		userRepository.save(user);
 	}
 }
