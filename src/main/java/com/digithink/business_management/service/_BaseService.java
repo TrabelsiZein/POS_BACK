@@ -14,7 +14,7 @@ import com.digithink.business_management.security.CurrentUserProvider;
 public abstract class _BaseService<T extends _BaseEntity, ID> {
 
 	@Autowired
-	private CurrentUserProvider currentUserProvider;
+	protected CurrentUserProvider currentUserProvider;
 
 	protected abstract JpaRepository<T, ID> getRepository();
 

@@ -7,7 +7,7 @@ import com.digithink.business_management.model.UnitOfMeasure;
 import com.digithink.business_management.service.UnitOfMeasureService;
 
 @RestController
-@RequestMapping("unit_of_mesure")
+@RequestMapping("unit_of_measure")
 public class UnitOfMeasureAPI extends _BaseController<UnitOfMeasure, Long, UnitOfMeasureService> {
 
 }

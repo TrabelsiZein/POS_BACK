@@ -8,6 +8,8 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import lombok.Data;
 
 @MappedSuperclass
@@ -16,17 +18,19 @@ public abstract class _BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	protected Long id;
 
 	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt;
+	@JsonFormat(pattern = "dd-MM-yyyy-HH:mm:ss")
+	protected LocalDateTime createdAt;
 
 	@Column(name = "updated_at")
-	private LocalDateTime updatedAt;
+	@JsonFormat(pattern = "dd-MM-yyyy-HH:mm:ss")
+	protected LocalDateTime updatedAt;
 
 	@Column(name = "created_by", updatable = false)
-	private String createdBy;
+	protected String createdBy;
 
-	private String updatedBy;
+	protected String updatedBy;
 
 }

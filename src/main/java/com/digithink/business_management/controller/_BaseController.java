@@ -30,8 +30,9 @@ public abstract class _BaseController<T extends _BaseEntity, ID, S extends _Base
 			log.info(this.getClass().getSimpleName() + "::getAll");
 			return ResponseEntity.ok(service.findAll());
 		} catch (Exception e) {
-			log.info(this.getClass().getSimpleName() + "::getAll::error ::" + e.getMessage());
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::getAll:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
 		}
 	}
 
@@ -42,8 +43,9 @@ public abstract class _BaseController<T extends _BaseEntity, ID, S extends _Base
 			Optional<T> entity = service.findById(id);
 			return entity.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
 		} catch (Exception e) {
-			log.info(this.getClass().getSimpleName() + "::getById::error ::" + e.getMessage());
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::getById:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
 		}
 	}
 
@@ -54,8 +56,9 @@ public abstract class _BaseController<T extends _BaseEntity, ID, S extends _Base
 			T createdEntity = service.save(entity);
 			return ResponseEntity.ok(createdEntity);
 		} catch (Exception e) {
-			log.info(this.getClass().getSimpleName() + "::create::error ::" + e.getMessage());
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::create:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
 		}
 	}
 
@@ -67,8 +70,17 @@ public abstract class _BaseController<T extends _BaseEntity, ID, S extends _Base
 			service.deleteById(id);
 			return ResponseEntity.noContent().build();
 		} catch (Exception e) {
-			log.info(this.getClass().getSimpleName() + "::create::error ::" + e.getMessage());
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::deleteById:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
 		}
+	}
+
+	protected String getDetailedMessage(Throwable e) {
+		Throwable cause = e.getCause();
+		while (cause != null && cause.getCause() != null) {
+			cause = cause.getCause();
+		}
+		return cause != null ? cause.getLocalizedMessage() : e.getLocalizedMessage();
 	}
 }

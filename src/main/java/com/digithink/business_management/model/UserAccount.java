@@ -1,5 +1,6 @@
 package com.digithink.business_management.model;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -19,10 +20,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
+@NoArgsConstructor
 public class UserAccount extends _BaseEntity implements UserDetails {
 
 	/**
@@ -53,37 +56,6 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return null;
 	}
-
-//	@Override
-//	public Collection<? extends GrantedAuthority> getAuthorities() {
-//		return roles.stream().flatMap(role -> role.getPermissions().stream())
-//				.map(permission -> new SimpleGrantedAuthority(permission.getAction() + "_" + permission.getPage()))
-//				.collect(Collectors.toList());
-//	}
-
-//	@Override
-//	public Collection<? extends GrantedAuthority> getAuthorities() {
-//		Set<PermissionDTO> authorities = new HashSet<>();
-//
-//		// Iterate through the roles assigned to the user
-//		for (Role role : roles) {
-//
-//			// Iterate through the permissions associated with the role
-//			for (Permission permission : role.getPermissions()) {
-//				PermissionDTO dto = new PermissionDTO();
-//				dto.setPermission_id(permission.getPage() + "_" + permission.getAction());
-//				dto.setModule_ar(permission.getModule().getTitleAr());
-//				dto.setModule_en(permission.getModule().getTitleEn());
-//				dto.setModule_fr(permission.getModule().getTitleFr());
-//				dto.setPage_ar(permission.getTitleAr());
-//				dto.setPage_en(permission.getTitleEn());
-//				dto.setPage_fr(permission.getTitleFr());
-//				authorities.add(dto);
-//			}
-//		}
-//
-//		return (Collection<? extends GrantedAuthority>) authorities;
-//	}
 
 	@Override
 	public String getPassword() {
@@ -117,6 +89,18 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	public boolean isEnabled() {
 		// TODO Auto-generated method stub
 		return active;
+	}
+
+	public UserAccount(Long id, LocalDateTime createdAt, LocalDateTime updatedAt, String createdBy, String updatedBy,
+			String username, String email, Boolean active) {
+		this.id = id;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.createdBy = createdBy;
+		this.updatedBy = updatedBy;
+		this.username = username;
+		this.email = email;
+		this.active = active;
 	}
 
 }
