@@ -2,6 +2,7 @@ package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.model.ItemDiscountGroup;
@@ -16,6 +17,12 @@ public class ItemDiscountGroupService extends _BaseService<ItemDiscountGroup, Lo
 	@Override
 	protected JpaRepository<ItemDiscountGroup, Long> getRepository() {
 		return itemDiscountGroupRepository;
+	}
+
+	@Override
+	protected JpaSpecificationExecutor<ItemDiscountGroup> getJpaSpecificationExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

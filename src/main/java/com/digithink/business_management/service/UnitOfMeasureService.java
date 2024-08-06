@@ -2,6 +2,7 @@ package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.model.UnitOfMeasure;
@@ -17,6 +18,12 @@ public class UnitOfMeasureService extends _BaseService<UnitOfMeasure, Long> {
 	protected JpaRepository<UnitOfMeasure, Long> getRepository() {
 		// TODO Auto-generated method stub
 		return unitOfMeasureRepository;
+	}
+
+	@Override
+	protected JpaSpecificationExecutor<UnitOfMeasure> getJpaSpecificationExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

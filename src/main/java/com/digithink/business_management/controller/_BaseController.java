@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.business_management.model._BaseEntity;
@@ -45,6 +46,19 @@ public abstract class _BaseController<T extends _BaseEntity, ID, S extends _Base
 		} catch (Exception e) {
 			String detailedMessage = getDetailedMessage(e);
 			log.error(this.getClass().getSimpleName() + "::getById:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
+		}
+	}
+
+	@GetMapping("/findByField")
+	public ResponseEntity<?> findByField(@RequestParam String fieldName, @RequestParam String operation,
+			@RequestParam Object value) {
+		try {
+			log.info(this.getClass().getSimpleName() + "::findByField::" + fieldName + operation + value.toString());
+			return ResponseEntity.ok(service.findByField(fieldName, operation, value));
+		} catch (Exception e) {
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::findByField:error: " + detailedMessage, e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(detailedMessage);
 		}
 	}

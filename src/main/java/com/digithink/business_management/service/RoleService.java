@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.model.Permission;
@@ -33,6 +34,12 @@ public class RoleService extends _BaseService<Role, Long> {
 
 	public List<Permission> findAllPermissionsDB() {
 		return permissionRepository.findAll();
+	}
+
+	@Override
+	protected JpaSpecificationExecutor<Role> getJpaSpecificationExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

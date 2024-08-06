@@ -2,6 +2,7 @@ package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.model.SalesSetup;
@@ -16,6 +17,12 @@ public class SalesSetupService extends _BaseService<SalesSetup, Long> {
 	@Override
 	protected JpaRepository<SalesSetup, Long> getRepository() {
 		return salesSetupRepository;
+	}
+
+	@Override
+	protected JpaSpecificationExecutor<SalesSetup> getJpaSpecificationExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

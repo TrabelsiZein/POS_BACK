@@ -7,7 +7,7 @@ import com.digithink.business_management.model.GeneralLedgerAccount;
 import com.digithink.business_management.service.GeneralLedgerAccountService;
 
 @RestController
-@RequestMapping("genral_ledger_account")
+@RequestMapping("general_ledger_account")
 public class GeneralLedgerAccountAPI extends _BaseController<GeneralLedgerAccount, Long, GeneralLedgerAccountService> {
 
 }

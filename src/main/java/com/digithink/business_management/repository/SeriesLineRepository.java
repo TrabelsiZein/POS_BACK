@@ -1,9 +1,10 @@
 package com.digithink.business_management.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.digithink.business_management.model.SeriesLine;
 
-public interface SeriesLineRepository extends JpaRepository<SeriesLine, Long> {
+public interface SeriesLineRepository extends JpaRepository<SeriesLine, Long>, JpaSpecificationExecutor<SeriesLine> {
 
 }

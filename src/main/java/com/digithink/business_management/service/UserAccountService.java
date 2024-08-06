@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -48,5 +49,11 @@ public class UserAccountService extends _BaseService<UserAccount, Long> {
 		}
 
 		return getRepository().save(entity);
+	}
+
+	@Override
+	protected JpaSpecificationExecutor<UserAccount> getJpaSpecificationExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

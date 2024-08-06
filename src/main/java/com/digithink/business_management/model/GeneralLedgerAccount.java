@@ -2,7 +2,6 @@ package com.digithink.business_management.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -57,31 +56,24 @@ public class GeneralLedgerAccount extends _BaseEntity {
 	@Column(name = "directImputation", nullable = false)
 	private boolean directImputation;
 
-	@Column(name = "lastModified", nullable = false)
-	private LocalDateTime lastModified;
-
 	@Column(name = "totalization", length = 250)
 	private String totalization;
 
-	// ........ Entity
-	@Column(name = "taxGroupCode", length = 20)
-	private String taxGroupCode;
+	// VatBusinessPostingGroup Entity
+	@Column(length = 20)
+	private String vatBusinessPostingGroup;
 
-	// ........ Entity
-	@Column(name = "marketVATAccountingGroup", length = 20)
-	private String marketVATAccountingGroup;
+	// VatProductPostingGroup Entity
+	@Column(length = 20)
+	private String vatProductPostingGroup;
 
-	// ........ Entity
-	@Column(name = "productVATAccountingGroup", length = 20)
-	private String productVATAccountingGroup;
+	// GeneralBusinessPostingGroupEntity Entity
+	@Column(length = 20)
+	private String genBusinessPostingGroup;
 
-	// ........ Entity
-	@Column(name = "marketAccountingGroup", length = 20)
-	private String marketAccountingGroup;
-
-	// ........ Entity
-	@Column(name = "productAccountingGroup", length = 20)
-	private String productAccountingGroup;
+	// GeneralProductPostingGroupEntity
+	@Column(length = 20)
+	private String genProductPostingGroup;
 
 	// FlowFields
 
