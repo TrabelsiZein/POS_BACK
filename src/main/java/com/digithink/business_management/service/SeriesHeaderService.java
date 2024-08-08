@@ -1,12 +1,11 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.SeriesHeader;
+import com.digithink.business_management.model.configuration.SeriesHeader;
 import com.digithink.business_management.repository.SeriesHeaderRepository;
+import com.digithink.business_management.repository._BaseRepository;
 
 @Service
 public class SeriesHeaderService extends _BaseService<SeriesHeader, Long> {
@@ -15,14 +14,8 @@ public class SeriesHeaderService extends _BaseService<SeriesHeader, Long> {
 	private SeriesHeaderRepository seriesHeaderRepository;
 
 	@Override
-	protected JpaRepository<SeriesHeader, Long> getRepository() {
+	protected _BaseRepository<SeriesHeader, Long> getRepository() {
 		return seriesHeaderRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<SeriesHeader> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

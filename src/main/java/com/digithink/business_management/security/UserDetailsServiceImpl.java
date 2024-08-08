@@ -7,7 +7,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.UserAccount;
+import com.digithink.business_management.model.system.UserAccount;
 import com.digithink.business_management.repository.UserAccountRepository;
 
 @Service

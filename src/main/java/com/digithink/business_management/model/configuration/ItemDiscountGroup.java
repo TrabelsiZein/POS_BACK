@@ -1,7 +1,9 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.configuration;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+
+import com.digithink.business_management.model._BaseEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -9,7 +11,7 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class VatBusinessPostingGroup extends _BaseEntity {
+public class ItemDiscountGroup extends _BaseEntity {
 
 	@Column(unique = true, nullable = false, length = 20)
 	private String no;

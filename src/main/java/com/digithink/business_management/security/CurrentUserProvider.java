@@ -5,7 +5,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import com.digithink.business_management.model.UserAccount;
+import com.digithink.business_management.model.system.UserAccount;
 import com.digithink.business_management.repository.UserAccountRepository;
 
 public class CurrentUserProvider {
@@ -23,6 +23,14 @@ public class CurrentUserProvider {
 		}
 		return userAccountRepository.findByUsername(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+	}
+
+	public Long getCurrentCompanyId() {
+		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		if (principal instanceof UserAccount) {
+			return ((UserAccount) principal).getCompany();
+		}
+		throw new IllegalStateException("Current user is not authenticated or does not have a company ID");
 	}
 
 	public String getCurrentUserName() {

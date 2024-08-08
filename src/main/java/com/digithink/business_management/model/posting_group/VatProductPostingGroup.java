@@ -1,7 +1,9 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.posting_group;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+
+import com.digithink.business_management.model._BaseEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

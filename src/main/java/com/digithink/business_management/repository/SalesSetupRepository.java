@@ -1,9 +1,7 @@
 package com.digithink.business_management.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.digithink.business_management.model.setup.SalesSetup;
 
-import com.digithink.business_management.model.SalesSetup;
-
-public interface SalesSetupRepository extends JpaRepository<SalesSetup, Long> {
+public interface SalesSetupRepository extends _BaseRepository<SalesSetup, Long> {
 
 }

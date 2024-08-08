@@ -1,4 +1,4 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.system;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -14,9 +14,12 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
+import javax.persistence.Transient;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import com.digithink.business_management.model._BaseSysEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,7 +29,7 @@ import lombok.NoArgsConstructor;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
-public class UserAccount extends _BaseEntity implements UserDetails {
+public class UserAccount extends _BaseSysEntity implements UserDetails {
 
 	/**
 	 * 
@@ -47,6 +50,9 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	private String email;
 
 	private Boolean active = true;
+
+	@Transient
+	private Long company;
 
 	@ManyToMany(fetch = FetchType.EAGER)
 	@JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))

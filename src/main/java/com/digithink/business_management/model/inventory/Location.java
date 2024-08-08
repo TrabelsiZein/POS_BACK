@@ -1,8 +1,10 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.inventory;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Transient;
+
+import com.digithink.business_management.model._BaseEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

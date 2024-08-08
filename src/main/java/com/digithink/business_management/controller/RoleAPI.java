@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.digithink.business_management.model.Role;
+import com.digithink.business_management.model.system.Role;
 import com.digithink.business_management.service.RoleService;
 
 @RestController

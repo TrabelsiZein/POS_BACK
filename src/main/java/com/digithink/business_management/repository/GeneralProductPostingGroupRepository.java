@@ -1,9 +1,7 @@
 package com.digithink.business_management.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.digithink.business_management.model.posting_group.GeneralProductPostingGroup;
 
-import com.digithink.business_management.model.GeneralProductPostingGroup;
-
-public interface GeneralProductPostingGroupRepository extends JpaRepository<GeneralProductPostingGroup, Long> {
+public interface GeneralProductPostingGroupRepository extends _BaseRepository<GeneralProductPostingGroup, Long> {
 
 }

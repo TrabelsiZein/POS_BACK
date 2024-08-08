@@ -1,12 +1,11 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.InventoryPostingSetup;
+import com.digithink.business_management.model.posting_setup.InventoryPostingSetup;
 import com.digithink.business_management.repository.InventoryPostingSetupRepository;
+import com.digithink.business_management.repository._BaseRepository;
 
 @Service
 public class InventoryPostingSetupService extends _BaseService<InventoryPostingSetup, Long> {
@@ -15,14 +14,8 @@ public class InventoryPostingSetupService extends _BaseService<InventoryPostingS
 	private InventoryPostingSetupRepository inventoryPostingSetupRepository;
 
 	@Override
-	protected JpaRepository<InventoryPostingSetup, Long> getRepository() {
+	protected _BaseRepository<InventoryPostingSetup, Long> getRepository() {
 		return inventoryPostingSetupRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<InventoryPostingSetup> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

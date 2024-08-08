@@ -1,10 +1,11 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.setup;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 
+import com.digithink.business_management.model._BaseEntity;
 import com.digithink.business_management.model.enumeration.DefaultAccountingDate;
-import com.digithink.business_management.model.enumeration.DefaultQuantityToReceive;
+import com.digithink.business_management.model.enumeration.DefaultQuantityToShip;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -12,23 +13,25 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class PurchaseSetup extends _BaseEntity {
+public class SalesSetup extends _BaseEntity {
 
+	private Boolean creditAlert;
+	private Boolean outOfStockAlert;
 	private Boolean mandatoryExtDocNo;
 	private Boolean calculateInvoiceDiscount;
 	private Boolean allowVATDifference;
 	private DefaultAccountingDate defaultAccountingDate;
-	private DefaultQuantityToReceive defaultQuantityToReceive;
+	private DefaultQuantityToShip defaultQuantityToShip;
 	private Boolean archiveCurrencies;
 	private Boolean archiveOrders;
 	private Boolean archiveOpenOrders;
 	private Boolean archiveReturns;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String vendorNo;
+	private String customerNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String requestQuoteNo;
+	private String currencyNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
 	private String orderNo;
@@ -43,10 +46,10 @@ public class PurchaseSetup extends _BaseEntity {
 	private String creditMemoNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String registeredCreditMemoNo;
+	private String registredCreditMemoNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String registeredReceiptNo;
+	private String registeredShipmentNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
 	private String openOrderNo;
@@ -55,5 +58,6 @@ public class PurchaseSetup extends _BaseEntity {
 	private String returnNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
-	private String registeredReturnShipmentNo;
+	private String registeredReturnReceiptNo;
+
 }

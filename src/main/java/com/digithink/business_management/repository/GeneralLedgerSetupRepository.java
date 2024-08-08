@@ -1,9 +1,7 @@
 package com.digithink.business_management.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.digithink.business_management.model.general_ledger.GeneralLedgerSetup;
 
-import com.digithink.business_management.model.GeneralLedgerSetup;
-
-public interface GeneralLedgerSetupRepository extends JpaRepository<GeneralLedgerSetup, Long> {
+public interface GeneralLedgerSetupRepository extends _BaseRepository<GeneralLedgerSetup, Long> {
 
 }

@@ -1,28 +1,21 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.Company;
+import com.digithink.business_management.model.system.Company;
 import com.digithink.business_management.repository.CompanyRepository;
+import com.digithink.business_management.repository._BaseSysRepository;
 
 @Service
-public class CompanyService extends _BaseService<Company, Long> {
+public class CompanyService extends _BaseSysService<Company, Long> {
 
 	@Autowired
 	private CompanyRepository companyRepository;
 
 	@Override
-	protected JpaRepository<Company, Long> getRepository() {
+	protected _BaseSysRepository<Company, Long> getRepository() {
 		return companyRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<Company> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

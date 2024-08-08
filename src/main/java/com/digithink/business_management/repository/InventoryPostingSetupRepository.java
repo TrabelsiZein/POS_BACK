@@ -1,9 +1,7 @@
 package com.digithink.business_management.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.digithink.business_management.model.posting_setup.InventoryPostingSetup;
 
-import com.digithink.business_management.model.InventoryPostingSetup;
-
-public interface InventoryPostingSetupRepository extends JpaRepository<InventoryPostingSetup, Long> {
+public interface InventoryPostingSetupRepository extends _BaseRepository<InventoryPostingSetup, Long> {
 
 }

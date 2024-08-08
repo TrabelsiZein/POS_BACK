@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.digithink.business_management.model._BaseEntity;
-import com.digithink.business_management.service._BaseService;
+import com.digithink.business_management.model._BaseSysEntity;
+import com.digithink.business_management.service.__BaseService;
 
 import lombok.extern.log4j.Log4j2;
 
 @RestController
 @Log4j2
-public abstract class _BaseController<T extends _BaseEntity, ID, S extends _BaseService<T, ID>> {
+public abstract class _BaseController<T extends _BaseSysEntity, ID, S extends __BaseService<T, ID>> {
 
 	@Autowired
 	protected S service;

@@ -1,9 +1,11 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.general_ledger;
 
 import java.time.LocalDate;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+
+import com.digithink.business_management.model._BaseEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

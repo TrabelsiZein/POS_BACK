@@ -1,8 +1,9 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.configuration;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 
+import com.digithink.business_management.model._BaseEntity;
 import com.digithink.business_management.model.enumeration.SeriesHeaderType;
 
 import lombok.Data;

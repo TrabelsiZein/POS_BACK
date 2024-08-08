@@ -1,12 +1,11 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.Currency;
+import com.digithink.business_management.model.configuration.Currency;
 import com.digithink.business_management.repository.CurrencyRepository;
+import com.digithink.business_management.repository._BaseRepository;
 
 @Service
 public class CurrencyService extends _BaseService<Currency, Long> {
@@ -15,14 +14,8 @@ public class CurrencyService extends _BaseService<Currency, Long> {
 	private CurrencyRepository currencyRepository;
 
 	@Override
-	protected JpaRepository<Currency, Long> getRepository() {
+	protected _BaseRepository<Currency, Long> getRepository() {
 		return currencyRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<Currency> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

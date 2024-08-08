@@ -1,4 +1,4 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.system;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

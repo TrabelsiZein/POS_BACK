@@ -5,17 +5,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.dto.UserAccountDTO;
-import com.digithink.business_management.model.UserAccount;
+import com.digithink.business_management.model.system.UserAccount;
 import com.digithink.business_management.repository.UserAccountRepository;
+import com.digithink.business_management.repository._BaseSysRepository;
 
 @Service
-public class UserAccountService extends _BaseService<UserAccount, Long> {
+public class UserAccountService extends _BaseSysService<UserAccount, Long> {
 
 	@Autowired
 	private UserAccountRepository accountRepository;
@@ -24,7 +23,7 @@ public class UserAccountService extends _BaseService<UserAccount, Long> {
 	private PasswordEncoder passwordEncoder;
 
 	@Override
-	protected JpaRepository<UserAccount, Long> getRepository() {
+	protected _BaseSysRepository<UserAccount, Long> getRepository() {
 		return accountRepository;
 	}
 
@@ -49,11 +48,5 @@ public class UserAccountService extends _BaseService<UserAccount, Long> {
 		}
 
 		return getRepository().save(entity);
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<UserAccount> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 }

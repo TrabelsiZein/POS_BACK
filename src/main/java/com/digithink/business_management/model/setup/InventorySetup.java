@@ -1,8 +1,9 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.setup;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 
+import com.digithink.business_management.model._BaseEntity;
 import com.digithink.business_management.model.enumeration.AutomaticCostAdjustment;
 import com.digithink.business_management.model.enumeration.AverageCostPeriod;
 import com.digithink.business_management.model.enumeration.StockEvaluationMode;

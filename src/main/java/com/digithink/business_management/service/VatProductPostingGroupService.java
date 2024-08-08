@@ -1,12 +1,11 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.VatProductPostingGroup;
+import com.digithink.business_management.model.posting_group.VatProductPostingGroup;
 import com.digithink.business_management.repository.VatProductPostingGroupRepository;
+import com.digithink.business_management.repository._BaseRepository;
 
 @Service
 public class VatProductPostingGroupService extends _BaseService<VatProductPostingGroup, Long> {
@@ -15,14 +14,8 @@ public class VatProductPostingGroupService extends _BaseService<VatProductPostin
 	private VatProductPostingGroupRepository vatProductPostingGroupRepository;
 
 	@Override
-	protected JpaRepository<VatProductPostingGroup, Long> getRepository() {
+	protected _BaseRepository<VatProductPostingGroup, Long> getRepository() {
 		return vatProductPostingGroupRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<VatProductPostingGroup> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

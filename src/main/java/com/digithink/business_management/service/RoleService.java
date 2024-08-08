@@ -5,18 +5,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.Permission;
-import com.digithink.business_management.model.Role;
 import com.digithink.business_management.model.enumeration.PermissionPage;
+import com.digithink.business_management.model.system.Permission;
+import com.digithink.business_management.model.system.Role;
 import com.digithink.business_management.repository.PermissionRepository;
 import com.digithink.business_management.repository.RoleRepository;
+import com.digithink.business_management.repository._BaseSysRepository;
 
 @Service
-public class RoleService extends _BaseService<Role, Long> {
+public class RoleService extends _BaseSysService<Role, Long> {
 
 	@Autowired
 	private RoleRepository roleRepository;
@@ -24,7 +23,7 @@ public class RoleService extends _BaseService<Role, Long> {
 	private PermissionRepository permissionRepository;
 
 	@Override
-	protected JpaRepository<Role, Long> getRepository() {
+	protected _BaseSysRepository<Role, Long> getRepository() {
 		return roleRepository;
 	}
 
@@ -34,12 +33,6 @@ public class RoleService extends _BaseService<Role, Long> {
 
 	public List<Permission> findAllPermissionsDB() {
 		return permissionRepository.findAll();
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<Role> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

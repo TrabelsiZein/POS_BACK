@@ -1,12 +1,11 @@
 package com.digithink.business_management.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 
-import com.digithink.business_management.model.GeneralLedgerAccount;
+import com.digithink.business_management.model.general_ledger.GeneralLedgerAccount;
 import com.digithink.business_management.repository.GeneralLedgerAccountRepository;
+import com.digithink.business_management.repository._BaseRepository;
 
 @Service
 public class GeneralLedgerAccountService extends _BaseService<GeneralLedgerAccount, Long> {
@@ -15,14 +14,8 @@ public class GeneralLedgerAccountService extends _BaseService<GeneralLedgerAccou
 	private GeneralLedgerAccountRepository generalLedgerAccountRepository;
 
 	@Override
-	protected JpaRepository<GeneralLedgerAccount, Long> getRepository() {
+	protected _BaseRepository<GeneralLedgerAccount, Long> getRepository() {
 		return generalLedgerAccountRepository;
-	}
-
-	@Override
-	protected JpaSpecificationExecutor<GeneralLedgerAccount> getJpaSpecificationExecutor() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

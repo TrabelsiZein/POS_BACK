@@ -1,4 +1,4 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.general_ledger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,6 +9,7 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Transient;
 
+import com.digithink.business_management.model._BaseEntity;
 import com.digithink.business_management.model.enumeration.GLAccountCategory;
 import com.digithink.business_management.model.enumeration.GLAccountType;
 import com.digithink.business_management.model.enumeration.GLDebitOrCredit;
@@ -59,21 +60,21 @@ public class GeneralLedgerAccount extends _BaseEntity {
 	@Column(name = "totalization", length = 250)
 	private String totalization;
 
-	// VatBusinessPostingGroup Entity
-	@Column(length = 20)
-	private String vatBusinessPostingGroup;
-
-	// VatProductPostingGroup Entity
-	@Column(length = 20)
-	private String vatProductPostingGroup;
-
-	// GeneralBusinessPostingGroupEntity Entity
-	@Column(length = 20)
-	private String genBusinessPostingGroup;
-
-	// GeneralProductPostingGroupEntity
-	@Column(length = 20)
-	private String genProductPostingGroup;
+//	// VatBusinessPostingGroup Entity
+//	@Column(length = 20)
+//	private String vatBusinessPostingGroup;
+//
+//	// VatProductPostingGroup Entity
+//	@Column(length = 20)
+//	private String vatProductPostingGroup;
+//
+//	// GeneralBusinessPostingGroupEntity Entity
+//	@Column(length = 20)
+//	private String genBusinessPostingGroup;
+//
+//	// GeneralProductPostingGroupEntity
+//	@Column(length = 20)
+//	private String genProductPostingGroup;
 
 	// FlowFields
 

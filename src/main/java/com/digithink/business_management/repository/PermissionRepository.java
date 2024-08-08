@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.digithink.business_management.dto.AbilityDTO;
-import com.digithink.business_management.model.Permission;
 import com.digithink.business_management.model.enumeration.PermissionAction;
 import com.digithink.business_management.model.enumeration.PermissionPage;
+import com.digithink.business_management.model.system.Permission;
 
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
 

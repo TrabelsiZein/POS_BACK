@@ -1,7 +1,9 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.system;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+
+import com.digithink.business_management.model._BaseSysEntity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -9,7 +11,7 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class Company extends _BaseEntity {
+public class Company extends _BaseSysEntity {
 
 	@Column(nullable = false, unique = true)
 	private String name;

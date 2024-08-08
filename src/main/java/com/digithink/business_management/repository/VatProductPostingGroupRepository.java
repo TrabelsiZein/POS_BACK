@@ -1,9 +1,7 @@
 package com.digithink.business_management.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.digithink.business_management.model.posting_group.VatProductPostingGroup;
 
-import com.digithink.business_management.model.VatProductPostingGroup;
-
-public interface VatProductPostingGroupRepository extends JpaRepository<VatProductPostingGroup, Long> {
+public interface VatProductPostingGroupRepository extends _BaseRepository<VatProductPostingGroup, Long> {
 
 }

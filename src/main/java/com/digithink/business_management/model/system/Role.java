@@ -1,4 +1,4 @@
-package com.digithink.business_management.model;
+package com.digithink.business_management.model.system;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -11,6 +11,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 
+import com.digithink.business_management.model._BaseSysEntity;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -19,7 +21,7 @@ import lombok.NoArgsConstructor;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
-public class Role extends _BaseEntity {
+public class Role extends _BaseSysEntity {
 
 	@Column(unique = true, nullable = false)
 	private String name;
