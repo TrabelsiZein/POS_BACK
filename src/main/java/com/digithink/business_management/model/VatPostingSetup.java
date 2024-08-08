@@ -11,8 +11,6 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class VatPostingSetup extends _BaseEntity {
 
-	@Column(length = 20)
-	private String no;
 	private Double vat;
 
 	// VatBusinessPostingGroup Entity

@@ -37,8 +37,8 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
 			return;
 		}
 
-		log.info("Read token from header");
-		log.info(request.getLocalAddr() + " :: " + request.getRemoteAddr());
+//		log.info("Read token from header");
+//		log.info(request.getLocalAddr() + " :: " + request.getRemoteAddr());
 
 		String jwtToken = request.getHeader(SecurityParams.JWT_HEADER_NAME);
 		if (jwtToken == null || !jwtToken.startsWith(SecurityParams.HEADER_PREFIX)) {

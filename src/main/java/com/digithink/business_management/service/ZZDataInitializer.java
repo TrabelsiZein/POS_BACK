@@ -33,7 +33,7 @@ public class ZZDataInitializer {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
-//	@PostConstruct	
+//	@PostConstruct
 	public void init() {
 		initSysAdminUser(initSysAdminRole());
 	}

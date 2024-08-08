@@ -46,6 +46,9 @@ public class PurchaseSetup extends _BaseEntity {
 	private String registeredCreditMemoNo;
 	// SeriesHeader Entity
 	@Column(length = 20)
+	private String registeredReceiptNo;
+	// SeriesHeader Entity
+	@Column(length = 20)
 	private String openOrderNo;
 	// SeriesHeader Entity
 	@Column(length = 20)

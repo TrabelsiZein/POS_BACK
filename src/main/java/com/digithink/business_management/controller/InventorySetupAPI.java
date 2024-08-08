@@ -7,7 +7,7 @@ import com.digithink.business_management.model.InventorySetup;
 import com.digithink.business_management.service.InventorySetupService;
 
 @RestController
-@RequestMapping("inentory_setup")
+@RequestMapping("inventory_setup")
 public class InventorySetupAPI extends _BaseController<InventorySetup, Long, InventorySetupService> {
 
 }
