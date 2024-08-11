@@ -7,9 +7,9 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.digithink.business_management.model.Permission;
+import com.digithink.business_management.model.Role;
 import com.digithink.business_management.model.enumeration.PermissionPage;
-import com.digithink.business_management.model.system.Permission;
-import com.digithink.business_management.model.system.Role;
 import com.digithink.business_management.repository.PermissionRepository;
 import com.digithink.business_management.repository.RoleRepository;
 import com.digithink.business_management.repository._BaseSysRepository;

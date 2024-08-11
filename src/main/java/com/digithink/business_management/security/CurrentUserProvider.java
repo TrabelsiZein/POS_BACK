@@ -5,7 +5,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import com.digithink.business_management.model.system.UserAccount;
+import com.digithink.business_management.model.UserAccount;
 import com.digithink.business_management.repository.UserAccountRepository;
 
 public class CurrentUserProvider {

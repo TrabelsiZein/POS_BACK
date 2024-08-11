@@ -9,7 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.digithink.business_management.dto.UserAccountDTO;
-import com.digithink.business_management.model.system.UserAccount;
+import com.digithink.business_management.model.UserAccount;
 import com.digithink.business_management.repository.UserAccountRepository;
 import com.digithink.business_management.repository._BaseSysRepository;
 

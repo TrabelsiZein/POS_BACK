@@ -1,0 +1,15 @@
+package com.digithink.business_management.controller.posting_group;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.digithink.business_management.controller._BaseController;
+import com.digithink.business_management.model.posting_group.InventoryPostingGroup;
+import com.digithink.business_management.service.posting_group.InventoryPostingGroupService;
+
+@RestController
+@RequestMapping("inventory_posting_group")
+public class InventoryPostingGroupAPI
+		extends _BaseController<InventoryPostingGroup, Long, InventoryPostingGroupService> {
+
+}

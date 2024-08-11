@@ -3,7 +3,7 @@ package com.digithink.business_management.dto;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.digithink.business_management.model.system.Role;
+import com.digithink.business_management.model.Role;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
