@@ -1,0 +1,28 @@
+package com.digithink.vacation_app.model;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+import com.digithink.vacation_app.model.enumeration.PermissionAction;
+import com.digithink.vacation_app.model.enumeration.PermissionPage;
+
+import lombok.Data;
+
+@Entity
+@Data
+public class Permission {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@Column(nullable = false)
+	private PermissionPage page;
+
+	@Column(nullable = false)
+	private PermissionAction action;
+
+}
