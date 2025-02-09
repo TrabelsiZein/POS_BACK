@@ -54,7 +54,7 @@ public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseS
 	}
 
 	@Transactional
-	public T save(T entity) {
+	public T save(T entity) throws Exception{
 		String username = currentUserProvider.getCurrentUserName();
 
 		if (entity.getId() == null) {

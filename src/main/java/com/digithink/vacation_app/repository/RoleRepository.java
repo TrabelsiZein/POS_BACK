@@ -8,6 +8,6 @@ import com.digithink.vacation_app.model.Role;
 
 public interface RoleRepository extends _BaseRepository<Role, Long> {
 
-	@Query("select new com.digithink.base_app.model.Role(r.id,r.name,r.description) from Role r")
+	@Query("select new com.digithink.vacation_app.model.Role(r.id,r.name,r.description) from Role r")
 	List<Role> findAll();
 }

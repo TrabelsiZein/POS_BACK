@@ -13,7 +13,7 @@ import com.digithink.vacation_app.model.enumeration.PermissionPage;
 
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
 
-	@Query("SELECT new com.digithink.base_app.dto.AbilityDTO(p.page, p.action) FROM UserAccount u "
+	@Query("SELECT new com.digithink.vacation_app.dto.AbilityDTO(p.page, p.action) FROM UserAccount u "
 			+ "JOIN u.roles r " + "JOIN r.permissions p WHERE u.username = :username")
 	List<AbilityDTO> getUserPermissions(@Param("username") String username);
 

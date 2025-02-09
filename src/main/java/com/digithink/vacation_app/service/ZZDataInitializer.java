@@ -39,7 +39,7 @@ public class ZZDataInitializer {
 
 	private Role initSysAdminRole() {
 		Role role = new Role();
-		role.setName("SysAdmin");
+		role.setName("Developer");
 		role.setDescription("System Administrator");
 		for (PermissionPage iterable_element : Arrays.stream(PermissionPage.values()).collect(Collectors.toList())) {
 			for (PermissionAction _iterable_element : Arrays.stream(PermissionAction.values())
@@ -57,6 +57,7 @@ public class ZZDataInitializer {
 	private void initSysAdminUser(Role role) {
 		UserAccount user = new UserAccount();
 		user.setUsername("sys_admin");
+		user.setFullName("sys_admin");
 		user.setPassword(passwordEncoder.encode("P@ssw0rd"));
 		user.setEmail("sys_admin@gmail.com");
 		user.setActive(true);

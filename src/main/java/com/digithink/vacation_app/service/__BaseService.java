@@ -13,7 +13,7 @@ public interface __BaseService<T extends _BaseEntity, ID> {
 
 	public List<T> findByField(String fieldName, String operation, Object value);
 
-	public T save(T entity);
+	public T save(T entity) throws Exception;
 
 	public void deleteById(ID id);
 }

@@ -37,10 +37,10 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	@Column(nullable = false)
 	private String password;
 
-	@Column(unique = true, nullable = true)
+	@Column(nullable = true)
 	private String fullName;
 
-	@Column(unique = true, nullable = true)
+	@Column(nullable = true)
 	private String email;
 
 	private Boolean active = true;

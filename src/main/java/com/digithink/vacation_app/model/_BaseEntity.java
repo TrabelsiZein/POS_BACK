@@ -18,12 +18,12 @@ public abstract class _BaseEntity {
 	protected Long id;
 
 	@Column(name = "created_at", updatable = false)
-	@JsonFormat(pattern = "dd-MM-yyyy-HH:mm:ss")
+	@JsonFormat(pattern = "yyyy-MM-dd | HH:mm:ss")
 	protected LocalDateTime createdAt = LocalDateTime.now();
 
 	@Column(name = "updated_at")
-	@JsonFormat(pattern = "dd-MM-yyyy-HH:mm:ss")
-	protected LocalDateTime updatedAt;
+	@JsonFormat(pattern = "yyyy-MM-dd | HH:mm:ss")
+	protected LocalDateTime updatedAt = LocalDateTime.now();;
 
 	@Column(name = "created_by", updatable = false)
 	protected String createdBy = "System";

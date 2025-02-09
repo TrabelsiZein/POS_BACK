@@ -2,6 +2,7 @@ package com.digithink.vacation_app.security;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -67,6 +68,8 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		JSONObject authRep = new JSONObject();
 
 		authRep.put("abilities", permissionRepository.getUserPermissions(user.getUsername()));
+		authRep.put("fullName", user.getFullName());
+		authRep.put("roles", user.getRoles().stream().map(element -> element.getName()).collect(Collectors.toList()));
 		authRep.put("token", token);
 		authRep.put("status", 200);
 

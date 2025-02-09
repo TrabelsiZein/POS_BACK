@@ -2,6 +2,7 @@ package com.digithink.vacation_app.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,10 @@ public class UserAccountService extends _BaseService<UserAccount, Long> {
 		return users.stream()
 				.map(user -> new UserAccountDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles()))
 				.collect(Collectors.toList());
+	}
+
+	public Optional<UserAccount> findByUsername(String username) {
+		return accountRepository.findByUsername(username);
 	}
 
 	@Override
