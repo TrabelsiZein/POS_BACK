@@ -1,14 +1,13 @@
-package com.digithink.vacation_app.security;
+package com.digithink.pos.security;
 
-import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.digithink.vacation_app.model.UserAccount;
-import com.digithink.vacation_app.repository.UserAccountRepository;
+import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.repository.UserAccountRepository;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -20,7 +19,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		UserAccount user = utilisateurRepo.findByUsername(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
-		Hibernate.initialize(user.getRoles());
 		return user;
 	}
 

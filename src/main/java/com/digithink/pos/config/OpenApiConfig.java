@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.config;
+package com.digithink.pos.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

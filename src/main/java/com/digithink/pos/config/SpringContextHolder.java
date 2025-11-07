@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.config;
+package com.digithink.pos.config;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;

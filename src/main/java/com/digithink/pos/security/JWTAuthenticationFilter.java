@@ -1,8 +1,7 @@
-package com.digithink.vacation_app.security;
+package com.digithink.pos.security;
 
 import java.io.IOException;
 import java.util.Date;
-import java.util.stream.Collectors;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -18,8 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.digithink.vacation_app.model.UserAccount;
-import com.digithink.vacation_app.repository.PermissionRepository;
+import com.digithink.pos.model.UserAccount;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -29,7 +27,6 @@ import lombok.extern.log4j.Log4j2;
 public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
 	private final AuthenticationManager authenticationManager;
-	private PermissionRepository permissionRepository;
 
 	@Override
 	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
@@ -67,9 +64,8 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
 		JSONObject authRep = new JSONObject();
 
-		authRep.put("abilities", permissionRepository.getUserPermissions(user.getUsername()));
+		authRep.put("role", user.getRole());
 		authRep.put("fullName", user.getFullName());
-		authRep.put("roles", user.getRoles().stream().map(element -> element.getName()).collect(Collectors.toList()));
 		authRep.put("token", token);
 		authRep.put("status", 200);
 

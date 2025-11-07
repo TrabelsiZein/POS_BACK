@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.service;
+package com.digithink.pos.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,10 +11,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.digithink.vacation_app.model._BaseEntity;
-import com.digithink.vacation_app.repository._BaseRepository;
-import com.digithink.vacation_app.security.CurrentUserProvider;
+import com.digithink.pos.model._BaseEntity;
+import com.digithink.pos.repository._BaseRepository;
+import com.digithink.pos.security.CurrentUserProvider;
 
+/**
+ * Base service implementation providing common CRUD operations
+ * @param <T> Entity type extending _BaseEntity
+ * @param <ID> ID type (usually Long)
+ */
 public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseService<T, ID> {
 
 	@Autowired
@@ -44,6 +49,19 @@ public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseS
 			case "<":
 				predicate = criteriaBuilder.lessThan(root.get(fieldName), (Comparable) value);
 				break;
+			case ">=":
+				predicate = criteriaBuilder.greaterThanOrEqualTo(root.get(fieldName), (Comparable) value);
+				break;
+			case "<=":
+				predicate = criteriaBuilder.lessThanOrEqualTo(root.get(fieldName), (Comparable) value);
+				break;
+			case "!=":
+			case "<>":
+				predicate = criteriaBuilder.notEqual(root.get(fieldName), value);
+				break;
+			case "LIKE":
+				predicate = criteriaBuilder.like(root.get(fieldName).as(String.class), "%" + value + "%");
+				break;
 			default:
 				throw new IllegalArgumentException("Invalid operation: " + operation);
 			}
@@ -70,5 +88,9 @@ public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseS
 
 	public void deleteById(ID id) {
 		getRepository().deleteById(id);
+	}
+	
+	public long count() {
+		return getRepository().count();
 	}
 }

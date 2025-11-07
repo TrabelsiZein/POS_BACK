@@ -1,0 +1,30 @@
+package com.digithink.pos.model;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+
+/**
+ * ItemFamily entity - top-level grouping for items
+ */
+@Entity
+@Data
+@EqualsAndHashCode(callSuper = false)
+@NoArgsConstructor
+public class ItemFamily extends _BaseEntity {
+
+	@Column(nullable = false, unique = true)
+	private String code;
+
+	@Column(nullable = false)
+	private String name;
+
+	private String description;
+
+	private Integer displayOrder = 0;
+}
+
+

@@ -1,0 +1,22 @@
+package com.digithink.pos.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Repository;
+
+import com.digithink.pos.model.CashierSession;
+import com.digithink.pos.model.ReturnHeader;
+import com.digithink.pos.model.SalesHeader;
+
+@Repository
+public interface ReturnHeaderRepository extends _BaseRepository<ReturnHeader, Long> {
+
+	Optional<ReturnHeader> findByReturnNumber(String returnNumber);
+
+	Optional<ReturnHeader> findByOriginalSalesHeader(SalesHeader salesHeader);
+
+	List<ReturnHeader> findAllByOriginalSalesHeader(SalesHeader salesHeader);
+
+	List<ReturnHeader> findByCashierSession(CashierSession cashierSession);
+}

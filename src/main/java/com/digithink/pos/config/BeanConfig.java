@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.config;
+package com.digithink.pos.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,7 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.client.RestTemplate;
 
-import com.digithink.vacation_app.security.CurrentUserProvider;
+import com.digithink.pos.security.CurrentUserProvider;
 
 import lombok.AllArgsConstructor;
 

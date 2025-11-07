@@ -10,9 +10,9 @@
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.digithink</groupId>
-	<artifactId>vacation_app</artifactId>
+	<artifactId>pos</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>vacation_app</name>
+	<name>pos</name>
 	<description></description>
 	<packaging>war</packaging>
 	<properties>
@@ -240,7 +240,7 @@
 				</configuration>
 			</plugin>
 		</plugins>
-		<finalName>vacation_app</finalName>
+		<finalName>pos</finalName>
 	</build>
 
 </project>

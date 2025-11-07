@@ -1,18 +1,24 @@
-package com.digithink.vacation_app.security;
+package com.digithink.pos.security;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import com.digithink.vacation_app.model.UserAccount;
-import com.digithink.vacation_app.repository.UserAccountRepository;
+import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.repository.UserAccountRepository;
 
+/**
+ * Provides current authenticated user information
+ */
 public class CurrentUserProvider {
 
 	@Autowired
 	private UserAccountRepository userAccountRepository;
 
+	/**
+	 * Get the current authenticated user
+	 */
 	public UserAccount getCurrentUser() {
 		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		String username;
@@ -25,14 +31,9 @@ public class CurrentUserProvider {
 				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 	}
 
-	public Long getCurrentCompanyId() {
-		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		if (principal instanceof UserAccount) {
-			return ((UserAccount) principal).getCompany();
-		}
-		throw new IllegalStateException("Current user is not authenticated or does not have a company ID");
-	}
-
+	/**
+	 * Get the current authenticated user's username
+	 */
 	public String getCurrentUserName() {
 		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		String username;

@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.model;
+package com.digithink.pos.model;
 
 import java.time.LocalDateTime;
 
@@ -10,6 +10,10 @@ import javax.persistence.MappedSuperclass;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
+/**
+ * Base entity class providing common fields for all entities
+ * All entities should extend this class to get audit fields
+ */
 @MappedSuperclass
 public abstract class _BaseEntity {
 
@@ -29,6 +33,8 @@ public abstract class _BaseEntity {
 	protected String createdBy = "System";
 
 	protected String updatedBy;
+	
+	protected Boolean active = true;
 
 	public Long getId() {
 		return id;
@@ -68,6 +74,14 @@ public abstract class _BaseEntity {
 
 	public void setUpdatedBy(String updatedBy) {
 		this.updatedBy = updatedBy;
+	}
+
+	public Boolean getActive() {
+		return active;
+	}
+
+	public void setActive(Boolean active) {
+		this.active = active;
 	}
 
 }

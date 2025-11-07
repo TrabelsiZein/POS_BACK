@@ -1,4 +1,4 @@
-package com.digithink.vacation_app.utils;
+package com.digithink.pos.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -6,8 +6,8 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import com.digithink.vacation_app.model.UserAccount;
-import com.digithink.vacation_app.service.UserAccountService;
+import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.service.UserAccountService;
 
 @Component
 public class Utils {

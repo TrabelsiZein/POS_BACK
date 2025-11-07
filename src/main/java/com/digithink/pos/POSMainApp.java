@@ -1,4 +1,4 @@
-package com.digithink.vacation_app;
+package com.digithink.pos;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -10,17 +10,17 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @SpringBootApplication
 @EnableScheduling
-public class VacationAppMainApp extends SpringBootServletInitializer {
+public class POSMainApp extends SpringBootServletInitializer {
 
 	public static void main(String[] args) {
 		javax.net.ssl.HttpsURLConnection.setDefaultHostnameVerifier((hostname, sslSession) -> true);
-		SpringApplication.run(VacationAppMainApp.class, args);
+		SpringApplication.run(POSMainApp.class, args);
 	}
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
 		super.configure(builder);
-		return builder.sources(VacationAppMainApp.class);
+		return builder.sources(POSMainApp.class);
 	}
 
 }
