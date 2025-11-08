@@ -17,5 +17,15 @@ public class GeneralSetupService extends _BaseService<GeneralSetup, Long> {
 	protected _BaseRepository<GeneralSetup, Long> getRepository() {
 		return generalSetupRepository;
 	}
+
+	public GeneralSetup findByCode(String code) {
+		return generalSetupRepository.findByCode(code).orElse(null);
+	}
+
+	public String findValueByCode(String code) {
+		return generalSetupRepository.findByCode(code)
+				.map(GeneralSetup::getValeur)
+				.orElse(null);
+	}
 }
 

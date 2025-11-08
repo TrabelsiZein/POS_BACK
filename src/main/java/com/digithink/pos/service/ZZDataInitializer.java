@@ -5,6 +5,9 @@ import javax.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.digithink.pos.erp.enumeration.ErpSyncJobType;
+import com.digithink.pos.erp.model.ErpSyncJob;
+import com.digithink.pos.erp.repository.ErpSyncJobRepository;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
 import com.digithink.pos.model.Item;
@@ -43,6 +46,7 @@ public class ZZDataInitializer {
 	private ItemBarcodeRepository itemBarcodeRepository;
 	private LocationRepository locationRepository;
 	private GeneralSetupRepository generalSetupRepository;
+	private ErpSyncJobRepository erpSyncJobRepository;
 
 	@PostConstruct
 	public void init() {
@@ -51,8 +55,7 @@ public class ZZDataInitializer {
 			initUsers();
 		}
 
-		if (paymentMethodRepository.count() == 0 ||
-				!paymentMethodRepository.findByCode("CLIENT_ESPECES").isPresent()) {
+		if (paymentMethodRepository.count() == 0 || !paymentMethodRepository.findByCode("CLIENT_ESPECES").isPresent()) {
 			// Reset payment methods to new configuration
 			paymentMethodRepository.deleteAll();
 			initPaymentMethods();
@@ -91,6 +94,10 @@ public class ZZDataInitializer {
 		if (generalSetupRepository.count() == 0) {
 			// Create general setup records
 			initGeneralSetup();
+		}
+
+		if (erpSyncJobRepository.count() == 0) {
+			initErpSyncJobs();
 		}
 	}
 
@@ -768,5 +775,44 @@ public class ZZDataInitializer {
 			voucherValidity.setUpdatedBy("System");
 			generalSetupRepository.save(voucherValidity);
 		}
+
+		if (!generalSetupRepository.findByCode("ERP_SYNC_TRACKING_LEVEL").isPresent()) {
+			GeneralSetup erpTracking = new GeneralSetup();
+			erpTracking.setCode("ERP_SYNC_TRACKING_LEVEL");
+			erpTracking.setValeur("ERRORS_ONLY");
+			erpTracking.setDescription("ERP communication tracking level (ERRORS_ONLY | ALL)");
+			erpTracking.setReadOnly(false);
+			erpTracking.setActive(true);
+			erpTracking.setCreatedBy("System");
+			erpTracking.setUpdatedBy("System");
+			generalSetupRepository.save(erpTracking);
+		}
+	}
+
+	private void initErpSyncJobs() {
+		createErpJob("0 0 2 * * *", ErpSyncJobType.IMPORT_ITEM_FAMILIES, "Daily import of item families", false);
+		createErpJob("0 10 2 * * *", ErpSyncJobType.IMPORT_ITEM_SUBFAMILIES, "Daily import of item subfamilies", false);
+		createErpJob("0 0 * * * *", ErpSyncJobType.IMPORT_ITEMS, "Hourly import of items", false);
+		createErpJob("0 10 * * * *", ErpSyncJobType.IMPORT_ITEM_BARCODES, "Hourly import of item barcodes", false);
+		createErpJob("0 20 2 * * *", ErpSyncJobType.IMPORT_LOCATIONS, "Daily import of locations", false);
+		createErpJob("0 30 * * * *", ErpSyncJobType.IMPORT_CUSTOMERS, "Hourly import of customers", false);
+		createErpJob("0 0 0 1 1 *", ErpSyncJobType.EXPORT_CUSTOMERS,
+				"Template job for exporting customers (disabled by default)", false);
+		createErpJob("0 0 0 1 1 *", ErpSyncJobType.EXPORT_TICKETS,
+				"Template job for exporting tickets (disabled by default)", false);
+	}
+
+	private void createErpJob(String cron, ErpSyncJobType type, String description, boolean enabled) {
+		if (erpSyncJobRepository.findByJobType(type).isPresent()) {
+			return;
+		}
+		ErpSyncJob job = new ErpSyncJob();
+		job.setJobType(type);
+		job.setCronExpression(cron);
+		job.setDescription(description);
+		job.setEnabled(enabled);
+		job.setCreatedBy("System");
+		job.setUpdatedBy("System");
+		erpSyncJobRepository.save(job);
 	}
 }

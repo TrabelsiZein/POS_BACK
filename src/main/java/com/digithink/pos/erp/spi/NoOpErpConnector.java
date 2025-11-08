@@ -1,0 +1,66 @@
+package com.digithink.pos.erp.spi;
+
+import java.util.Collections;
+import java.util.List;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
+import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
+import com.digithink.pos.erp.dto.ErpItemDTO;
+import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
+import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
+import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.erp.dto.ErpOperationResult;
+import com.digithink.pos.erp.dto.ErpSyncFilter;
+import com.digithink.pos.erp.dto.ErpTicketDTO;
+
+/**
+ * Default connector used when no ERP implementation is configured.
+ */
+@Component
+@Profile("!erp-disabled")
+public class NoOpErpConnector implements ErpConnector {
+
+	@Override
+	public List<ErpItemFamilyDTO> fetchItemFamilies(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpItemSubFamilyDTO> fetchItemSubFamilies(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpItemDTO> fetchItems(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpItemBarcodeDTO> fetchItemBarcodes(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpLocationDTO> fetchLocations(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public ErpOperationResult pushCustomer(ErpCustomerDTO customer) {
+		return ErpOperationResult.failure("ERP connector not configured");
+	}
+
+	@Override
+	public ErpOperationResult pushTicket(ErpTicketDTO ticket) {
+		return ErpOperationResult.failure("ERP connector not configured");
+	}
+}
+

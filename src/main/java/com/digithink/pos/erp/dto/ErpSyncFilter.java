@@ -1,0 +1,26 @@
+package com.digithink.pos.erp.dto;
+
+import java.time.LocalDateTime;
+
+public class ErpSyncFilter {
+
+	private LocalDateTime updatedAfter;
+	private Integer limit;
+
+	public LocalDateTime getUpdatedAfter() {
+		return updatedAfter;
+	}
+
+	public void setUpdatedAfter(LocalDateTime updatedAfter) {
+		this.updatedAfter = updatedAfter;
+	}
+
+	public Integer getLimit() {
+		return limit;
+	}
+
+	public void setLimit(Integer limit) {
+		this.limit = limit;
+	}
+}
+
