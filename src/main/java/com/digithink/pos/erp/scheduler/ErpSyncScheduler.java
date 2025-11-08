@@ -26,9 +26,10 @@ public class ErpSyncScheduler {
 	private final ErpSyncJobService jobService;
 	private final ErpSyncJobRunner jobRunner;
 
-	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:60000}")
+	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:5000}")
 	public void pollJobs() {
 		List<ErpSyncJob> jobs = jobService.findEnabledJobs();
+		System.out.println(jobs.size());
 		if (jobs.isEmpty()) {
 			return;
 		}

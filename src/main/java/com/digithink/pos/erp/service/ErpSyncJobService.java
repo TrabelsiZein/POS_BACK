@@ -24,7 +24,7 @@ public class ErpSyncJobService extends _BaseService<ErpSyncJob, Long> {
 	}
 
 	public List<ErpSyncJob> findEnabledJobs() {
-		return jobRepository.findByEnabledTrueOrderByJobNameAsc();
+		return jobRepository.findByEnabledTrueOrderByJobTypeAsc();
 	}
 
 	public void markExecution(ErpSyncJob job, String status, LocalDateTime nextRun) {
@@ -43,4 +43,3 @@ public class ErpSyncJobService extends _BaseService<ErpSyncJob, Long> {
 		jobRepository.save(job);
 	}
 }
-

@@ -14,7 +14,7 @@ public interface ErpSyncJobRepository extends _BaseRepository<ErpSyncJob, Long> 
 
 	Optional<ErpSyncJob> findByJobType(ErpSyncJobType jobType);
 
-	List<ErpSyncJob> findByEnabledTrueOrderByJobNameAsc();
+	List<ErpSyncJob> findByEnabledTrueOrderByJobTypeAsc();
 
 	List<ErpSyncJob> findByJobTypeAndEnabledTrue(ErpSyncJobType jobType);
 }

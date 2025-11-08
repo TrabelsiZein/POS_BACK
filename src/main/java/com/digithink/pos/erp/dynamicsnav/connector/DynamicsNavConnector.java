@@ -1,11 +1,12 @@
-package com.digithink.pos.erp.spi;
+package com.digithink.pos.erp.dynamicsnav.connector;
 
-import java.util.Collections;
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
+import com.digithink.pos.erp.dynamicsnav.mapper.DynamicsNavMapper;
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
@@ -15,52 +16,56 @@ import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
+import com.digithink.pos.erp.spi.ErpConnector;
 
-/**
- * Default connector used when no ERP implementation is configured.
- */
+import lombok.RequiredArgsConstructor;
+
 @Component
-@ConditionalOnMissingBean(ErpConnector.class)
-public class NoOpErpConnector implements ErpConnector {
+@ConditionalOnProperty(prefix = "erp.dynamicsnav", name = "enabled", havingValue = "true")
+@RequiredArgsConstructor
+public class DynamicsNavConnector implements ErpConnector {
+
+	private final DynamicsNavRestClient restClient;
+	private final DynamicsNavMapper mapper;
 
 	@Override
 	public List<ErpItemFamilyDTO> fetchItemFamilies(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return mapper.toItemFamilyDTOs(restClient.fetchItemFamilies());
 	}
 
 	@Override
 	public List<ErpItemSubFamilyDTO> fetchItemSubFamilies(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return java.util.Collections.emptyList();
 	}
 
 	@Override
 	public List<ErpItemDTO> fetchItems(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return java.util.Collections.emptyList();
 	}
 
 	@Override
 	public List<ErpItemBarcodeDTO> fetchItemBarcodes(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return java.util.Collections.emptyList();
 	}
 
 	@Override
 	public List<ErpLocationDTO> fetchLocations(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return java.util.Collections.emptyList();
 	}
 
 	@Override
 	public List<ErpCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
-		return Collections.emptyList();
+		return java.util.Collections.emptyList();
 	}
 
 	@Override
 	public ErpOperationResult pushCustomer(ErpCustomerDTO customer) {
-		return ErpOperationResult.failure("ERP connector not configured");
+		return ErpOperationResult.failure("Not implemented");
 	}
 
 	@Override
 	public ErpOperationResult pushTicket(ErpTicketDTO ticket) {
-		return ErpOperationResult.failure("ERP connector not configured");
+		return ErpOperationResult.failure("Not implemented");
 	}
 }
 
