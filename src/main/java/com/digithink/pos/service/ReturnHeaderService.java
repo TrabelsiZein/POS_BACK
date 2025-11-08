@@ -16,7 +16,6 @@ import com.digithink.pos.dto.ProcessReturnRequestDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
-import com.digithink.pos.model.Item;
 import com.digithink.pos.model.ReturnHeader;
 import com.digithink.pos.model.ReturnLine;
 import com.digithink.pos.model.ReturnVoucher;
@@ -82,7 +81,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	public boolean canReturnTicket(SalesHeader salesHeader) {
 		// Get max days for return from GeneralSetup
 		Optional<GeneralSetup> maxDaysSetup = generalSetupRepository.findByCode("MAX_DAYS_FOR_RETURN");
-		
+
 		if (!maxDaysSetup.isPresent()) {
 			log.warn("MAX_DAYS_FOR_RETURN not found in GeneralSetup, allowing return");
 			return true; // If not configured, allow return
@@ -93,7 +92,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			LocalDateTime salesDate = salesHeader.getSalesDate();
 			LocalDateTime now = LocalDateTime.now();
 			long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(salesDate.toLocalDate(), now.toLocalDate());
-			
+
 			return daysDiff <= maxDays;
 		} catch (NumberFormatException e) {
 			log.error("Invalid MAX_DAYS_FOR_RETURN value: " + maxDaysSetup.get().getValeur(), e);
@@ -106,7 +105,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	 */
 	public boolean isSimpleReturnEnabled() {
 		Optional<GeneralSetup> enableSimpleReturn = generalSetupRepository.findByCode("ENABLE_SIMPLE_RETURN");
-		
+
 		if (!enableSimpleReturn.isPresent()) {
 			return false; // Default to disabled if not configured
 		}
@@ -119,7 +118,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	 */
 	public int getReturnVoucherValidityDays() {
 		Optional<GeneralSetup> validityDaysSetup = generalSetupRepository.findByCode("RETURN_VOUCHER_VALIDITY_DAYS");
-		
+
 		if (!validityDaysSetup.isPresent()) {
 			return 30; // Default to 30 days
 		}
@@ -137,16 +136,17 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	 */
 	@Transactional(rollbackFor = Exception.class)
 	public ReturnHeader processReturn(ProcessReturnRequestDTO request, UserAccount currentUser) throws Exception {
-		log.info("Processing return for ticket: " + request.getTicketNumber() + " by user: " + currentUser.getUsername());
+		log.info("Processing return for ticket: " + request.getTicketNumber() + " by user: "
+				+ currentUser.getUsername());
 
 		// Get current cashier session
 		CashierSession currentSession = cashierSessionRepository
-			.findByCashierAndStatus(currentUser, com.digithink.pos.model.enumeration.SessionStatus.OPENED)
-			.orElseThrow(() -> new IllegalStateException("No open cashier session found"));
+				.findByCashierAndStatus(currentUser, com.digithink.pos.model.enumeration.SessionStatus.OPENED)
+				.orElseThrow(() -> new IllegalStateException("No open cashier session found"));
 
 		// Find original sales header
 		SalesHeader originalSalesHeader = salesHeaderRepository.findBySalesNumber(request.getTicketNumber())
-			.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + request.getTicketNumber()));
+				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + request.getTicketNumber()));
 
 		// Check if ticket is completed
 		if (originalSalesHeader.getStatus() != TransactionStatus.COMPLETED) {
@@ -171,9 +171,10 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		// Get all sales lines for the original ticket
 		List<SalesLine> originalSalesLines = salesLineRepository.findBySalesHeader(originalSalesHeader);
 
-		// Get all previous returns for this sales header to calculate remaining quantities
+		// Get all previous returns for this sales header to calculate remaining
+		// quantities
 		List<ReturnHeader> previousReturns = returnHeaderRepository.findAllByOriginalSalesHeader(originalSalesHeader);
-		
+
 		// Calculate already returned quantities for each sales line
 		Map<Long, Integer> returnedQuantities = new HashMap<>();
 		for (ReturnHeader prevReturn : previousReturns) {
@@ -181,8 +182,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			for (ReturnLine prevReturnLine : prevReturnLines) {
 				Long salesLineId = prevReturnLine.getOriginalSalesLine().getId();
 				int returnedQty = prevReturnLine.getQuantity();
-				returnedQuantities.put(salesLineId, 
-					returnedQuantities.getOrDefault(salesLineId, 0) + returnedQty);
+				returnedQuantities.put(salesLineId, returnedQuantities.getOrDefault(salesLineId, 0) + returnedQty);
 			}
 		}
 
@@ -193,9 +193,9 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		for (ProcessReturnRequestDTO.ReturnLineDTO returnLineDTO : request.getReturnLines()) {
 			// Find original sales line
 			SalesLine originalSalesLine = originalSalesLines.stream()
-				.filter(line -> line.getId().equals(returnLineDTO.getSalesLineId()))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Sales line not found: " + returnLineDTO.getSalesLineId()));
+					.filter(line -> line.getId().equals(returnLineDTO.getSalesLineId())).findFirst()
+					.orElseThrow(() -> new IllegalArgumentException(
+							"Sales line not found: " + returnLineDTO.getSalesLineId()));
 
 			// Validate quantity
 			if (returnLineDTO.getQuantity() == null || returnLineDTO.getQuantity() <= 0) {
@@ -207,8 +207,8 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			int remainingReturnable = originalSalesLine.getQuantity() - alreadyReturned;
 
 			if (returnLineDTO.getQuantity() > remainingReturnable) {
-				throw new IllegalArgumentException(
-					"Return quantity (" + returnLineDTO.getQuantity() + ") cannot exceed remaining returnable quantity (" + remainingReturnable + ")");
+				throw new IllegalArgumentException("Return quantity (" + returnLineDTO.getQuantity()
+						+ ") cannot exceed remaining returnable quantity (" + remainingReturnable + ")");
 			}
 
 			// Calculate line total
@@ -313,7 +313,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	 */
 	public ReturnHeader getReturnDetails(Long returnId) {
 		return returnHeaderRepository.findById(returnId)
-			.orElseThrow(() -> new IllegalArgumentException("Return not found: " + returnId));
+				.orElseThrow(() -> new IllegalArgumentException("Return not found: " + returnId));
 	}
 
 	/**
@@ -323,4 +323,3 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		return returnHeaderRepository.findByReturnNumber(returnNumber);
 	}
 }
-

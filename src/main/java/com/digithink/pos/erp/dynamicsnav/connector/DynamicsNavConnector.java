@@ -5,8 +5,6 @@ import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
-import com.digithink.pos.erp.dynamicsnav.mapper.DynamicsNavMapper;
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
@@ -16,6 +14,8 @@ import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
+import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
+import com.digithink.pos.erp.dynamicsnav.mapper.DynamicsNavMapper;
 import com.digithink.pos.erp.spi.ErpConnector;
 
 import lombok.RequiredArgsConstructor;
@@ -40,17 +40,17 @@ public class DynamicsNavConnector implements ErpConnector {
 
 	@Override
 	public List<ErpItemDTO> fetchItems(ErpSyncFilter filter) {
-		return java.util.Collections.emptyList();
+		return mapper.toItemDTOs(restClient.fetchItems(filter));
 	}
 
 	@Override
 	public List<ErpItemBarcodeDTO> fetchItemBarcodes(ErpSyncFilter filter) {
-		return java.util.Collections.emptyList();
+		return mapper.toItemBarcodeDTOs(restClient.fetchItemBarcodes(filter));
 	}
 
 	@Override
 	public List<ErpLocationDTO> fetchLocations(ErpSyncFilter filter) {
-		return java.util.Collections.emptyList();
+		return mapper.toLocationDTOs(restClient.fetchLocations());
 	}
 
 	@Override
@@ -68,4 +68,3 @@ public class DynamicsNavConnector implements ErpConnector {
 		return ErpOperationResult.failure("Not implemented");
 	}
 }
-

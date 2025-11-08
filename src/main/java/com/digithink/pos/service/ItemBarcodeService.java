@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.ItemBarcode;
 import com.digithink.pos.repository.ItemBarcodeRepository;
-import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository._BaseRepository;
 
 @Service
@@ -18,8 +17,8 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 	@Autowired
 	private ItemBarcodeRepository itemBarcodeRepository;
 
-	@Autowired
-	private ItemRepository itemRepository;
+//	@Autowired
+//	private ItemRepository itemRepository;
 
 	@Override
 	protected _BaseRepository<ItemBarcode, Long> getRepository() {
@@ -51,4 +50,3 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 		return itemBarcodeRepository.findByItemIdAndIsPrimaryTrue(itemId);
 	}
 }
-

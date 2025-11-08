@@ -1,6 +1,5 @@
 package com.digithink.pos.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.model.ReturnVoucher;
-import com.digithink.pos.security.CurrentUserProvider;
 import com.digithink.pos.service.ReturnVoucherService;
 
 import lombok.extern.log4j.Log4j2;
@@ -19,8 +17,8 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class ReturnVoucherAPI extends _BaseController<ReturnVoucher, Long, ReturnVoucherService> {
 
-	@Autowired
-	private CurrentUserProvider currentUserProvider;
+//	@Autowired
+//	private CurrentUserProvider currentUserProvider;
 
 	/**
 	 * Get voucher details by voucher number
@@ -31,7 +29,7 @@ public class ReturnVoucherAPI extends _BaseController<ReturnVoucher, Long, Retur
 			log.info("ReturnVoucherAPI::validateVoucher: voucherNumber=" + voucherNumber);
 
 			ReturnVoucher voucher = service.findByVoucherNumber(voucherNumber)
-				.orElseThrow(() -> new IllegalArgumentException("Voucher not found: " + voucherNumber));
+					.orElseThrow(() -> new IllegalArgumentException("Voucher not found: " + voucherNumber));
 
 			boolean isValid = service.isVoucherValid(voucher);
 			double remainingAmount = service.getRemainingAmount(voucher);
@@ -53,4 +51,3 @@ public class ReturnVoucherAPI extends _BaseController<ReturnVoucher, Long, Retur
 		}
 	}
 }
-
