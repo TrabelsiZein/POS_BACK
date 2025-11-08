@@ -10,6 +10,8 @@ import com.digithink.pos.model.ItemFamily;
 public interface ItemFamilyRepository extends _BaseRepository<ItemFamily, Long> {
 
 	Optional<ItemFamily> findByCode(String code);
+
+	Optional<ItemFamily> findByErpExternalId(String erpExternalId);
 }
 
 

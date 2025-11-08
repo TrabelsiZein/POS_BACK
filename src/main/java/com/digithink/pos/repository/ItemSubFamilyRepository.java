@@ -14,6 +14,8 @@ public interface ItemSubFamilyRepository extends _BaseRepository<ItemSubFamily, 
 	Optional<ItemSubFamily> findByCode(String code);
 
 	List<ItemSubFamily> findByItemFamily(ItemFamily itemFamily);
+
+	Optional<ItemSubFamily> findByErpExternalId(String erpExternalId);
 }
 
 

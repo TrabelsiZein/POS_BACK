@@ -6,6 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
+import com.digithink.pos.erp.dto.ErpItemDTO;
+import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
+import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
+import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.enumeration.ErpSyncJobType;
 import com.digithink.pos.erp.model.ErpSyncJob;
@@ -20,6 +25,7 @@ public class ErpSyncJobRunner {
 
 	private final ErpSynchronizationManager synchronizationManager;
 	private final ErpSyncCheckpointService checkpointService;
+	private final ErpItemBootstrapService erpItemBootstrapService;
 
 	public void run(ErpSyncJob job) {
 		ErpSyncJobType jobType = job.getJobType();
@@ -31,23 +37,25 @@ public class ErpSyncJobRunner {
 		ErpSyncFilter filter = checkpointService.createFilterForJob(jobType);
 		switch (jobType) {
 		case IMPORT_ITEM_FAMILIES:
-			List<?> families = synchronizationManager.pullItemFamilies(filter);
+			List<ErpItemFamilyDTO> families = synchronizationManager.pullItemFamilies(filter);
+			erpItemBootstrapService.importItemFamilies(families);
 			checkpointService.updateLastSync(jobType, families);
 			break;
 		case IMPORT_ITEM_SUBFAMILIES:
-			List<?> subFamilies = synchronizationManager.pullItemSubFamilies(filter);
+			List<ErpItemSubFamilyDTO> subFamilies = synchronizationManager.pullItemSubFamilies(filter);
+			erpItemBootstrapService.importItemSubFamilies(subFamilies);
 			checkpointService.updateLastSync(jobType, subFamilies);
 			break;
 		case IMPORT_ITEMS:
-			List<?> items = synchronizationManager.pullItems(filter);
+			List<ErpItemDTO> items = synchronizationManager.pullItems(filter);
 			checkpointService.updateLastSync(jobType, items);
 			break;
 		case IMPORT_ITEM_BARCODES:
-			List<?> barcodes = synchronizationManager.pullItemBarcodes(filter);
+			List<ErpItemBarcodeDTO> barcodes = synchronizationManager.pullItemBarcodes(filter);
 			checkpointService.updateLastSync(jobType, barcodes);
 			break;
 		case IMPORT_LOCATIONS:
-			List<?> locations = synchronizationManager.pullLocations(filter);
+			List<ErpLocationDTO> locations = synchronizationManager.pullLocations(filter);
 			checkpointService.updateLastSync(jobType, locations);
 			break;
 		case IMPORT_CUSTOMERS:
