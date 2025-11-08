@@ -35,7 +35,7 @@ public class DynamicsNavConnector implements ErpConnector {
 
 	@Override
 	public List<ErpItemSubFamilyDTO> fetchItemSubFamilies(ErpSyncFilter filter) {
-		return java.util.Collections.emptyList();
+		return mapper.toItemSubFamilyDTOs(restClient.fetchItemSubFamilies());
 	}
 
 	@Override

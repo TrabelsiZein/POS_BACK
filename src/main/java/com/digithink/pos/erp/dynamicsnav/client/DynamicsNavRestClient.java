@@ -16,6 +16,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.digithink.pos.erp.dynamicsnav.config.DynamicsNavProperties;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCollectionResponse;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
 
 @Component
 @ConditionalOnProperty(prefix = "erp.dynamicsnav", name = "enabled", havingValue = "true")
@@ -35,14 +36,7 @@ public class DynamicsNavRestClient {
 
 	public List<DynamicsNavFamilyDTO> fetchItemFamilies() {
 		try {
-			String companySegment = properties.getCompanyUrlSegment();
-			String path = (companySegment.isEmpty() ? "" : "/" + companySegment) + "/FamilyList";
-
-			String url = UriComponentsBuilder.fromHttpUrl(ensureTrailingSlash(properties.getBaseUrl()))
-					.path(path)
-					.build(false)
-					.toUriString();
-
+			String url = buildCompanyEndpointUrl("FamilyList");
 			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavFamilyDTO>> response =
 					dynamicsNavRestTemplate.exchange(
 							url,
@@ -57,6 +51,35 @@ public class DynamicsNavRestClient {
 			LOGGER.error("Failed to fetch item families from Dynamics NAV: {}", ex.getMessage(), ex);
 			return Collections.emptyList();
 		}
+	}
+
+	public List<DynamicsNavSubFamilyDTO> fetchItemSubFamilies() {
+		try {
+			String url = buildCompanyEndpointUrl("SubFamilyList");
+			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO>> response =
+					dynamicsNavRestTemplate.exchange(
+							url,
+							HttpMethod.GET,
+							null,
+							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO>>() {
+							});
+
+			DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO> body = response.getBody();
+			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
+		} catch (Exception ex) {
+			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV: {}", ex.getMessage(), ex);
+			return Collections.emptyList();
+		}
+	}
+
+	private String buildCompanyEndpointUrl(String entityName) {
+		String companySegment = properties.getCompanyUrlSegment();
+		String path = (companySegment.isEmpty() ? "" : "/" + companySegment) + "/" + entityName;
+
+		return UriComponentsBuilder.fromHttpUrl(ensureTrailingSlash(properties.getBaseUrl()))
+				.path(path)
+				.build(false)
+				.toUriString();
 	}
 
 	private String ensureTrailingSlash(String baseUrl) {
