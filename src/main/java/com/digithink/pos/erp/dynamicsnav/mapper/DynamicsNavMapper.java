@@ -112,6 +112,7 @@ public class DynamicsNavMapper {
 
 	public ErpItemBarcodeDTO toItemBarcodeDTO(DynamicsNavBarcodeDTO navBarcode) {
 		ErpItemBarcodeDTO dto = new ErpItemBarcodeDTO();
+		dto.setExternalId(navBarcode.getBarcode());
 		dto.setItemExternalId(navBarcode.getItemNo());
 		dto.setBarcode(navBarcode.getBarcode());
 		dto.setUnitOfMeasure(navBarcode.getUnitOfMeasureCode());

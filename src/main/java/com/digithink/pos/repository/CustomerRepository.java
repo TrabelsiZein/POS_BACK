@@ -11,5 +11,7 @@ public interface CustomerRepository extends _BaseRepository<Customer, Long> {
 	
 	long countByCreatedAtGreaterThanEqual(LocalDateTime date);
 
+	Optional<Customer> findByErpExternalId(String erpExternalId);
+
 }
 

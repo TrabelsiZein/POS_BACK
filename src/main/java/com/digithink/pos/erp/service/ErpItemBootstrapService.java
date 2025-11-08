@@ -1,5 +1,6 @@
 package com.digithink.pos.erp.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,12 +13,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
+import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
+import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.model.Customer;
+import com.digithink.pos.model.Item;
+import com.digithink.pos.model.ItemBarcode;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
+import com.digithink.pos.model.Location;
+import com.digithink.pos.repository.CustomerRepository;
+import com.digithink.pos.repository.ItemBarcodeRepository;
 import com.digithink.pos.repository.ItemFamilyRepository;
+import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.ItemSubFamilyRepository;
+import com.digithink.pos.repository.LocationRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +43,10 @@ public class ErpItemBootstrapService {
 
 	private final ItemFamilyRepository itemFamilyRepository;
 	private final ItemSubFamilyRepository itemSubFamilyRepository;
+	private final ItemRepository itemRepository;
+	private final ItemBarcodeRepository itemBarcodeRepository;
+	private final CustomerRepository customerRepository;
+	private final LocationRepository locationRepository;
 
 	@Transactional
 	public List<ItemFamily> importItemFamilies(List<ErpItemFamilyDTO> families) {
@@ -72,7 +89,7 @@ public class ErpItemBootstrapService {
 				continue;
 			}
 
-			Optional<ItemFamily> familyOpt = resolveFamilyForSubFamily(dto);
+			Optional<ItemFamily> familyOpt = resolveFamily(dto.getFamilyExternalId());
 			if (!familyOpt.isPresent()) {
 				LOGGER.warn("Skipping subfamily with external id {} because parent family {} not found",
 						dto.getExternalId(), dto.getFamilyExternalId());
@@ -97,19 +114,164 @@ public class ErpItemBootstrapService {
 		return persisted;
 	}
 
+	@Transactional
+	public List<Item> importItems(List<ErpItemDTO> items) {
+		if (items == null || items.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Item> persisted = new ArrayList<>();
+		for (ErpItemDTO dto : items) {
+			if (dto == null) {
+				continue;
+			}
+			Item entity = resolveItem(dto);
+			boolean isNew = entity.getId() == null;
+			applyItemValues(entity, dto);
+			if (!StringUtils.hasText(entity.getItemCode())) {
+				LOGGER.warn("Skipping item import because no code/external identifier provided: {}", dto);
+				continue;
+			}
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+			persisted.add(itemRepository.save(entity));
+		}
+		return persisted;
+	}
+
+	@Transactional
+	public List<ItemBarcode> importItemBarcodes(List<ErpItemBarcodeDTO> barcodes) {
+		if (barcodes == null || barcodes.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<ItemBarcode> persisted = new ArrayList<>();
+		for (ErpItemBarcodeDTO dto : barcodes) {
+			if (dto == null) {
+				continue;
+			}
+			Optional<Item> itemOpt = resolveItem(dto.getItemExternalId());
+			if (!itemOpt.isPresent()) {
+				LOGGER.warn("Skipping item barcode {} because parent item {} not found",
+						dto.getBarcode(), dto.getItemExternalId());
+				continue;
+			}
+
+			ItemBarcode entity = resolveItemBarcode(dto);
+			boolean isNew = entity.getId() == null;
+			applyBarcodeValues(entity, dto, itemOpt.get());
+			if (!StringUtils.hasText(entity.getBarcode())) {
+				LOGGER.warn("Skipping item barcode import because no barcode value provided: {}", dto);
+				continue;
+			}
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+			persisted.add(itemBarcodeRepository.save(entity));
+		}
+		return persisted;
+	}
+
+	@Transactional
+	public List<Location> importLocations(List<ErpLocationDTO> locations) {
+		if (locations == null || locations.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Location> persisted = new ArrayList<>();
+		for (ErpLocationDTO dto : locations) {
+			if (dto == null) {
+				continue;
+			}
+			Location entity = resolveLocation(dto);
+			boolean isNew = entity.getId() == null;
+			applyLocationValues(entity, dto);
+			if (!StringUtils.hasText(entity.getLocationCode())) {
+				LOGGER.warn("Skipping location import because no code/external identifier provided: {}", dto);
+				continue;
+			}
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+			persisted.add(locationRepository.save(entity));
+		}
+		return persisted;
+	}
+
+	@Transactional
+	public List<Customer> importCustomers(List<ErpCustomerDTO> customers) {
+		if (customers == null || customers.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Customer> persisted = new ArrayList<>();
+		for (ErpCustomerDTO dto : customers) {
+			if (dto == null) {
+				continue;
+			}
+			Customer entity = resolveCustomer(dto);
+			boolean isNew = entity.getId() == null;
+			applyCustomerValues(entity, dto);
+			if (!StringUtils.hasText(entity.getCustomerCode())) {
+				LOGGER.warn("Skipping customer import because no code/external identifier provided: {}", dto);
+				continue;
+			}
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+			persisted.add(customerRepository.save(entity));
+		}
+		return persisted;
+	}
+
 	private ItemFamily resolveItemFamily(ErpItemFamilyDTO dto) {
 		return findFamilyByExternalOrCode(dto.getExternalId(), dto.getCode())
 				.orElseGet(ItemFamily::new);
 	}
 
+	private Optional<ItemFamily> resolveFamily(String identifier) {
+		if (!StringUtils.hasText(identifier)) {
+			return Optional.empty();
+		}
+		Optional<ItemFamily> byExternal = itemFamilyRepository.findByErpExternalId(identifier);
+		if (byExternal.isPresent()) {
+			return byExternal;
+		}
+		return itemFamilyRepository.findByCode(identifier);
+	}
+
+	private Optional<ItemSubFamily> resolveSubFamily(String identifier) {
+		if (!StringUtils.hasText(identifier)) {
+			return Optional.empty();
+		}
+		Optional<ItemSubFamily> byExternal = itemSubFamilyRepository.findByErpExternalId(identifier);
+		if (byExternal.isPresent()) {
+			return byExternal;
+		}
+		return itemSubFamilyRepository.findByCode(identifier);
+	}
+
 	private Optional<ItemFamily> findFamilyByExternalOrCode(String externalId, String code) {
-		if (externalId != null && !externalId.isEmpty()) {
+		if (StringUtils.hasText(externalId)) {
 			Optional<ItemFamily> byExternalId = itemFamilyRepository.findByErpExternalId(externalId);
 			if (byExternalId.isPresent()) {
 				return byExternalId;
 			}
 		}
-		if (code != null && !code.isEmpty()) {
+		if (StringUtils.hasText(code)) {
 			return itemFamilyRepository.findByCode(code);
 		}
 		return Optional.empty();
@@ -121,14 +283,97 @@ public class ErpItemBootstrapService {
 	}
 
 	private Optional<ItemSubFamily> findSubFamilyByExternalOrCode(String externalId, String code) {
-		if (externalId != null && !externalId.isEmpty()) {
+		if (StringUtils.hasText(externalId)) {
 			Optional<ItemSubFamily> byExternalId = itemSubFamilyRepository.findByErpExternalId(externalId);
 			if (byExternalId.isPresent()) {
 				return byExternalId;
 			}
 		}
-		if (code != null && !code.isEmpty()) {
+		if (StringUtils.hasText(code)) {
 			return itemSubFamilyRepository.findByCode(code);
+		}
+		return Optional.empty();
+	}
+
+	private Item resolveItem(ErpItemDTO dto) {
+		return findItemByExternalOrCode(dto.getExternalId(), dto.getCode())
+				.orElseGet(Item::new);
+	}
+
+	private Optional<Item> resolveItem(String identifier) {
+		if (!StringUtils.hasText(identifier)) {
+			return Optional.empty();
+		}
+		Optional<Item> byExternal = itemRepository.findByErpExternalId(identifier);
+		if (byExternal.isPresent()) {
+			return byExternal;
+		}
+		return itemRepository.findByItemCode(identifier);
+	}
+
+	private Optional<Item> findItemByExternalOrCode(String externalId, String code) {
+		if (StringUtils.hasText(externalId)) {
+			Optional<Item> byExternalId = itemRepository.findByErpExternalId(externalId);
+			if (byExternalId.isPresent()) {
+				return byExternalId;
+			}
+		}
+		if (StringUtils.hasText(code)) {
+			return itemRepository.findByItemCode(code);
+		}
+		return Optional.empty();
+	}
+
+	private ItemBarcode resolveItemBarcode(ErpItemBarcodeDTO dto) {
+		return findBarcodeByExternalOrValue(dto.getExternalId(), dto.getBarcode())
+				.orElseGet(ItemBarcode::new);
+	}
+
+	private Optional<ItemBarcode> findBarcodeByExternalOrValue(String externalId, String barcode) {
+		if (StringUtils.hasText(externalId)) {
+			Optional<ItemBarcode> byExternal = itemBarcodeRepository.findByErpExternalId(externalId);
+			if (byExternal.isPresent()) {
+				return byExternal;
+			}
+		}
+		if (StringUtils.hasText(barcode)) {
+			return itemBarcodeRepository.findByBarcode(barcode);
+		}
+		return Optional.empty();
+	}
+
+	private Location resolveLocation(ErpLocationDTO dto) {
+		return findLocationByExternalOrCode(dto.getExternalId(), dto.getCode())
+				.orElseGet(Location::new);
+	}
+
+	private Optional<Location> findLocationByExternalOrCode(String externalId, String code) {
+		if (StringUtils.hasText(externalId)) {
+			Optional<Location> byExternal = locationRepository.findByErpExternalId(externalId);
+			if (byExternal.isPresent()) {
+				return byExternal;
+			}
+		}
+		if (StringUtils.hasText(code)) {
+			return locationRepository.findByLocationCode(code);
+		}
+		return Optional.empty();
+	}
+
+	private Customer resolveCustomer(ErpCustomerDTO dto) {
+		return findCustomerByExternalOrCode(dto.getExternalId(), dto.getCode())
+				.orElseGet(Customer::new);
+	}
+
+	private Optional<Customer> findCustomerByExternalOrCode(String externalId, String code) {
+		if (StringUtils.hasText(externalId)) {
+			Optional<Customer> byExternal = customerRepository.findByErpExternalId(externalId);
+			if (byExternal.isPresent()) {
+				return byExternal;
+			}
+		}
+		if (StringUtils.hasText(code)) {
+			return customerRepository.findByCustomerCode(code);
 		}
 		return Optional.empty();
 	}
@@ -164,19 +409,61 @@ public class ErpItemBootstrapService {
 		entity.setItemFamily(family);
 	}
 
-	private Optional<ItemFamily> resolveFamilyForSubFamily(ErpItemSubFamilyDTO dto) {
-		String familyExternalId = dto.getFamilyExternalId();
-		if (StringUtils.hasText(familyExternalId)) {
-			Optional<ItemFamily> byExternal = itemFamilyRepository.findByErpExternalId(familyExternalId);
-			if (byExternal.isPresent()) {
-				return byExternal;
-			}
-			Optional<ItemFamily> byCode = itemFamilyRepository.findByCode(familyExternalId);
-			if (byCode.isPresent()) {
-				return byCode;
-			}
+	private void applyItemValues(Item entity, ErpItemDTO dto) {
+		entity.setErpExternalId(defaultString(dto.getExternalId()));
+		entity.setItemCode(defaultString(dto.getCode(), dto.getExternalId()));
+		entity.setName(defaultString(dto.getName(), dto.getCode(), dto.getExternalId()));
+		entity.setDescription(defaultString(dto.getDescription()));
+		entity.setUnitPrice(toDouble(dto.getSalesPrice()));
+		entity.setCostPrice(toDouble(dto.getCostPrice()));
+		if (dto.getActive() != null) {
+			entity.setActive(dto.getActive());
 		}
-		return Optional.empty();
+		resolveFamily(dto.getFamilyExternalId()).ifPresent(entity::setItemFamily);
+		resolveSubFamily(dto.getSubFamilyExternalId()).ifPresent(entity::setItemSubFamily);
+	}
+
+	private void applyBarcodeValues(ItemBarcode entity, ErpItemBarcodeDTO dto, Item item) {
+		entity.setErpExternalId(defaultString(dto.getExternalId(), dto.getBarcode()));
+		entity.setItem(item);
+		entity.setBarcode(defaultString(dto.getBarcode(), dto.getExternalId()));
+		entity.setDescription(defaultString(dto.getUnitOfMeasure()));
+		if (dto.getPrimaryBarcode() != null) {
+			entity.setIsPrimary(dto.getPrimaryBarcode());
+		}
+		entity.setActive(Boolean.TRUE);
+	}
+
+	private void applyLocationValues(Location entity, ErpLocationDTO dto) {
+		entity.setErpExternalId(defaultString(dto.getExternalId(), dto.getCode()));
+		entity.setLocationCode(defaultString(dto.getCode(), dto.getExternalId()));
+		entity.setName(defaultString(dto.getName(), dto.getCode(), dto.getExternalId()));
+		entity.setDescription(defaultString(dto.getAddress()));
+		entity.setAddress(defaultString(dto.getAddress()));
+		entity.setCity(defaultString(dto.getCity()));
+		entity.setCountry(defaultString(dto.getCountry()));
+		if (dto.getActive() != null) {
+			entity.setActive(dto.getActive());
+		}
+	}
+
+	private void applyCustomerValues(Customer entity, ErpCustomerDTO dto) {
+		entity.setErpExternalId(defaultString(dto.getExternalId(), dto.getCode()));
+		entity.setCustomerCode(defaultString(dto.getCode(), dto.getExternalId()));
+		entity.setName(defaultString(dto.getName(), dto.getCode(), dto.getExternalId()));
+		entity.setEmail(defaultString(dto.getEmail()));
+		entity.setPhone(defaultString(dto.getPhone()));
+		entity.setAddress(defaultString(dto.getAddress()));
+		entity.setCity(defaultString(dto.getCity()));
+		entity.setCountry(defaultString(dto.getCountry()));
+		entity.setTaxId(defaultString(dto.getTaxNumber()));
+		if (dto.getActive() != null) {
+			entity.setActive(dto.getActive());
+		}
+	}
+
+	private Double toDouble(BigDecimal value) {
+		return value != null ? value.doubleValue() : null;
 	}
 
 	private String defaultString(String value) {

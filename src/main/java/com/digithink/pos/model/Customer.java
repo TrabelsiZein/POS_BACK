@@ -16,6 +16,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Customer extends _BaseEntity {
 
+	@Column(name = "erp_external_id", unique = true)
+	private String erpExternalId;
+
 	@Column(nullable = false, unique = true)
 	private String customerCode;
 

@@ -4,11 +4,20 @@ import java.time.OffsetDateTime;
 
 public class ErpItemBarcodeDTO implements ErpTimestamped {
 
+	private String externalId;
 	private String itemExternalId;
 	private String barcode;
 	private String unitOfMeasure;
 	private Boolean primaryBarcode;
 	private OffsetDateTime lastModifiedAt;
+
+	public String getExternalId() {
+		return externalId;
+	}
+
+	public void setExternalId(String externalId) {
+		this.externalId = externalId;
+	}
 
 	public String getItemExternalId() {
 		return itemExternalId;

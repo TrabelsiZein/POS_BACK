@@ -19,6 +19,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ItemBarcode extends _BaseEntity {
 
+	@Column(name = "erp_external_id", unique = true)
+	private String erpExternalId;
+
 	@ManyToOne
 	@JoinColumn(name = "item_id", nullable = false)
 	private Item item;

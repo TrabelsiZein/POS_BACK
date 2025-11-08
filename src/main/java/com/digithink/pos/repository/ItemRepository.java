@@ -12,6 +12,8 @@ public interface ItemRepository extends _BaseRepository<Item, Long> {
 
 	Optional<Item> findByItemCode(String itemCode);
 
+	Optional<Item> findByErpExternalId(String erpExternalId);
+
 	List<Item> findByType(ItemType type);
 
 	List<Item> findByStockQuantityLessThan(Integer quantity);

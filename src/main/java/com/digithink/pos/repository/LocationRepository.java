@@ -11,5 +11,7 @@ public interface LocationRepository extends _BaseRepository<Location, Long> {
 	Optional<Location> findByName(String name);
 
 	Optional<Location> findByIsDefaultTrue();
+
+	Optional<Location> findByErpExternalId(String erpExternalId);
 }
 

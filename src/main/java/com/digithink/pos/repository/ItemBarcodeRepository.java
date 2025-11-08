@@ -14,5 +14,7 @@ public interface ItemBarcodeRepository extends _BaseRepository<ItemBarcode, Long
 	List<ItemBarcode> findByItemIdAndActiveTrue(Long itemId);
 
 	Optional<ItemBarcode> findByItemIdAndIsPrimaryTrue(Long itemId);
+
+	Optional<ItemBarcode> findByErpExternalId(String erpExternalId);
 }
 

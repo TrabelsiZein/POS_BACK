@@ -22,6 +22,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Item extends _BaseEntity {
 
+	@Column(name = "erp_external_id", unique = true)
+	private String erpExternalId;
+
 	@Column(nullable = false, unique = true)
 	private String itemCode;
 
