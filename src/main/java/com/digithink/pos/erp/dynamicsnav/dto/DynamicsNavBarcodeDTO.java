@@ -1,5 +1,7 @@
 package com.digithink.pos.erp.dynamicsnav.dto;
 
+import java.time.OffsetDateTime;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,5 +27,8 @@ public class DynamicsNavBarcodeDTO {
 
 	@JsonProperty("Primary")
 	private Boolean primary;
+
+	@JsonProperty("Modified_At")
+	private OffsetDateTime modifiedAt;
 }
 

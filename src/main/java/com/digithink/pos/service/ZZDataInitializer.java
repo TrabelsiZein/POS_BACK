@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.digithink.pos.erp.enumeration.ErpSyncJobType;
+import com.digithink.pos.erp.service.ErpSyncCheckpointService;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.repository.ErpSyncJobRepository;
 import com.digithink.pos.model.Customer;
@@ -95,6 +96,7 @@ public class ZZDataInitializer {
 			// Create general setup records
 			initGeneralSetup();
 		}
+		ensureErpSyncCheckpointConfigs();
 
 		if (erpSyncJobRepository.count() == 0) {
 			initErpSyncJobs();
@@ -787,6 +789,23 @@ public class ZZDataInitializer {
 			erpTracking.setUpdatedBy("System");
 			generalSetupRepository.save(erpTracking);
 		}
+	}
+
+	private void ensureErpSyncCheckpointConfigs() {
+		ErpSyncCheckpointService.getCheckpointDescriptions().forEach((code, description) -> {
+			if (generalSetupRepository.findByCode(code).isPresent()) {
+				return;
+			}
+			GeneralSetup checkpoint = new GeneralSetup();
+			checkpoint.setCode(code);
+			checkpoint.setValeur("");
+			checkpoint.setDescription(description);
+			checkpoint.setReadOnly(true);
+			checkpoint.setActive(true);
+			checkpoint.setCreatedBy("System");
+			checkpoint.setUpdatedBy("System");
+			generalSetupRepository.save(checkpoint);
+		});
 	}
 
 	private void initErpSyncJobs() {

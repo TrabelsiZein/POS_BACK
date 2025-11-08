@@ -1,6 +1,7 @@
 package com.digithink.pos.erp.dynamicsnav.dto;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -33,5 +34,8 @@ public class DynamicsNavStockKeepingUnitDTO {
 
 	@JsonProperty("Blocked")
 	private Boolean blocked;
+
+	@JsonProperty("Modified_At")
+	private OffsetDateTime modifiedAt;
 }
 

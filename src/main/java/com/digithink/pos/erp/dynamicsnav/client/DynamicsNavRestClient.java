@@ -158,7 +158,7 @@ public class DynamicsNavRestClient {
 			return Optional.empty();
 		}
 		String formatted = filter.getUpdatedAfter()
-				.atOffset(ZoneOffset.UTC)
+				.withOffsetSameInstant(ZoneOffset.UTC)
 				.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 		return Optional.of(fieldName + " gt " + formatted);
 	}

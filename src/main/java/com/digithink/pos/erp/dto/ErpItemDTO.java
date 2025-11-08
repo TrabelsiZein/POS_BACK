@@ -1,8 +1,9 @@
 package com.digithink.pos.erp.dto;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
-public class ErpItemDTO {
+public class ErpItemDTO implements ErpTimestamped {
 
 	private String externalId;
 	private String code;
@@ -13,6 +14,7 @@ public class ErpItemDTO {
 	private BigDecimal salesPrice;
 	private BigDecimal costPrice;
 	private Boolean active;
+	private OffsetDateTime lastModifiedAt;
 
 	public String getExternalId() {
 		return externalId;
@@ -84,6 +86,15 @@ public class ErpItemDTO {
 
 	public void setActive(Boolean active) {
 		this.active = active;
+	}
+
+	@Override
+	public OffsetDateTime getLastModifiedAt() {
+		return lastModifiedAt;
+	}
+
+	public void setLastModifiedAt(OffsetDateTime lastModifiedAt) {
+		this.lastModifiedAt = lastModifiedAt;
 	}
 }
 

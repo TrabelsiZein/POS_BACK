@@ -1,11 +1,14 @@
 package com.digithink.pos.erp.dto;
 
-public class ErpItemBarcodeDTO {
+import java.time.OffsetDateTime;
+
+public class ErpItemBarcodeDTO implements ErpTimestamped {
 
 	private String itemExternalId;
 	private String barcode;
 	private String unitOfMeasure;
 	private Boolean primaryBarcode;
+	private OffsetDateTime lastModifiedAt;
 
 	public String getItemExternalId() {
 		return itemExternalId;
@@ -37,6 +40,15 @@ public class ErpItemBarcodeDTO {
 
 	public void setPrimaryBarcode(Boolean primaryBarcode) {
 		this.primaryBarcode = primaryBarcode;
+	}
+
+	@Override
+	public OffsetDateTime getLastModifiedAt() {
+		return lastModifiedAt;
+	}
+
+	public void setLastModifiedAt(OffsetDateTime lastModifiedAt) {
+		this.lastModifiedAt = lastModifiedAt;
 	}
 }
 

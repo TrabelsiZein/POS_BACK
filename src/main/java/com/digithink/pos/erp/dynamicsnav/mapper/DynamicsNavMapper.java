@@ -97,6 +97,7 @@ public class DynamicsNavMapper {
 		dto.setSalesPrice(navItem.getUnitPrice());
 		dto.setCostPrice(navItem.getUnitCost());
 		dto.setActive(navItem.getBlocked() == null ? Boolean.TRUE : !navItem.getBlocked());
+		dto.setLastModifiedAt(navItem.getModifiedAt());
 		return dto;
 	}
 
@@ -119,6 +120,7 @@ public class DynamicsNavMapper {
 			primaryFlag = navBarcode.getPrimary();
 		}
 		dto.setPrimaryBarcode(primaryFlag != null ? primaryFlag : Boolean.FALSE);
+		dto.setLastModifiedAt(navBarcode.getModifiedAt());
 		return dto;
 	}
 }

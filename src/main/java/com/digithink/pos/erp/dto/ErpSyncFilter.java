@@ -1,17 +1,17 @@
 package com.digithink.pos.erp.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class ErpSyncFilter {
 
-	private LocalDateTime updatedAfter;
+	private OffsetDateTime updatedAfter;
 	private Integer limit;
 
-	public LocalDateTime getUpdatedAfter() {
+	public OffsetDateTime getUpdatedAfter() {
 		return updatedAfter;
 	}
 
-	public void setUpdatedAfter(LocalDateTime updatedAfter) {
+	public void setUpdatedAfter(OffsetDateTime updatedAfter) {
 		this.updatedAfter = updatedAfter;
 	}
 

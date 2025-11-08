@@ -1,5 +1,7 @@
 package com.digithink.pos.erp.service;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ public class ErpSyncJobRunner {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ErpSyncJobRunner.class);
 
 	private final ErpSynchronizationManager synchronizationManager;
+	private final ErpSyncCheckpointService checkpointService;
 
 	public void run(ErpSyncJob job) {
 		ErpSyncJobType jobType = job.getJobType();
@@ -25,25 +28,31 @@ public class ErpSyncJobRunner {
 			return;
 		}
 
-		ErpSyncFilter filter = new ErpSyncFilter();
+		ErpSyncFilter filter = checkpointService.createFilterForJob(jobType);
 		switch (jobType) {
 		case IMPORT_ITEM_FAMILIES:
-			synchronizationManager.pullItemFamilies(filter);
+			List<?> families = synchronizationManager.pullItemFamilies(filter);
+			checkpointService.updateLastSync(jobType, families);
 			break;
 		case IMPORT_ITEM_SUBFAMILIES:
-			synchronizationManager.pullItemSubFamilies(filter);
+			List<?> subFamilies = synchronizationManager.pullItemSubFamilies(filter);
+			checkpointService.updateLastSync(jobType, subFamilies);
 			break;
 		case IMPORT_ITEMS:
-			synchronizationManager.pullItems(filter);
+			List<?> items = synchronizationManager.pullItems(filter);
+			checkpointService.updateLastSync(jobType, items);
 			break;
 		case IMPORT_ITEM_BARCODES:
-			synchronizationManager.pullItemBarcodes(filter);
+			List<?> barcodes = synchronizationManager.pullItemBarcodes(filter);
+			checkpointService.updateLastSync(jobType, barcodes);
 			break;
 		case IMPORT_LOCATIONS:
-			synchronizationManager.pullLocations(filter);
+			List<?> locations = synchronizationManager.pullLocations(filter);
+			checkpointService.updateLastSync(jobType, locations);
 			break;
 		case IMPORT_CUSTOMERS:
-			synchronizationManager.pullCustomers(filter);
+			List<?> customers = synchronizationManager.pullCustomers(filter);
+			checkpointService.updateLastSync(jobType, customers);
 			break;
 		case EXPORT_CUSTOMERS:
 			LOGGER.info("ERP sync job {} is configured for EXPORT_CUSTOMERS. "
