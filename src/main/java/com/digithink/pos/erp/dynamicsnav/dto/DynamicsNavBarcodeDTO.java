@@ -14,21 +14,17 @@ import lombok.Setter;
 public class DynamicsNavBarcodeDTO {
 
 	@JsonProperty("Item_No")
-	private String itemNo;
-
-	@JsonProperty("Barcode")
-	private String barcode;
-
-	@JsonProperty("Unit_of_Measure_Code")
-	private String unitOfMeasureCode;
-
-	@JsonProperty("IsDefaultBarcode")
-	private Boolean defaultBarcode;
-
-	@JsonProperty("Primary")
-	private Boolean primary;
-
+	public String itemNo;
+	@JsonProperty("Cross_Reference_No")
+	public String crossReferenceNo;
 	@JsonProperty("Modified_At")
-	private OffsetDateTime modifiedAt;
+	public OffsetDateTime modifiedAt;
+	@JsonProperty("AuxiliaryIndex1")
+	public String auxiliaryIndex1;
+	@JsonProperty("AuxiliaryIndex2")
+	public String auxiliaryIndex2;
+	@JsonProperty("AuxiliaryIndex3")
+	public String auxiliaryIndex3;
+	@JsonProperty("AuxiliaryIndex4")
+	public String auxiliaryIndex4;
 }
-

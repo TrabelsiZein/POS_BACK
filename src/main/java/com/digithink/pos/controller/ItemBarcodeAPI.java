@@ -68,29 +68,43 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 	 * Get all items with their barcodes (for admin/responsible view)
 	 */
 	@GetMapping("/items-with-barcodes")
-	public ResponseEntity<?> getAllItemsWithBarcodes() {
+	public ResponseEntity<?> getAllItemsWithBarcodes(
+			@org.springframework.web.bind.annotation.RequestParam(name = "page", defaultValue = "0") int page,
+			@org.springframework.web.bind.annotation.RequestParam(name = "size", defaultValue = "20") int size,
+			@org.springframework.web.bind.annotation.RequestParam(name = "search", required = false) String search,
+			@org.springframework.web.bind.annotation.RequestParam(name = "filterType", defaultValue = "all") String filterType) {
 		try {
-			log.info("ItemBarcodeAPI::getAllItemsWithBarcodes");
-			List<Item> items = itemService.findAll();
-			List<ItemBarcode> allBarcodes = itemBarcodeService.findAll();
-			
-			// Group barcodes by item ID
-			Map<Long, List<ItemBarcode>> barcodesByItem = allBarcodes.stream()
-				.filter(b -> b.getActive() != null && b.getActive())
-				.collect(Collectors.groupingBy(b -> b.getItem().getId()));
-			
-			// Build response
-			List<Map<String, Object>> result = items.stream()
-				.filter(item -> item.getActive() != null && item.getActive())
-				.map(item -> {
-					Map<String, Object> itemMap = new HashMap<>();
-					itemMap.put("item", item);
-					itemMap.put("barcodes", barcodesByItem.getOrDefault(item.getId(), List.of()));
-					return itemMap;
-				})
-				.collect(Collectors.toList());
-			
-			return ResponseEntity.ok(result);
+			log.info("ItemBarcodeAPI::getAllItemsWithBarcodes page={}, size={}, search={}, filter={} ", page, size, search,
+					filterType);
+
+			int safePage = Math.max(page, 0);
+			int safeSize = Math.min(Math.max(size, 1), 200);
+
+			org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest
+					.of(safePage, safeSize, org.springframework.data.domain.Sort.by("itemCode").ascending());
+
+			org.springframework.data.domain.Page<Item> itemsPage = itemService.findActiveItems(search, filterType,
+					pageable);
+
+			List<Long> itemIds = itemsPage.stream().map(Item::getId).collect(Collectors.toList());
+			Map<Long, List<ItemBarcode>> barcodesByItem = itemBarcodeService.getActiveBarcodesForItems(itemIds).stream()
+					.collect(Collectors.groupingBy(barcode -> barcode.getItem().getId()));
+
+			List<Map<String, Object>> content = itemsPage.stream().map(item -> {
+				Map<String, Object> map = new HashMap<>();
+				map.put("item", item);
+				map.put("barcodes", barcodesByItem.getOrDefault(item.getId(), List.of()));
+				return map;
+			}).collect(Collectors.toList());
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", content);
+			response.put("page", itemsPage.getNumber());
+			response.put("size", itemsPage.getSize());
+			response.put("totalElements", itemsPage.getTotalElements());
+			response.put("totalPages", itemsPage.getTotalPages());
+
+			return ResponseEntity.ok(response);
 		} catch (Exception e) {
 			log.error("ItemBarcodeAPI::getAllItemsWithBarcodes:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));

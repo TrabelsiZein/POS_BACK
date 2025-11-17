@@ -11,8 +11,8 @@ public class ErpItemDTO implements ErpTimestamped {
 	private String description;
 	private String familyExternalId;
 	private String subFamilyExternalId;
-	private BigDecimal salesPrice;
-	private BigDecimal costPrice;
+	private BigDecimal unitPrice;
+	public Integer defaultVAT;
 	private Boolean active;
 	private OffsetDateTime lastModifiedAt;
 
@@ -64,20 +64,20 @@ public class ErpItemDTO implements ErpTimestamped {
 		this.subFamilyExternalId = subFamilyExternalId;
 	}
 
-	public BigDecimal getSalesPrice() {
-		return salesPrice;
+	public BigDecimal getUnitPrice() {
+		return unitPrice;
 	}
 
-	public void setSalesPrice(BigDecimal salesPrice) {
-		this.salesPrice = salesPrice;
+	public void setUnitPrice(BigDecimal unitPrice) {
+		this.unitPrice = unitPrice;
 	}
 
-	public BigDecimal getCostPrice() {
-		return costPrice;
+	public Integer getDefaultVAT() {
+		return defaultVAT;
 	}
 
-	public void setCostPrice(BigDecimal costPrice) {
-		this.costPrice = costPrice;
+	public void setDefaultVAT(Integer defaultVAT) {
+		this.defaultVAT = defaultVAT;
 	}
 
 	public Boolean getActive() {
@@ -97,4 +97,3 @@ public class ErpItemDTO implements ErpTimestamped {
 		this.lastModifiedAt = lastModifiedAt;
 	}
 }
-

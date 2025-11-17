@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Location extends _BaseEntity {
 
-	@Column(name = "erp_external_id", unique = true)
+	@Column(name = "erp_external_id")
 	private String erpExternalId;
 
 	@Column(nullable = false, unique = true)

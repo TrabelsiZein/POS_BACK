@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Item extends _BaseEntity {
 
-	@Column(name = "erp_external_id", unique = true)
+	@Column(name = "erp_external_id")
 	private String erpExternalId;
 
 	@Column(nullable = false, unique = true)
@@ -38,6 +38,8 @@ public class Item extends _BaseEntity {
 
 	private Double unitPrice;
 
+	public Integer defaultVAT;
+
 	private Double costPrice;
 
 	private Integer stockQuantity;
@@ -47,10 +49,6 @@ public class Item extends _BaseEntity {
 	private String barcode;
 
 	private String imageUrl;
-
-	private Boolean taxable = true;
-
-	private Double taxRate;
 
 	private String unitOfMeasure;
 
@@ -66,4 +64,3 @@ public class Item extends _BaseEntity {
 	@JoinColumn(name = "item_sub_family_id")
 	private ItemSubFamily itemSubFamily;
 }
-

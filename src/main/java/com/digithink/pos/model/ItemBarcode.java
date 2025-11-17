@@ -10,8 +10,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 /**
- * ItemBarcode entity - represents barcodes for items
- * Each item can have multiple barcodes
+ * ItemBarcode entity - represents barcodes for items Each item can have
+ * multiple barcodes
  */
 @Entity
 @Data
@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ItemBarcode extends _BaseEntity {
 
-	@Column(name = "erp_external_id", unique = true)
+	@Column(name = "erp_external_id")
 	private String erpExternalId;
 
 	@ManyToOne
@@ -33,4 +33,3 @@ public class ItemBarcode extends _BaseEntity {
 
 	private Boolean isPrimary = false;
 }
-

@@ -20,10 +20,14 @@ import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dynamicsnav.config.DynamicsNavProperties;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavBarcodeDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCollectionResponse;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCustomerDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
+import com.digithink.pos.erp.service.ErpSyncWarningException;
+import com.digithink.pos.service.GeneralSetupService;
+
 @Component
 @ConditionalOnProperty(prefix = "erp.dynamicsnav", name = "enabled", havingValue = "true")
 public class DynamicsNavRestClient {
@@ -32,12 +36,14 @@ public class DynamicsNavRestClient {
 
 	private final RestTemplate dynamicsNavRestTemplate;
 	private final DynamicsNavProperties properties;
+	private final GeneralSetupService generalSetupService;
 
 	public DynamicsNavRestClient(
 			@org.springframework.beans.factory.annotation.Qualifier("dynamicsNavRestTemplate") RestTemplate dynamicsNavRestTemplate,
-			DynamicsNavProperties properties) {
+			DynamicsNavProperties properties, GeneralSetupService generalSetupService) {
 		this.dynamicsNavRestTemplate = dynamicsNavRestTemplate;
 		this.properties = properties;
+		this.generalSetupService = generalSetupService;
 	}
 
 	public List<DynamicsNavFamilyDTO> fetchItemFamilies() {
@@ -94,8 +100,13 @@ public class DynamicsNavRestClient {
 
 	public List<DynamicsNavStockKeepingUnitDTO> fetchItems(ErpSyncFilter filter) {
 		try {
+			String defaultLocation = resolveDefaultLocation();
+			if (defaultLocation == null || defaultLocation.isBlank()) {
+				throw new ErpSyncWarningException("DEFAULT_LOCATION is not configured");
+			}
+
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("StockkeepingUnitList");
-			buildUpdatedAfterFilter(filter, "Modified_At").ifPresent(value -> builder.queryParam("$filter", value));
+			appendSkuFilters(builder, filter, defaultLocation);
 			String url = builder.build(false).toUriString();
 			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO>> response = dynamicsNavRestTemplate
 					.exchange(url, HttpMethod.GET, null,
@@ -104,6 +115,8 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
+		} catch (ErpSyncWarningException warning) {
+			throw warning;
 		} catch (Exception ex) {
 			LOGGER.error("Failed to fetch items from Dynamics NAV: {}", ex.getMessage(), ex);
 			return Collections.emptyList();
@@ -132,18 +145,34 @@ public class DynamicsNavRestClient {
 		}
 	}
 
+	public List<DynamicsNavCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
+		try {
+			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("CustomerList");
+			buildUpdatedAfterFilter(filter, "Last_Date_Modified")
+					.ifPresent(value -> builder.queryParam("$filter", value));
+			String url = builder.build(false).toUriString();
+			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>> response = dynamicsNavRestTemplate
+					.exchange(url, HttpMethod.GET, null,
+							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>>() {
+							});
+
+			DynamicsNavCollectionResponse<DynamicsNavCustomerDTO> body = response.getBody();
+			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
+		} catch (Exception ex) {
+			LOGGER.error("Failed to fetch customers from Dynamics NAV: {}", ex.getMessage(), ex);
+			return Collections.emptyList();
+		}
+	}
+
 	private String buildCompanyEndpointUrl(String entityName) {
-		return buildCompanyEndpointUriBuilder(entityName)
-				.build(false)
-				.toUriString();
+		return buildCompanyEndpointUriBuilder(entityName).build(false).toUriString();
 	}
 
 	private UriComponentsBuilder buildCompanyEndpointUriBuilder(String entityName) {
 		String companySegment = properties.getCompanyUrlSegment();
 		String path = (companySegment.isEmpty() ? "" : "/" + companySegment) + "/" + entityName;
 
-		return UriComponentsBuilder.fromHttpUrl(ensureTrailingSlash(properties.getBaseUrl()))
-				.path(path);
+		return UriComponentsBuilder.fromHttpUrl(ensureTrailingSlash(properties.getBaseUrl())).path(path);
 	}
 
 	private String ensureTrailingSlash(String baseUrl) {
@@ -157,9 +186,33 @@ public class DynamicsNavRestClient {
 		if (filter == null || filter.getUpdatedAfter() == null) {
 			return Optional.empty();
 		}
-		String formatted = filter.getUpdatedAfter()
-				.withOffsetSameInstant(ZoneOffset.UTC)
+		String formatted = filter.getUpdatedAfter().withOffsetSameInstant(ZoneOffset.UTC)
 				.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 		return Optional.of(fieldName + " gt " + formatted);
+	}
+
+	private void appendSkuFilters(UriComponentsBuilder builder, ErpSyncFilter filter, String defaultLocation) {
+		Optional<String> dateFilter = buildUpdatedAfterFilter(filter, "Modified_At");
+		String locationFilter = buildLocationFilter(defaultLocation);
+
+		if (dateFilter.isPresent() && locationFilter != null) {
+			builder.queryParam("$filter", dateFilter.get() + " and " + locationFilter);
+		} else if (dateFilter.isPresent()) {
+			builder.queryParam("$filter", dateFilter.get());
+		} else if (locationFilter != null) {
+			builder.queryParam("$filter", locationFilter);
+		}
+	}
+
+	private String buildLocationFilter(String location) {
+		if (location == null || location.isBlank()) {
+			return null;
+		}
+		String escaped = location.replace("'", "''");
+		return "Location_Code eq '" + escaped + "'";
+	}
+
+	private String resolveDefaultLocation() {
+		return generalSetupService.findValueByCode("DEFAULT_LOCATION");
 	}
 }

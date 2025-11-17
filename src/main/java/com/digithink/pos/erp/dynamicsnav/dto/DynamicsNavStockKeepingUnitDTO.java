@@ -15,27 +15,25 @@ import lombok.Setter;
 public class DynamicsNavStockKeepingUnitDTO {
 
 	@JsonProperty("Item_No")
-	private String itemNo;
-
-	@JsonProperty("Description")
-	private String description;
-
-	@JsonProperty("Item_Category_Code")
-	private String itemCategoryCode;
-
-	@JsonProperty("Product_Group_Code")
-	private String productGroupCode;
-
+	public String itemNo;
+	@JsonProperty("Location_Code")
+	public String locationCode;
 	@JsonProperty("Unit_Price")
-	private BigDecimal unitPrice;
-
-	@JsonProperty("Unit_Cost")
-	private BigDecimal unitCost;
-
-	@JsonProperty("Blocked")
-	private Boolean blocked;
-
+	public BigDecimal unitPrice;
+	@JsonProperty("Default_VAT")
+	public int defaultVAT;
+	@JsonProperty("Item_Category_Code")
+	public String itemCategoryCode;
+	@JsonProperty("Product_Group_Code")
+	public String productGroupCode;
+	@JsonProperty("Sub_Family")
+	public String subFamily;
+	@JsonProperty("Discount")
+	public int discount;
 	@JsonProperty("Modified_At")
-	private OffsetDateTime modifiedAt;
+	public OffsetDateTime modifiedAt;
+	@JsonProperty("Description")
+	public String description;
+	@JsonProperty("AuxiliaryIndex1")
+	public String auxiliaryIndex1;
 }
-

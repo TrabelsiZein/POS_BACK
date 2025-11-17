@@ -7,7 +7,6 @@ public class ErpItemBarcodeDTO implements ErpTimestamped {
 	private String externalId;
 	private String itemExternalId;
 	private String barcode;
-	private String unitOfMeasure;
 	private Boolean primaryBarcode;
 	private OffsetDateTime lastModifiedAt;
 
@@ -35,14 +34,6 @@ public class ErpItemBarcodeDTO implements ErpTimestamped {
 		this.barcode = barcode;
 	}
 
-	public String getUnitOfMeasure() {
-		return unitOfMeasure;
-	}
-
-	public void setUnitOfMeasure(String unitOfMeasure) {
-		this.unitOfMeasure = unitOfMeasure;
-	}
-
 	public Boolean getPrimaryBarcode() {
 		return primaryBarcode;
 	}
@@ -60,4 +51,3 @@ public class ErpItemBarcodeDTO implements ErpTimestamped {
 		this.lastModifiedAt = lastModifiedAt;
 	}
 }
-

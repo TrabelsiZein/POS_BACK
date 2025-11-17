@@ -34,7 +34,10 @@ public class ErpCommunicationService {
 			LocalDateTime startedAt, LocalDateTime completedAt) {
 
 		ErpTrackingLevel level = resolveTrackingLevel();
-		if (level == ErpTrackingLevel.ERRORS_ONLY && status == ErpCommunicationStatus.SUCCESS) {
+		if (level == ErpTrackingLevel.ERRORS_ONLY && status != ErpCommunicationStatus.ERROR) {
+			return;
+		}
+		if (level == ErpTrackingLevel.ERRORS_AND_WARNINGS && status == ErpCommunicationStatus.SUCCESS) {
 			return;
 		}
 

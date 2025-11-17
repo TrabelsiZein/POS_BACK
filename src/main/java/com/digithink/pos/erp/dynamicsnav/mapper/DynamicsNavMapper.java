@@ -1,18 +1,21 @@
 package com.digithink.pos.erp.dynamicsnav.mapper;
 
 import java.util.List;
+
 import org.springframework.stereotype.Component;
 
+import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
+import com.digithink.pos.erp.dto.ErpItemDTO;
+import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
+import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
+import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavBarcodeDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCustomerDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
-import com.digithink.pos.erp.dto.ErpItemDTO;
-import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
-import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
-import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
-import com.digithink.pos.erp.dto.ErpLocationDTO;
 
 @Component
 public class DynamicsNavMapper {
@@ -21,9 +24,7 @@ public class DynamicsNavMapper {
 		if (navFamilies == null) {
 			return List.of();
 		}
-		return navFamilies.stream()
-				.map(this::toItemFamilyDTO)
-				.toList();
+		return navFamilies.stream().map(this::toItemFamilyDTO).toList();
 	}
 
 	public ErpItemFamilyDTO toItemFamilyDTO(DynamicsNavFamilyDTO navFamily) {
@@ -40,9 +41,7 @@ public class DynamicsNavMapper {
 		if (navSubFamilies == null) {
 			return List.of();
 		}
-		return navSubFamilies.stream()
-				.map(this::toItemSubFamilyDTO)
-				.toList();
+		return navSubFamilies.stream().map(this::toItemSubFamilyDTO).toList();
 	}
 
 	public ErpItemSubFamilyDTO toItemSubFamilyDTO(DynamicsNavSubFamilyDTO navSubFamily) {
@@ -60,9 +59,7 @@ public class DynamicsNavMapper {
 		if (navLocations == null) {
 			return List.of();
 		}
-		return navLocations.stream()
-				.map(this::toLocationDTO)
-				.toList();
+		return navLocations.stream().map(this::toLocationDTO).toList();
 	}
 
 	public ErpLocationDTO toLocationDTO(DynamicsNavLocationDTO navLocation) {
@@ -81,9 +78,7 @@ public class DynamicsNavMapper {
 		if (navItems == null) {
 			return List.of();
 		}
-		return navItems.stream()
-				.map(this::toItemDTO)
-				.toList();
+		return navItems.stream().map(this::toItemDTO).toList();
 	}
 
 	public ErpItemDTO toItemDTO(DynamicsNavStockKeepingUnitDTO navItem) {
@@ -92,11 +87,10 @@ public class DynamicsNavMapper {
 		dto.setCode(navItem.getItemNo());
 		dto.setName(navItem.getDescription());
 		dto.setDescription(navItem.getDescription());
-		dto.setFamilyExternalId(navItem.getItemCategoryCode());
-		dto.setSubFamilyExternalId(navItem.getProductGroupCode());
-		dto.setSalesPrice(navItem.getUnitPrice());
-		dto.setCostPrice(navItem.getUnitCost());
-		dto.setActive(navItem.getBlocked() == null ? Boolean.TRUE : !navItem.getBlocked());
+		dto.setSubFamilyExternalId(navItem.getSubFamily());
+		dto.setUnitPrice(navItem.getUnitPrice());
+		dto.setDefaultVAT(navItem.getDefaultVAT());
+		dto.setActive(true);
 		dto.setLastModifiedAt(navItem.getModifiedAt());
 		return dto;
 	}
@@ -105,24 +99,68 @@ public class DynamicsNavMapper {
 		if (navBarcodes == null) {
 			return List.of();
 		}
-		return navBarcodes.stream()
-				.map(this::toItemBarcodeDTO)
-				.toList();
+		return navBarcodes.stream().map(this::toItemBarcodeDTO).toList();
 	}
 
 	public ErpItemBarcodeDTO toItemBarcodeDTO(DynamicsNavBarcodeDTO navBarcode) {
 		ErpItemBarcodeDTO dto = new ErpItemBarcodeDTO();
-		dto.setExternalId(navBarcode.getBarcode());
+		dto.setExternalId(navBarcode.getCrossReferenceNo());
 		dto.setItemExternalId(navBarcode.getItemNo());
-		dto.setBarcode(navBarcode.getBarcode());
-		dto.setUnitOfMeasure(navBarcode.getUnitOfMeasureCode());
-		Boolean primaryFlag = navBarcode.getDefaultBarcode();
-		if (primaryFlag == null) {
-			primaryFlag = navBarcode.getPrimary();
-		}
-		dto.setPrimaryBarcode(primaryFlag != null ? primaryFlag : Boolean.FALSE);
+		dto.setBarcode(navBarcode.getCrossReferenceNo());
 		dto.setLastModifiedAt(navBarcode.getModifiedAt());
 		return dto;
 	}
-}
 
+	public List<ErpCustomerDTO> toCustomerDTOs(List<DynamicsNavCustomerDTO> navCustomers) {
+		if (navCustomers == null) {
+			return List.of();
+		}
+		return navCustomers.stream().map(this::toCustomerDTO).toList();
+	}
+
+	public ErpCustomerDTO toCustomerDTO(DynamicsNavCustomerDTO navCustomer) {
+		ErpCustomerDTO dto = new ErpCustomerDTO();
+		dto.setExternalId(navCustomer.getNumber());
+		dto.setCode(navCustomer.getNumber());
+		dto.setName(navCustomer.getName());
+		dto.setEmail(navCustomer.getEmail());
+		dto.setPhone(navCustomer.getPhoneNumber());
+		dto.setAddress(buildFullAddress(navCustomer));
+		dto.setCity(navCustomer.getCity());
+		dto.setCountry(navCustomer.getCountryRegionCode());
+		dto.setTaxNumber(navCustomer.getVatRegistrationNumber());
+		dto.setActive(isCustomerActive(navCustomer));
+		return dto;
+	}
+
+	private boolean isCustomerActive(DynamicsNavCustomerDTO navCustomer) {
+		String blocked = navCustomer.getBlocked();
+		return blocked == null || blocked.isBlank() || "0".equals(blocked) || "No".equalsIgnoreCase(blocked);
+	}
+
+	private String buildFullAddress(DynamicsNavCustomerDTO navCustomer) {
+		StringBuilder builder = new StringBuilder();
+		if (navCustomer.getAddress() != null && !navCustomer.getAddress().isBlank()) {
+			builder.append(navCustomer.getAddress());
+		}
+		if (navCustomer.getAddress2() != null && !navCustomer.getAddress2().isBlank()) {
+			if (builder.length() > 0) {
+				builder.append(", ");
+			}
+			builder.append(navCustomer.getAddress2());
+		}
+		if (navCustomer.getPostCode() != null && !navCustomer.getPostCode().isBlank()) {
+			if (builder.length() > 0) {
+				builder.append(", ");
+			}
+			builder.append(navCustomer.getPostCode());
+		}
+		if (navCustomer.getCity() != null && !navCustomer.getCity().isBlank()) {
+			if (builder.length() > 0) {
+				builder.append(", ");
+			}
+			builder.append(navCustomer.getCity());
+		}
+		return builder.length() == 0 ? null : builder.toString();
+	}
+}

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.service.ErpSyncJobRunner;
 import com.digithink.pos.erp.service.ErpSyncJobService;
+import com.digithink.pos.erp.service.ErpSyncWarningException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,10 +27,9 @@ public class ErpSyncScheduler {
 	private final ErpSyncJobService jobService;
 	private final ErpSyncJobRunner jobRunner;
 
-	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:5000}")
+	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:60000}")
 	public void pollJobs() {
 		List<ErpSyncJob> jobs = jobService.findEnabledJobs();
-		System.out.println(jobs.size());
 		if (jobs.isEmpty()) {
 			return;
 		}
@@ -53,6 +53,9 @@ public class ErpSyncScheduler {
 		String statusMessage = "SUCCESS";
 		try {
 			jobRunner.run(job);
+		} catch (ErpSyncWarningException warning) {
+			statusMessage = "WARNING: " + warning.getMessage();
+			LOGGER.warn("ERP sync job {} skipped: {}", job.getJobType(), warning.getMessage());
 		} catch (Exception ex) {
 			statusMessage = "ERROR: " + ex.getMessage();
 			LOGGER.error("ERP sync job {} failed: {}", job.getJobType(), ex.getMessage(), ex);

@@ -36,6 +36,7 @@ public class ErpSyncJobRunner {
 		}
 
 		ErpSyncFilter filter = checkpointService.createFilterForJob(jobType);
+		try {
 		switch (jobType) {
 		case IMPORT_ITEM_FAMILIES:
 			List<ErpItemFamilyDTO> families = synchronizationManager.pullItemFamilies(filter);
@@ -78,6 +79,10 @@ public class ErpSyncJobRunner {
 			break;
 		default:
 			LOGGER.warn("Unhandled ERP sync job type {} for job {}", jobType, job.getJobType());
+		}
+		} catch (ErpSyncWarningException warning) {
+			LOGGER.warn("ERP sync job {} skipped: {}", jobType, warning.getMessage());
+			throw warning;
 		}
 	}
 }

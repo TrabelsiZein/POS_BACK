@@ -6,19 +6,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.digithink.pos.erp.enumeration.ErpSyncJobType;
-import com.digithink.pos.erp.service.ErpSyncCheckpointService;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.repository.ErpSyncJobRepository;
+import com.digithink.pos.erp.service.ErpSyncCheckpointService;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
-import com.digithink.pos.model.Item;
-import com.digithink.pos.model.ItemBarcode;
-import com.digithink.pos.model.ItemFamily;
-import com.digithink.pos.model.ItemSubFamily;
 import com.digithink.pos.model.Location;
 import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.UserAccount;
-import com.digithink.pos.model.enumeration.ItemType;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
 import com.digithink.pos.model.enumeration.Role;
 import com.digithink.pos.repository.CustomerRepository;
@@ -63,34 +58,34 @@ public class ZZDataInitializer {
 		}
 
 		if (customerRepository.count() == 0) {
-			// Create customers
-			initCustomers();
+			// Create default customer
+			initDefaultCustomer();
 		}
-
-		if (itemFamilyRepository.count() == 0) {
-			// Create item families
-			initItemFamilies();
-		}
-
-		if (itemSubFamilyRepository.count() == 0) {
-			// Create item sub-families
-			initItemSubFamilies();
-		}
-
-		if (itemRepository.count() == 0) {
-			// Create items
-			initItems();
-		}
-
-		if (itemBarcodeRepository.count() == 0) {
-			// Create item barcodes
-			initItemBarcodes();
-		}
-
-		if (locationRepository.count() == 0) {
-			// Create locations
-			initLocations();
-		}
+//
+//		if (itemFamilyRepository.count() == 0) {
+//			// Create item families
+//			initItemFamilies();
+//		}
+//
+//		if (itemSubFamilyRepository.count() == 0) {
+//			// Create item sub-families
+//			initItemSubFamilies();
+//		}
+//
+//		if (itemRepository.count() == 0) {
+//			// Create items
+//			initItems();
+//		}
+//
+//		if (itemBarcodeRepository.count() == 0) {
+//			// Create item barcodes
+//			initItemBarcodes();
+//		}
+//
+//		if (locationRepository.count() == 0) {
+//			// Create locations
+//			initLocations();
+//		}
 
 		if (generalSetupRepository.count() == 0) {
 			// Create general setup records
@@ -249,54 +244,7 @@ public class ZZDataInitializer {
 	/**
 	 * Create initial customers for Hammai Group Tunisia
 	 */
-	private void initCustomers() {
-		// Retail customer
-		Customer retail = new Customer();
-		retail.setCustomerCode("CUST001");
-		retail.setName("Client Détail");
-		retail.setEmail("retail@example.com");
-		retail.setPhone("+216 98 123 456");
-		retail.setAddress("Rue Habib Bourguiba");
-		retail.setCity("Tunis");
-		retail.setCountry("Tunisie");
-		retail.setActive(true);
-		retail.setCreatedBy("System");
-		retail.setUpdatedBy("System");
-		customerRepository.save(retail);
-
-		// Wholesale customer
-		Customer wholesale = new Customer();
-		wholesale.setCustomerCode("CUST002");
-		wholesale.setName("Hammai Group SARL");
-		wholesale.setEmail("contact@hammai-group.tn");
-		wholesale.setPhone("+216 71 234 567");
-		wholesale.setAddress("Zone Industrielle");
-		wholesale.setCity("Sfax");
-		wholesale.setCountry("Tunisie");
-		wholesale.setTaxId("12345678-A");
-		wholesale.setCreditLimit(50000.00);
-		wholesale.setActive(true);
-		wholesale.setCreatedBy("System");
-		wholesale.setUpdatedBy("System");
-		customerRepository.save(wholesale);
-
-		// Corporate customer
-		Customer corporate = new Customer();
-		corporate.setCustomerCode("CUST003");
-		corporate.setName("Entreprise Tunisienne");
-		corporate.setEmail("comptabilite@entreprise.tn");
-		corporate.setPhone("+216 71 345 678");
-		corporate.setAddress("Avenue Mohamed V");
-		corporate.setCity("Ariana");
-		corporate.setCountry("Tunisie");
-		corporate.setTaxId("87654321-B");
-		corporate.setCreditLimit(100000.00);
-		corporate.setNotes("Clients corporate VIP");
-		corporate.setActive(true);
-		corporate.setCreatedBy("System");
-		corporate.setUpdatedBy("System");
-		customerRepository.save(corporate);
-
+	private void initDefaultCustomer() {
 		// Passenger customer (for POS tickets when no customer selected)
 		Customer passengerCustomer = new Customer();
 		passengerCustomer.setCustomerCode("PASSENGER");
@@ -311,395 +259,395 @@ public class ZZDataInitializer {
 		passengerCustomer.setUpdatedBy("System");
 		customerRepository.save(passengerCustomer);
 	}
+//
+//	/**
+//	 * Create initial item families
+//	 */
+//	private void initItemFamilies() {
+//		ItemFamily electronics = new ItemFamily();
+//		electronics.setCode("FAM_ELECTRONICS");
+//		electronics.setName("Électronique");
+//		electronics.setDescription("Produits électroniques et accessoires");
+//		electronics.setDisplayOrder(1);
+//		electronics.setCreatedBy("System");
+//		electronics.setUpdatedBy("System");
+//		itemFamilyRepository.save(electronics);
+//
+//		ItemFamily services = new ItemFamily();
+//		services.setCode("FAM_SERVICES");
+//		services.setName("Services");
+//		services.setDescription("Prestations de service");
+//		services.setDisplayOrder(2);
+//		services.setCreatedBy("System");
+//		services.setUpdatedBy("System");
+//		itemFamilyRepository.save(services);
+//
+//		ItemFamily promotions = new ItemFamily();
+//		promotions.setCode("FAM_PROMOTIONS");
+//		promotions.setName("Promotions");
+//		promotions.setDescription("Offres promotionnelles et packs");
+//		promotions.setDisplayOrder(3);
+//		promotions.setCreatedBy("System");
+//		promotions.setUpdatedBy("System");
+//		itemFamilyRepository.save(promotions);
+//	}
+//
+//	/**
+//	 * Create initial item sub-families
+//	 */
+//	private void initItemSubFamilies() {
+//		ItemFamily electronics = itemFamilyRepository.findByCode("FAM_ELECTRONICS").orElse(null);
+//		ItemFamily services = itemFamilyRepository.findByCode("FAM_SERVICES").orElse(null);
+//		ItemFamily promotions = itemFamilyRepository.findByCode("FAM_PROMOTIONS").orElse(null);
+//
+//		if (electronics != null) {
+//			ItemSubFamily smartphones = new ItemSubFamily();
+//			smartphones.setCode("SUB_ELECTRONICS_MOBILE");
+//			smartphones.setName("Smartphones");
+//			smartphones.setDescription("Téléphones intelligents et mobiles");
+//			smartphones.setDisplayOrder(1);
+//			smartphones.setItemFamily(electronics);
+//			smartphones.setCreatedBy("System");
+//			smartphones.setUpdatedBy("System");
+//			itemSubFamilyRepository.save(smartphones);
+//
+//			ItemSubFamily accessories = new ItemSubFamily();
+//			accessories.setCode("SUB_ELECTRONICS_ACCESSORIES");
+//			accessories.setName("Accessoires");
+//			accessories.setDescription("Accessoires électroniques divers");
+//			accessories.setDisplayOrder(2);
+//			accessories.setItemFamily(electronics);
+//			accessories.setCreatedBy("System");
+//			accessories.setUpdatedBy("System");
+//			itemSubFamilyRepository.save(accessories);
+//		}
+//
+//		if (services != null) {
+//			ItemSubFamily installations = new ItemSubFamily();
+//			installations.setCode("SUB_SERVICES_INSTALL");
+//			installations.setName("Installation");
+//			installations.setDescription("Services d'installation et configuration");
+//			installations.setDisplayOrder(1);
+//			installations.setItemFamily(services);
+//			installations.setCreatedBy("System");
+//			installations.setUpdatedBy("System");
+//			itemSubFamilyRepository.save(installations);
+//		}
+//
+//		if (promotions != null) {
+//			ItemSubFamily bundles = new ItemSubFamily();
+//			bundles.setCode("SUB_PROMOTIONS_BUNDLES");
+//			bundles.setName("Packs Promotionnels");
+//			bundles.setDescription("Packs combinant plusieurs produits");
+//			bundles.setDisplayOrder(1);
+//			bundles.setItemFamily(promotions);
+//			bundles.setCreatedBy("System");
+//			bundles.setUpdatedBy("System");
+//			itemSubFamilyRepository.save(bundles);
+//		}
+//	}
+//
+//	/**
+//	 * Create initial items/products for Hammai Group Tunisia
+//	 */
+//	private void initItems() {
+//		ItemFamily electronics = itemFamilyRepository.findByCode("FAM_ELECTRONICS").orElse(null);
+//		ItemFamily servicesFamily = itemFamilyRepository.findByCode("FAM_SERVICES").orElse(null);
+//		ItemFamily promotionsFamily = itemFamilyRepository.findByCode("FAM_PROMOTIONS").orElse(null);
+//
+//		ItemSubFamily smartphones = itemSubFamilyRepository.findByCode("SUB_ELECTRONICS_MOBILE").orElse(null);
+//		ItemSubFamily accessories = itemSubFamilyRepository.findByCode("SUB_ELECTRONICS_ACCESSORIES").orElse(null);
+//		ItemSubFamily installations = itemSubFamilyRepository.findByCode("SUB_SERVICES_INSTALL").orElse(null);
+//		ItemSubFamily bundles = itemSubFamilyRepository.findByCode("SUB_PROMOTIONS_BUNDLES").orElse(null);
+//
+//		// Product 1
+//		Item item1 = new Item();
+//		item1.setItemCode("PROD001");
+//		item1.setName("Produit Premium");
+//		item1.setDescription("Produit de haute qualité premium");
+//		item1.setType(ItemType.PRODUCT);
+//		item1.setUnitPrice(250.00);
+//		item1.setCostPrice(180.00);
+//		item1.setStockQuantity(150);
+//		item1.setMinStockLevel(20);
+//		item1.setBarcode("1234567890123");
+//		item1.setTaxable(true);
+//		item1.setTaxRate(0.19); // 19% VAT in Tunisia
+//		item1.setUnitOfMeasure("PIECE");
+//		item1.setCategory("Électronique");
+//		item1.setBrand("Hammai Brand");
+//		item1.setItemFamily(electronics);
+//		item1.setItemSubFamily(smartphones);
+//		item1.setActive(true);
+//		item1.setCreatedBy("System");
+//		item1.setUpdatedBy("System");
+//		itemRepository.save(item1);
+//
+//		// Product 2
+//		Item item2 = new Item();
+//		item2.setItemCode("PROD002");
+//		item2.setName("Produit Standard");
+//		item2.setDescription("Produit standard de qualité");
+//		item2.setType(ItemType.PRODUCT);
+//		item2.setUnitPrice(150.00);
+//		item2.setCostPrice(100.00);
+//		item2.setStockQuantity(300);
+//		item2.setMinStockLevel(50);
+//		item2.setBarcode("1234567890124");
+//		item2.setTaxable(true);
+//		item2.setTaxRate(0.19);
+//		item2.setUnitOfMeasure("PIECE");
+//		item2.setCategory("Électronique");
+//		item2.setBrand("Hammai Brand");
+//		item2.setItemFamily(electronics);
+//		item2.setItemSubFamily(accessories);
+//		item2.setActive(true);
+//		item2.setCreatedBy("System");
+//		item2.setUpdatedBy("System");
+//		itemRepository.save(item2);
+//
+//		// Product 3
+//		Item item3 = new Item();
+//		item3.setItemCode("PROD003");
+//		item3.setName("Produit Économique");
+//		item3.setDescription("Produit économique pour tous");
+//		item3.setType(ItemType.PRODUCT);
+//		item3.setUnitPrice(75.00);
+//		item3.setCostPrice(50.00);
+//		item3.setStockQuantity(500);
+//		item3.setMinStockLevel(100);
+//		item3.setBarcode("1234567890125");
+//		item3.setTaxable(true);
+//		item3.setTaxRate(0.19);
+//		item3.setUnitOfMeasure("PIECE");
+//		item3.setCategory("Électronique");
+//		item3.setBrand("Hammai Brand");
+//		item3.setItemFamily(electronics);
+//		item3.setItemSubFamily(accessories);
+//		item3.setActive(true);
+//		item3.setCreatedBy("System");
+//		item3.setUpdatedBy("System");
+//		itemRepository.save(item3);
+//
+//		// Service
+//		Item service = new Item();
+//		service.setItemCode("SERV001");
+//		service.setName("Service Installation");
+//		service.setDescription("Service d'installation professionnel");
+//		service.setType(ItemType.SERVICE);
+//		service.setUnitPrice(350.00);
+//		service.setCostPrice(200.00);
+//		service.setStockQuantity(999999); // Unlimited for services
+//		service.setTaxable(true);
+//		service.setTaxRate(0.19);
+//		service.setUnitOfMeasure("SERVICE");
+//		service.setCategory("Services");
+//		service.setBrand("Hammai Services");
+//		service.setItemFamily(servicesFamily);
+//		service.setItemSubFamily(installations);
+//		service.setActive(true);
+//		service.setCreatedBy("System");
+//		service.setUpdatedBy("System");
+//		itemRepository.save(service);
+//
+//		// Package Deal
+//		Item packageDeal = new Item();
+//		packageDeal.setItemCode("PKG001");
+//		packageDeal.setName("Pack Promo");
+//		packageDeal.setDescription("Pack promotionnel spécial");
+//		packageDeal.setType(ItemType.PACKAGE);
+//		packageDeal.setUnitPrice(800.00);
+//		packageDeal.setCostPrice(600.00);
+//		packageDeal.setStockQuantity(50);
+//		packageDeal.setMinStockLevel(10);
+//		packageDeal.setTaxable(true);
+//		packageDeal.setTaxRate(0.19);
+//		packageDeal.setUnitOfMeasure("PACK");
+//		packageDeal.setCategory("Offres Promotionnelles");
+//		packageDeal.setBrand("Hammai Promo");
+//		packageDeal.setItemFamily(promotionsFamily);
+//		packageDeal.setItemSubFamily(bundles);
+//		packageDeal.setActive(true);
+//		packageDeal.setCreatedBy("System");
+//		packageDeal.setUpdatedBy("System");
+//		itemRepository.save(packageDeal);
+//	}
+//
+//	/**
+//	 * Create initial item barcodes
+//	 */
+//	private void initItemBarcodes() {
+//		// Get items
+//		Item item1 = itemRepository.findByItemCode("PROD001").orElse(null);
+//		Item item2 = itemRepository.findByItemCode("PROD002").orElse(null);
+//		Item item3 = itemRepository.findByItemCode("PROD003").orElse(null);
+//		Item packageDeal = itemRepository.findByItemCode("PKG001").orElse(null);
+//
+//		if (item1 != null) {
+//			// Primary barcode for item1
+//			ItemBarcode barcode1 = new ItemBarcode();
+//			barcode1.setItem(item1);
+//			barcode1.setBarcode("1234567890123");
+//			barcode1.setDescription("Primary barcode");
+//			barcode1.setIsPrimary(true);
+//			barcode1.setActive(true);
+//			barcode1.setCreatedBy("System");
+//			barcode1.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode1);
+//
+//			// Additional barcode for item1
+//			ItemBarcode barcode1a = new ItemBarcode();
+//			barcode1a.setItem(item1);
+//			barcode1a.setBarcode("1234567890123-ALT");
+//			barcode1a.setDescription("Alternative barcode");
+//			barcode1a.setIsPrimary(false);
+//			barcode1a.setActive(true);
+//			barcode1a.setCreatedBy("System");
+//			barcode1a.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode1a);
+//		}
+//
+//		if (item2 != null) {
+//			// Primary barcode for item2
+//			ItemBarcode barcode2 = new ItemBarcode();
+//			barcode2.setItem(item2);
+//			barcode2.setBarcode("1234567890124");
+//			barcode2.setDescription("Primary barcode");
+//			barcode2.setIsPrimary(true);
+//			barcode2.setActive(true);
+//			barcode2.setCreatedBy("System");
+//			barcode2.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode2);
+//
+//			// Additional barcodes for item2
+//			ItemBarcode barcode2a = new ItemBarcode();
+//			barcode2a.setItem(item2);
+//			barcode2a.setBarcode("1234567890124-A");
+//			barcode2a.setDescription("Alternative barcode A");
+//			barcode2a.setIsPrimary(false);
+//			barcode2a.setActive(true);
+//			barcode2a.setCreatedBy("System");
+//			barcode2a.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode2a);
+//
+//			ItemBarcode barcode2b = new ItemBarcode();
+//			barcode2b.setItem(item2);
+//			barcode2b.setBarcode("1234567890124-B");
+//			barcode2b.setDescription("Alternative barcode B");
+//			barcode2b.setIsPrimary(false);
+//			barcode2b.setActive(true);
+//			barcode2b.setCreatedBy("System");
+//			barcode2b.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode2b);
+//		}
+//
+//		if (item3 != null) {
+//			// Primary barcode for item3
+//			ItemBarcode barcode3 = new ItemBarcode();
+//			barcode3.setItem(item3);
+//			barcode3.setBarcode("1234567890125");
+//			barcode3.setDescription("Primary barcode");
+//			barcode3.setIsPrimary(true);
+//			barcode3.setActive(true);
+//			barcode3.setCreatedBy("System");
+//			barcode3.setUpdatedBy("System");
+//			itemBarcodeRepository.save(barcode3);
+//		}
+//
+//		if (packageDeal != null) {
+//			// Barcode for package deal
+//			ItemBarcode pkgBarcode = new ItemBarcode();
+//			pkgBarcode.setItem(packageDeal);
+//			pkgBarcode.setBarcode("9876543210987");
+//			pkgBarcode.setDescription("Package barcode");
+//			pkgBarcode.setIsPrimary(true);
+//			pkgBarcode.setActive(true);
+//			pkgBarcode.setCreatedBy("System");
+//			pkgBarcode.setUpdatedBy("System");
+//			itemBarcodeRepository.save(pkgBarcode);
+//		}
+//	}
 
-	/**
-	 * Create initial item families
-	 */
-	private void initItemFamilies() {
-		ItemFamily electronics = new ItemFamily();
-		electronics.setCode("FAM_ELECTRONICS");
-		electronics.setName("Électronique");
-		electronics.setDescription("Produits électroniques et accessoires");
-		electronics.setDisplayOrder(1);
-		electronics.setCreatedBy("System");
-		electronics.setUpdatedBy("System");
-		itemFamilyRepository.save(electronics);
-
-		ItemFamily services = new ItemFamily();
-		services.setCode("FAM_SERVICES");
-		services.setName("Services");
-		services.setDescription("Prestations de service");
-		services.setDisplayOrder(2);
-		services.setCreatedBy("System");
-		services.setUpdatedBy("System");
-		itemFamilyRepository.save(services);
-
-		ItemFamily promotions = new ItemFamily();
-		promotions.setCode("FAM_PROMOTIONS");
-		promotions.setName("Promotions");
-		promotions.setDescription("Offres promotionnelles et packs");
-		promotions.setDisplayOrder(3);
-		promotions.setCreatedBy("System");
-		promotions.setUpdatedBy("System");
-		itemFamilyRepository.save(promotions);
-	}
-
-	/**
-	 * Create initial item sub-families
-	 */
-	private void initItemSubFamilies() {
-		ItemFamily electronics = itemFamilyRepository.findByCode("FAM_ELECTRONICS").orElse(null);
-		ItemFamily services = itemFamilyRepository.findByCode("FAM_SERVICES").orElse(null);
-		ItemFamily promotions = itemFamilyRepository.findByCode("FAM_PROMOTIONS").orElse(null);
-
-		if (electronics != null) {
-			ItemSubFamily smartphones = new ItemSubFamily();
-			smartphones.setCode("SUB_ELECTRONICS_MOBILE");
-			smartphones.setName("Smartphones");
-			smartphones.setDescription("Téléphones intelligents et mobiles");
-			smartphones.setDisplayOrder(1);
-			smartphones.setItemFamily(electronics);
-			smartphones.setCreatedBy("System");
-			smartphones.setUpdatedBy("System");
-			itemSubFamilyRepository.save(smartphones);
-
-			ItemSubFamily accessories = new ItemSubFamily();
-			accessories.setCode("SUB_ELECTRONICS_ACCESSORIES");
-			accessories.setName("Accessoires");
-			accessories.setDescription("Accessoires électroniques divers");
-			accessories.setDisplayOrder(2);
-			accessories.setItemFamily(electronics);
-			accessories.setCreatedBy("System");
-			accessories.setUpdatedBy("System");
-			itemSubFamilyRepository.save(accessories);
-		}
-
-		if (services != null) {
-			ItemSubFamily installations = new ItemSubFamily();
-			installations.setCode("SUB_SERVICES_INSTALL");
-			installations.setName("Installation");
-			installations.setDescription("Services d'installation et configuration");
-			installations.setDisplayOrder(1);
-			installations.setItemFamily(services);
-			installations.setCreatedBy("System");
-			installations.setUpdatedBy("System");
-			itemSubFamilyRepository.save(installations);
-		}
-
-		if (promotions != null) {
-			ItemSubFamily bundles = new ItemSubFamily();
-			bundles.setCode("SUB_PROMOTIONS_BUNDLES");
-			bundles.setName("Packs Promotionnels");
-			bundles.setDescription("Packs combinant plusieurs produits");
-			bundles.setDisplayOrder(1);
-			bundles.setItemFamily(promotions);
-			bundles.setCreatedBy("System");
-			bundles.setUpdatedBy("System");
-			itemSubFamilyRepository.save(bundles);
-		}
-	}
-
-	/**
-	 * Create initial items/products for Hammai Group Tunisia
-	 */
-	private void initItems() {
-		ItemFamily electronics = itemFamilyRepository.findByCode("FAM_ELECTRONICS").orElse(null);
-		ItemFamily servicesFamily = itemFamilyRepository.findByCode("FAM_SERVICES").orElse(null);
-		ItemFamily promotionsFamily = itemFamilyRepository.findByCode("FAM_PROMOTIONS").orElse(null);
-
-		ItemSubFamily smartphones = itemSubFamilyRepository.findByCode("SUB_ELECTRONICS_MOBILE").orElse(null);
-		ItemSubFamily accessories = itemSubFamilyRepository.findByCode("SUB_ELECTRONICS_ACCESSORIES").orElse(null);
-		ItemSubFamily installations = itemSubFamilyRepository.findByCode("SUB_SERVICES_INSTALL").orElse(null);
-		ItemSubFamily bundles = itemSubFamilyRepository.findByCode("SUB_PROMOTIONS_BUNDLES").orElse(null);
-
-		// Product 1
-		Item item1 = new Item();
-		item1.setItemCode("PROD001");
-		item1.setName("Produit Premium");
-		item1.setDescription("Produit de haute qualité premium");
-		item1.setType(ItemType.PRODUCT);
-		item1.setUnitPrice(250.00);
-		item1.setCostPrice(180.00);
-		item1.setStockQuantity(150);
-		item1.setMinStockLevel(20);
-		item1.setBarcode("1234567890123");
-		item1.setTaxable(true);
-		item1.setTaxRate(0.19); // 19% VAT in Tunisia
-		item1.setUnitOfMeasure("PIECE");
-		item1.setCategory("Électronique");
-		item1.setBrand("Hammai Brand");
-		item1.setItemFamily(electronics);
-		item1.setItemSubFamily(smartphones);
-		item1.setActive(true);
-		item1.setCreatedBy("System");
-		item1.setUpdatedBy("System");
-		itemRepository.save(item1);
-
-		// Product 2
-		Item item2 = new Item();
-		item2.setItemCode("PROD002");
-		item2.setName("Produit Standard");
-		item2.setDescription("Produit standard de qualité");
-		item2.setType(ItemType.PRODUCT);
-		item2.setUnitPrice(150.00);
-		item2.setCostPrice(100.00);
-		item2.setStockQuantity(300);
-		item2.setMinStockLevel(50);
-		item2.setBarcode("1234567890124");
-		item2.setTaxable(true);
-		item2.setTaxRate(0.19);
-		item2.setUnitOfMeasure("PIECE");
-		item2.setCategory("Électronique");
-		item2.setBrand("Hammai Brand");
-		item2.setItemFamily(electronics);
-		item2.setItemSubFamily(accessories);
-		item2.setActive(true);
-		item2.setCreatedBy("System");
-		item2.setUpdatedBy("System");
-		itemRepository.save(item2);
-
-		// Product 3
-		Item item3 = new Item();
-		item3.setItemCode("PROD003");
-		item3.setName("Produit Économique");
-		item3.setDescription("Produit économique pour tous");
-		item3.setType(ItemType.PRODUCT);
-		item3.setUnitPrice(75.00);
-		item3.setCostPrice(50.00);
-		item3.setStockQuantity(500);
-		item3.setMinStockLevel(100);
-		item3.setBarcode("1234567890125");
-		item3.setTaxable(true);
-		item3.setTaxRate(0.19);
-		item3.setUnitOfMeasure("PIECE");
-		item3.setCategory("Électronique");
-		item3.setBrand("Hammai Brand");
-		item3.setItemFamily(electronics);
-		item3.setItemSubFamily(accessories);
-		item3.setActive(true);
-		item3.setCreatedBy("System");
-		item3.setUpdatedBy("System");
-		itemRepository.save(item3);
-
-		// Service
-		Item service = new Item();
-		service.setItemCode("SERV001");
-		service.setName("Service Installation");
-		service.setDescription("Service d'installation professionnel");
-		service.setType(ItemType.SERVICE);
-		service.setUnitPrice(350.00);
-		service.setCostPrice(200.00);
-		service.setStockQuantity(999999); // Unlimited for services
-		service.setTaxable(true);
-		service.setTaxRate(0.19);
-		service.setUnitOfMeasure("SERVICE");
-		service.setCategory("Services");
-		service.setBrand("Hammai Services");
-		service.setItemFamily(servicesFamily);
-		service.setItemSubFamily(installations);
-		service.setActive(true);
-		service.setCreatedBy("System");
-		service.setUpdatedBy("System");
-		itemRepository.save(service);
-
-		// Package Deal
-		Item packageDeal = new Item();
-		packageDeal.setItemCode("PKG001");
-		packageDeal.setName("Pack Promo");
-		packageDeal.setDescription("Pack promotionnel spécial");
-		packageDeal.setType(ItemType.PACKAGE);
-		packageDeal.setUnitPrice(800.00);
-		packageDeal.setCostPrice(600.00);
-		packageDeal.setStockQuantity(50);
-		packageDeal.setMinStockLevel(10);
-		packageDeal.setTaxable(true);
-		packageDeal.setTaxRate(0.19);
-		packageDeal.setUnitOfMeasure("PACK");
-		packageDeal.setCategory("Offres Promotionnelles");
-		packageDeal.setBrand("Hammai Promo");
-		packageDeal.setItemFamily(promotionsFamily);
-		packageDeal.setItemSubFamily(bundles);
-		packageDeal.setActive(true);
-		packageDeal.setCreatedBy("System");
-		packageDeal.setUpdatedBy("System");
-		itemRepository.save(packageDeal);
-	}
-
-	/**
-	 * Create initial item barcodes
-	 */
-	private void initItemBarcodes() {
-		// Get items
-		Item item1 = itemRepository.findByItemCode("PROD001").orElse(null);
-		Item item2 = itemRepository.findByItemCode("PROD002").orElse(null);
-		Item item3 = itemRepository.findByItemCode("PROD003").orElse(null);
-		Item packageDeal = itemRepository.findByItemCode("PKG001").orElse(null);
-
-		if (item1 != null) {
-			// Primary barcode for item1
-			ItemBarcode barcode1 = new ItemBarcode();
-			barcode1.setItem(item1);
-			barcode1.setBarcode("1234567890123");
-			barcode1.setDescription("Primary barcode");
-			barcode1.setIsPrimary(true);
-			barcode1.setActive(true);
-			barcode1.setCreatedBy("System");
-			barcode1.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode1);
-
-			// Additional barcode for item1
-			ItemBarcode barcode1a = new ItemBarcode();
-			barcode1a.setItem(item1);
-			barcode1a.setBarcode("1234567890123-ALT");
-			barcode1a.setDescription("Alternative barcode");
-			barcode1a.setIsPrimary(false);
-			barcode1a.setActive(true);
-			barcode1a.setCreatedBy("System");
-			barcode1a.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode1a);
-		}
-
-		if (item2 != null) {
-			// Primary barcode for item2
-			ItemBarcode barcode2 = new ItemBarcode();
-			barcode2.setItem(item2);
-			barcode2.setBarcode("1234567890124");
-			barcode2.setDescription("Primary barcode");
-			barcode2.setIsPrimary(true);
-			barcode2.setActive(true);
-			barcode2.setCreatedBy("System");
-			barcode2.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode2);
-
-			// Additional barcodes for item2
-			ItemBarcode barcode2a = new ItemBarcode();
-			barcode2a.setItem(item2);
-			barcode2a.setBarcode("1234567890124-A");
-			barcode2a.setDescription("Alternative barcode A");
-			barcode2a.setIsPrimary(false);
-			barcode2a.setActive(true);
-			barcode2a.setCreatedBy("System");
-			barcode2a.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode2a);
-
-			ItemBarcode barcode2b = new ItemBarcode();
-			barcode2b.setItem(item2);
-			barcode2b.setBarcode("1234567890124-B");
-			barcode2b.setDescription("Alternative barcode B");
-			barcode2b.setIsPrimary(false);
-			barcode2b.setActive(true);
-			barcode2b.setCreatedBy("System");
-			barcode2b.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode2b);
-		}
-
-		if (item3 != null) {
-			// Primary barcode for item3
-			ItemBarcode barcode3 = new ItemBarcode();
-			barcode3.setItem(item3);
-			barcode3.setBarcode("1234567890125");
-			barcode3.setDescription("Primary barcode");
-			barcode3.setIsPrimary(true);
-			barcode3.setActive(true);
-			barcode3.setCreatedBy("System");
-			barcode3.setUpdatedBy("System");
-			itemBarcodeRepository.save(barcode3);
-		}
-
-		if (packageDeal != null) {
-			// Barcode for package deal
-			ItemBarcode pkgBarcode = new ItemBarcode();
-			pkgBarcode.setItem(packageDeal);
-			pkgBarcode.setBarcode("9876543210987");
-			pkgBarcode.setDescription("Package barcode");
-			pkgBarcode.setIsPrimary(true);
-			pkgBarcode.setActive(true);
-			pkgBarcode.setCreatedBy("System");
-			pkgBarcode.setUpdatedBy("System");
-			itemBarcodeRepository.save(pkgBarcode);
-		}
-	}
-
-	/**
-	 * Create initial locations/stores
-	 */
-	private void initLocations() {
-		// Main Store / Headquarters
-		Location mainStore = new Location();
-		mainStore.setLocationCode("LOC001");
-		mainStore.setName("Magasin Principal");
-		mainStore.setDescription("Magasin principal et siège social");
-		mainStore.setAddress("Zone Industrielle");
-		mainStore.setCity("Tunis");
-		mainStore.setState("Tunis");
-		mainStore.setCountry("Tunisie");
-		mainStore.setPostalCode("1000");
-		mainStore.setPhone("+216 71 234 567");
-		mainStore.setEmail("store1@hammai-group.tn");
-		mainStore.setContactPerson("Manager Principal");
-		mainStore.setIsDefault(true);
-		mainStore.setActive(true);
-		mainStore.setCreatedBy("System");
-		mainStore.setUpdatedBy("System");
-		locationRepository.save(mainStore);
-
-		// Branch Store 1
-		Location branch1 = new Location();
-		branch1.setLocationCode("LOC002");
-		branch1.setName("Succursale Sfax");
-		branch1.setDescription("Succursale dans la ville de Sfax");
-		branch1.setAddress("Avenue Habib Bourguiba");
-		branch1.setCity("Sfax");
-		branch1.setState("Sfax");
-		branch1.setCountry("Tunisie");
-		branch1.setPostalCode("3000");
-		branch1.setPhone("+216 74 345 678");
-		branch1.setEmail("store2@hammai-group.tn");
-		branch1.setContactPerson("Manager Sfax");
-		branch1.setIsDefault(false);
-		branch1.setActive(true);
-		branch1.setCreatedBy("System");
-		branch1.setUpdatedBy("System");
-		locationRepository.save(branch1);
-
-		// Branch Store 2
-		Location branch2 = new Location();
-		branch2.setLocationCode("LOC003");
-		branch2.setName("Succursale Ariana");
-		branch2.setDescription("Succursale dans la région d'Ariana");
-		branch2.setAddress("Avenue de la République");
-		branch2.setCity("Ariana");
-		branch2.setState("Ariana");
-		branch2.setCountry("Tunisie");
-		branch2.setPostalCode("2080");
-		branch2.setPhone("+216 71 456 789");
-		branch2.setEmail("store3@hammai-group.tn");
-		branch2.setContactPerson("Manager Ariana");
-		branch2.setIsDefault(false);
-		branch2.setActive(true);
-		branch2.setCreatedBy("System");
-		branch2.setUpdatedBy("System");
-		locationRepository.save(branch2);
-
-		// Warehouse
-		Location warehouse = new Location();
-		warehouse.setLocationCode("LOC004");
-		warehouse.setName("Entrepôt Central");
-		warehouse.setDescription("Entrepôt central pour stockage");
-		warehouse.setAddress("Zone Logistique");
-		warehouse.setCity("Ben Arous");
-		warehouse.setState("Ben Arous");
-		warehouse.setCountry("Tunisie");
-		warehouse.setPostalCode("2013");
-		warehouse.setPhone("+216 71 567 890");
-		warehouse.setEmail("warehouse@hammai-group.tn");
-		warehouse.setContactPerson("Responsable Entrepôt");
-		warehouse.setIsDefault(false);
-		warehouse.setActive(true);
-		warehouse.setCreatedBy("System");
-		warehouse.setUpdatedBy("System");
-		locationRepository.save(warehouse);
-	}
+//	/**
+//	 * Create initial locations/stores
+//	 */
+//	private void initLocations() {
+//		// Main Store / Headquarters
+//		Location mainStore = new Location();
+//		mainStore.setLocationCode("LOC001");
+//		mainStore.setName("Magasin Principal");
+//		mainStore.setDescription("Magasin principal et siège social");
+//		mainStore.setAddress("Zone Industrielle");
+//		mainStore.setCity("Tunis");
+//		mainStore.setState("Tunis");
+//		mainStore.setCountry("Tunisie");
+//		mainStore.setPostalCode("1000");
+//		mainStore.setPhone("+216 71 234 567");
+//		mainStore.setEmail("store1@hammai-group.tn");
+//		mainStore.setContactPerson("Manager Principal");
+//		mainStore.setIsDefault(true);
+//		mainStore.setActive(true);
+//		mainStore.setCreatedBy("System");
+//		mainStore.setUpdatedBy("System");
+//		locationRepository.save(mainStore);
+//
+//		// Branch Store 1
+//		Location branch1 = new Location();
+//		branch1.setLocationCode("LOC002");
+//		branch1.setName("Succursale Sfax");
+//		branch1.setDescription("Succursale dans la ville de Sfax");
+//		branch1.setAddress("Avenue Habib Bourguiba");
+//		branch1.setCity("Sfax");
+//		branch1.setState("Sfax");
+//		branch1.setCountry("Tunisie");
+//		branch1.setPostalCode("3000");
+//		branch1.setPhone("+216 74 345 678");
+//		branch1.setEmail("store2@hammai-group.tn");
+//		branch1.setContactPerson("Manager Sfax");
+//		branch1.setIsDefault(false);
+//		branch1.setActive(true);
+//		branch1.setCreatedBy("System");
+//		branch1.setUpdatedBy("System");
+//		locationRepository.save(branch1);
+//
+//		// Branch Store 2
+//		Location branch2 = new Location();
+//		branch2.setLocationCode("LOC003");
+//		branch2.setName("Succursale Ariana");
+//		branch2.setDescription("Succursale dans la région d'Ariana");
+//		branch2.setAddress("Avenue de la République");
+//		branch2.setCity("Ariana");
+//		branch2.setState("Ariana");
+//		branch2.setCountry("Tunisie");
+//		branch2.setPostalCode("2080");
+//		branch2.setPhone("+216 71 456 789");
+//		branch2.setEmail("store3@hammai-group.tn");
+//		branch2.setContactPerson("Manager Ariana");
+//		branch2.setIsDefault(false);
+//		branch2.setActive(true);
+//		branch2.setCreatedBy("System");
+//		branch2.setUpdatedBy("System");
+//		locationRepository.save(branch2);
+//
+//		// Warehouse
+//		Location warehouse = new Location();
+//		warehouse.setLocationCode("LOC004");
+//		warehouse.setName("Entrepôt Central");
+//		warehouse.setDescription("Entrepôt central pour stockage");
+//		warehouse.setAddress("Zone Logistique");
+//		warehouse.setCity("Ben Arous");
+//		warehouse.setState("Ben Arous");
+//		warehouse.setCountry("Tunisie");
+//		warehouse.setPostalCode("2013");
+//		warehouse.setPhone("+216 71 567 890");
+//		warehouse.setEmail("warehouse@hammai-group.tn");
+//		warehouse.setContactPerson("Responsable Entrepôt");
+//		warehouse.setIsDefault(false);
+//		warehouse.setActive(true);
+//		warehouse.setCreatedBy("System");
+//		warehouse.setUpdatedBy("System");
+//		locationRepository.save(warehouse);
+//	}
 
 	/**
 	 * Create initial general setup records
@@ -709,7 +657,7 @@ public class ZZDataInitializer {
 		Location defaultLocation = locationRepository.findByIsDefaultTrue()
 				.orElse(locationRepository.findAll().stream().findFirst().orElse(null));
 
-		String locationValue = defaultLocation != null ? defaultLocation.getLocationCode() : "LOC001";
+		String locationValue = defaultLocation != null ? defaultLocation.getLocationCode() : "";
 
 		// Location setup record
 		GeneralSetup locationSetup = new GeneralSetup();
@@ -782,7 +730,7 @@ public class ZZDataInitializer {
 			GeneralSetup erpTracking = new GeneralSetup();
 			erpTracking.setCode("ERP_SYNC_TRACKING_LEVEL");
 			erpTracking.setValeur("ERRORS_ONLY");
-			erpTracking.setDescription("ERP communication tracking level (ERRORS_ONLY | ALL)");
+			erpTracking.setDescription("ERP communication tracking level (ERRORS_ONLY | ERRORS_AND_WARNINGS | ALL)");
 			erpTracking.setReadOnly(false);
 			erpTracking.setActive(true);
 			erpTracking.setCreatedBy("System");

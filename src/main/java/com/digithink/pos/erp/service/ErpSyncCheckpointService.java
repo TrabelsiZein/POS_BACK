@@ -67,13 +67,9 @@ public class ErpSyncCheckpointService {
 			return;
 		}
 
-		Optional<OffsetDateTime> maxTimestamp = payload.stream()
-				.filter(Objects::nonNull)
-				.filter(ErpTimestamped.class::isInstance)
-				.map(ErpTimestamped.class::cast)
-				.map(ErpTimestamped::getLastModifiedAt)
-				.filter(Objects::nonNull)
-				.max(Comparator.naturalOrder());
+		Optional<OffsetDateTime> maxTimestamp = payload.stream().filter(Objects::nonNull)
+				.filter(ErpTimestamped.class::isInstance).map(ErpTimestamped.class::cast)
+				.map(ErpTimestamped::getLastModifiedAt).filter(Objects::nonNull).max(Comparator.naturalOrder());
 
 		maxTimestamp.ifPresent(ts -> updateLastSync(jobType, ts));
 	}
@@ -119,4 +115,3 @@ public class ErpSyncCheckpointService {
 		return CODE_TO_DESCRIPTION;
 	}
 }
-

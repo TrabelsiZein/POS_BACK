@@ -32,6 +32,13 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 		return itemBarcodeRepository.findByItemIdAndActiveTrue(itemId);
 	}
 
+	public List<ItemBarcode> getActiveBarcodesForItems(List<Long> itemIds) {
+		if (itemIds == null || itemIds.isEmpty()) {
+			return List.of();
+		}
+		return itemBarcodeRepository.findByItemIdInAndActiveTrue(itemIds);
+	}
+
 	/**
 	 * Get item by barcode
 	 */

@@ -5,6 +5,7 @@ package com.digithink.pos.erp.enumeration;
  */
 public enum ErpCommunicationStatus {
 	SUCCESS,
+	WARNING,
 	ERROR
 }
 

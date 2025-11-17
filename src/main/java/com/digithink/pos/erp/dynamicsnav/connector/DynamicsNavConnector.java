@@ -55,7 +55,7 @@ public class DynamicsNavConnector implements ErpConnector {
 
 	@Override
 	public List<ErpCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
-		return java.util.Collections.emptyList();
+		return mapper.toCustomerDTOs(restClient.fetchCustomers(filter));
 	}
 
 	@Override

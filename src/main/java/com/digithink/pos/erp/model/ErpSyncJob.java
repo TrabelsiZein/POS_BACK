@@ -39,7 +39,7 @@ public class ErpSyncJob extends _BaseEntity {
 	@Column(name = "next_run_at")
 	private LocalDateTime nextRunAt;
 
-	@Column(name = "last_status", length = 32)
+	@Column(name = "last_status", length = 100)
 	private String lastStatus;
 
 	public ErpSyncJobType getJobType() {

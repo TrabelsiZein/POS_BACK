@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ItemFamily extends _BaseEntity {
 
-	@Column(name = "erp_external_id", unique = true)
+	@Column(name = "erp_external_id")
 	private String erpExternalId;
 
 	@Column(nullable = false, unique = true)
@@ -29,5 +29,3 @@ public class ItemFamily extends _BaseEntity {
 
 	private Integer displayOrder = 0;
 }
-
-

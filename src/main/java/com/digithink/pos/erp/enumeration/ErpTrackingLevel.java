@@ -5,6 +5,7 @@ package com.digithink.pos.erp.enumeration;
  */
 public enum ErpTrackingLevel {
 	ERRORS_ONLY,
+	ERRORS_AND_WARNINGS,
 	ALL
 }
 

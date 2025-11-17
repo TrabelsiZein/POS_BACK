@@ -11,13 +11,13 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DynamicsNavSubFamilyDTO {
 
-	@JsonProperty("Code")
+	@JsonProperty("code_sous_famille")
 	private String code;
 
-	@JsonProperty("Description")
+	@JsonProperty("description_sous_famille")
 	private String description;
 
-	@JsonProperty("FamilyCode")
+	@JsonProperty("code_famille")
 	private String familyCode;
 
 	@JsonProperty("AuxiliaryIndex1")
