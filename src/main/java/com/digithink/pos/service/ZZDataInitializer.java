@@ -143,18 +143,57 @@ public class ZZDataInitializer {
 	 * Create initial payment methods for Tunisia
 	 */
 	private void initPaymentMethods() {
-		// Client Espèce
+		// Client Espèce - Order 1
 		PaymentMethod clientCash = new PaymentMethod();
 		clientCash.setCode("CLIENT_ESPECES");
 		clientCash.setName("Client Espèce");
 		clientCash.setType(PaymentMethodType.CLIENT_ESPECES);
 		clientCash.setDescription("Paiement en espèces du client");
 		clientCash.setActive(true);
+		clientCash.setDisplayOrder(1);
 		clientCash.setCreatedBy("System");
 		clientCash.setUpdatedBy("System");
 		paymentMethodRepository.save(clientCash);
 
-		// Client Chèque
+		// Client TPE (Terminal de paiement électronique) - Order 2
+		PaymentMethod clientTpe = new PaymentMethod();
+		clientTpe.setCode("CLIENT_TPE");
+		clientTpe.setName("Client TPE");
+		clientTpe.setType(PaymentMethodType.CLIENT_TPE);
+		clientTpe.setDescription("Paiement via terminal électronique (TPE)");
+		clientTpe.setActive(true);
+		clientTpe.setDisplayOrder(2);
+		clientTpe.setCreatedBy("System");
+		clientTpe.setUpdatedBy("System");
+		paymentMethodRepository.save(clientTpe);
+
+		// Ticket Restaurant - Order 3
+		PaymentMethod mealTicket = new PaymentMethod();
+		mealTicket.setCode("TICKET_RESTAURANT");
+		mealTicket.setName("Ticket Restaurant");
+		mealTicket.setType(PaymentMethodType.TICKET_RESTAURANT);
+		mealTicket.setDescription("Paiement via ticket restaurant");
+		mealTicket.setRequireTitleNumber(true);
+		mealTicket.setActive(true);
+		mealTicket.setDisplayOrder(3);
+		mealTicket.setCreatedBy("System");
+		mealTicket.setUpdatedBy("System");
+		paymentMethodRepository.save(mealTicket);
+
+		// Chèque Cadeau - Order 4
+		PaymentMethod giftCheck = new PaymentMethod();
+		giftCheck.setCode("CHEQUE_CADEAU");
+		giftCheck.setName("Chèque Cadeau");
+		giftCheck.setType(PaymentMethodType.CHEQUE_CADEAU);
+		giftCheck.setDescription("Paiement par chèque cadeau");
+		giftCheck.setRequireTitleNumber(true);
+		giftCheck.setActive(true);
+		giftCheck.setDisplayOrder(4);
+		giftCheck.setCreatedBy("System");
+		giftCheck.setUpdatedBy("System");
+		paymentMethodRepository.save(giftCheck);
+
+		// Client Chèque - Order 5
 		PaymentMethod clientCheque = new PaymentMethod();
 		clientCheque.setCode("CLIENT_CHEQUE");
 		clientCheque.setName("Client Chèque");
@@ -164,22 +203,12 @@ public class ZZDataInitializer {
 		clientCheque.setRequireDrawerName(true);
 		clientCheque.setRequireIssuingBank(true);
 		clientCheque.setActive(true);
+		clientCheque.setDisplayOrder(5);
 		clientCheque.setCreatedBy("System");
 		clientCheque.setUpdatedBy("System");
 		paymentMethodRepository.save(clientCheque);
 
-		// Client TPE (Terminal de paiement électronique)
-		PaymentMethod clientTpe = new PaymentMethod();
-		clientTpe.setCode("CLIENT_TPE");
-		clientTpe.setName("Client TPE");
-		clientTpe.setType(PaymentMethodType.CLIENT_TPE);
-		clientTpe.setDescription("Paiement via terminal électronique (TPE)");
-		clientTpe.setActive(true);
-		clientTpe.setCreatedBy("System");
-		clientTpe.setUpdatedBy("System");
-		paymentMethodRepository.save(clientTpe);
-
-		// Client Traite
+		// Client Traite - Order 6
 		PaymentMethod clientTraite = new PaymentMethod();
 		clientTraite.setCode("CLIENT_TRAITE");
 		clientTraite.setName("Client Traite");
@@ -190,52 +219,31 @@ public class ZZDataInitializer {
 		clientTraite.setRequireDrawerName(true);
 		clientTraite.setRequireIssuingBank(true);
 		clientTraite.setActive(true);
+		clientTraite.setDisplayOrder(6);
 		clientTraite.setCreatedBy("System");
 		clientTraite.setUpdatedBy("System");
 		paymentMethodRepository.save(clientTraite);
 
-		// Chèque Cadeau
-		PaymentMethod giftCheck = new PaymentMethod();
-		giftCheck.setCode("CHEQUE_CADEAU");
-		giftCheck.setName("Chèque Cadeau");
-		giftCheck.setType(PaymentMethodType.CHEQUE_CADEAU);
-		giftCheck.setDescription("Paiement par chèque cadeau");
-		giftCheck.setRequireTitleNumber(true);
-		giftCheck.setActive(true);
-		giftCheck.setCreatedBy("System");
-		giftCheck.setUpdatedBy("System");
-		paymentMethodRepository.save(giftCheck);
-
-		// Ticket Restaurant
-		PaymentMethod mealTicket = new PaymentMethod();
-		mealTicket.setCode("TICKET_RESTAURANT");
-		mealTicket.setName("Ticket Restaurant");
-		mealTicket.setType(PaymentMethodType.TICKET_RESTAURANT);
-		mealTicket.setDescription("Paiement via ticket restaurant");
-		mealTicket.setRequireTitleNumber(true);
-		mealTicket.setActive(true);
-		mealTicket.setCreatedBy("System");
-		mealTicket.setUpdatedBy("System");
-		paymentMethodRepository.save(mealTicket);
-
-		// Dépôt en banque
+		// Dépôt en banque - Order 7
 		PaymentMethod bankDeposit = new PaymentMethod();
 		bankDeposit.setCode("DEPOT_BANQUE");
 		bankDeposit.setName("Dépôt en banque");
 		bankDeposit.setType(PaymentMethodType.DEPOT_BANQUE);
 		bankDeposit.setDescription("Dépôt des fonds en banque");
 		bankDeposit.setActive(true);
+		bankDeposit.setDisplayOrder(7);
 		bankDeposit.setCreatedBy("System");
 		bankDeposit.setUpdatedBy("System");
 		paymentMethodRepository.save(bankDeposit);
 
-		// Return Voucher
+		// Return Voucher - Order 8
 		PaymentMethod returnVoucher = new PaymentMethod();
 		returnVoucher.setCode("RETURN_VOUCHER");
 		returnVoucher.setName("Bon de Retour");
 		returnVoucher.setType(PaymentMethodType.RETURN_VOUCHER);
 		returnVoucher.setDescription("Bon de retour émis pour un retour de produit");
 		returnVoucher.setActive(true);
+		returnVoucher.setDisplayOrder(8);
 		returnVoucher.setCreatedBy("System");
 		returnVoucher.setUpdatedBy("System");
 		paymentMethodRepository.save(returnVoucher);

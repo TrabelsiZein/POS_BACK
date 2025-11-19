@@ -41,7 +41,15 @@ public class SalesLine extends _BaseEntity {
 	@Column(nullable = false)
 	private Double lineTotal;
 
-	private String notes;
+	private Double vatAmount;
+
+	private Integer vatPercent;
+
+	@Column(nullable = false)
+	private Double unitPriceIncludingVat;
+
+	@Column(nullable = false)
+	private Double lineTotalIncludingVat;
 	
 	// Transient fields for convenience
 	private transient Long salesHeaderId;

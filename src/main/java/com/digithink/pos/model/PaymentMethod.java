@@ -2,8 +2,8 @@ package com.digithink.pos.model;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Enumerated;
 import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 
 import com.digithink.pos.model.enumeration.PaymentMethodType;
 
@@ -31,13 +31,10 @@ public class PaymentMethod extends _BaseEntity {
 
 	private String description;
 
-	private Double processingFee;
-
 	private Boolean requiresConfirmation = false;
 
 	private Boolean active = true;
 
-	// Additional required data flags
 	private Boolean requireTitleNumber = false;
 
 	private Boolean requireDueDate = false;
@@ -45,5 +42,6 @@ public class PaymentMethod extends _BaseEntity {
 	private Boolean requireDrawerName = false;
 
 	private Boolean requireIssuingBank = false;
-}
 
+	private Integer displayOrder = 0; // Order of payment method to display in POS
+}
