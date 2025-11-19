@@ -164,6 +164,36 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setUnitPrice(lineDTO.getUnitPrice());
 			salesLine.setLineTotal(lineDTO.getLineTotal());
 			
+			// Set discount fields
+			if (lineDTO.getDiscountPercentage() != null) {
+				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
+			}
+			if (lineDTO.getDiscountAmount() != null) {
+				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
+			}
+			
+			// Set VAT fields - use values from DTO if provided, otherwise calculate
+			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
+			salesLine.setVatPercent(vatPercent);
+			
+			if (lineDTO.getVatAmount() != null) {
+				salesLine.setVatAmount(lineDTO.getVatAmount());
+			} else {
+				salesLine.setVatAmount(calculateVat(lineDTO.getLineTotal(), vatPercent));
+			}
+			
+			if (lineDTO.getUnitPriceIncludingVat() != null) {
+				salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+			} else {
+				salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(lineDTO.getUnitPrice(), vatPercent));
+			}
+			
+			if (lineDTO.getLineTotalIncludingVat() != null) {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
+			} else {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotal() + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
+			}
+			
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
 			log.info("Sales line created: " + salesLine.getId());
@@ -333,6 +363,36 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setUnitPrice(lineDTO.getUnitPrice());
 			salesLine.setLineTotal(lineDTO.getLineTotal());
 			
+			// Set discount fields
+			if (lineDTO.getDiscountPercentage() != null) {
+				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
+			}
+			if (lineDTO.getDiscountAmount() != null) {
+				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
+			}
+			
+			// Set VAT fields - use values from DTO if provided, otherwise calculate
+			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
+			salesLine.setVatPercent(vatPercent);
+			
+			if (lineDTO.getVatAmount() != null) {
+				salesLine.setVatAmount(lineDTO.getVatAmount());
+			} else {
+				salesLine.setVatAmount(calculateVat(lineDTO.getLineTotal(), vatPercent));
+			}
+			
+			if (lineDTO.getUnitPriceIncludingVat() != null) {
+				salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+			} else {
+				salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(lineDTO.getUnitPrice(), vatPercent));
+			}
+			
+			if (lineDTO.getLineTotalIncludingVat() != null) {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
+			} else {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotal() + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
+			}
+			
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
 			log.info("Pending sales line created: " + salesLine.getId());
@@ -395,6 +455,36 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setQuantity(lineDTO.getQuantity());
 			salesLine.setUnitPrice(lineDTO.getUnitPrice());
 			salesLine.setLineTotal(lineDTO.getLineTotal());
+			
+			// Set discount fields
+			if (lineDTO.getDiscountPercentage() != null) {
+				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
+			}
+			if (lineDTO.getDiscountAmount() != null) {
+				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
+			}
+			
+			// Set VAT fields - use values from DTO if provided, otherwise calculate
+			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
+			salesLine.setVatPercent(vatPercent);
+			
+			if (lineDTO.getVatAmount() != null) {
+				salesLine.setVatAmount(lineDTO.getVatAmount());
+			} else {
+				salesLine.setVatAmount(calculateVat(lineDTO.getLineTotal(), vatPercent));
+			}
+			
+			if (lineDTO.getUnitPriceIncludingVat() != null) {
+				salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+			} else {
+				salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(lineDTO.getUnitPrice(), vatPercent));
+			}
+			
+			if (lineDTO.getLineTotalIncludingVat() != null) {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
+			} else {
+				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotal() + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
+			}
 			
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
@@ -678,6 +768,31 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "salesDate"));
 
 		return tickets;
+	}
+	
+	/**
+	 * Calculate VAT amount from line total and VAT percentage
+	 */
+	private Double calculateVat(Double lineTotal, Integer vatPercentage) {
+		if (lineTotal == null || vatPercentage == null || vatPercentage == 0) {
+			return 0.0;
+		}
+		// VAT calculation: lineTotal * (vatPercentage / 100)
+		return lineTotal * (vatPercentage / 100.0);
+	}
+	
+	/**
+	 * Calculate unit price including VAT
+	 */
+	private Double calculateUnitPriceIncludingVat(Double unitPrice, Integer vatPercentage) {
+		if (unitPrice == null) {
+			return 0.0;
+		}
+		if (vatPercentage == null || vatPercentage == 0) {
+			return unitPrice;
+		}
+		// Unit price including VAT: unitPrice * (1 + vatPercentage / 100)
+		return unitPrice * (1.0 + (vatPercentage / 100.0));
 	}
 }
 

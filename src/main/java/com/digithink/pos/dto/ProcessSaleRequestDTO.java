@@ -31,6 +31,12 @@ public class ProcessSaleRequestDTO {
 		private Integer quantity;
 		private Double unitPrice;
 		private Double lineTotal;
+		private Double discountPercentage;
+		private Double discountAmount;
+		private Double vatAmount;
+		private Integer vatPercent;
+		private Double unitPriceIncludingVat;
+		private Double lineTotalIncludingVat;
 	}
 	
 	@Data

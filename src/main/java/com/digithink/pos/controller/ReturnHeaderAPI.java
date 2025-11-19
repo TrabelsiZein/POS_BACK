@@ -103,7 +103,10 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 					lineData.put("lineTotal", salesLine.getLineTotal());
 					lineData.put("discountPercentage", salesLine.getDiscountPercentage());
 					lineData.put("discountAmount", salesLine.getDiscountAmount());
-					lineData.put("notes", salesLine.getNotes());
+					lineData.put("vatAmount", salesLine.getVatAmount());
+					lineData.put("vatPercent", salesLine.getVatPercent());
+					lineData.put("unitPriceIncludingVat", salesLine.getUnitPriceIncludingVat());
+					lineData.put("lineTotalIncludingVat", salesLine.getLineTotalIncludingVat());
 					lineData.put("returnedQuantity", returnedQuantity); // Already returned
 					lineData.put("remainingQuantity", remainingQuantity); // Can still be returned
 					
