@@ -27,6 +27,7 @@ public class ErpSyncJobRunner {
 	private final ErpSynchronizationManager synchronizationManager;
 	private final ErpSyncCheckpointService checkpointService;
 	private final ErpItemBootstrapService erpItemBootstrapService;
+	private final TicketExportService ticketExportService;
 
 	public void run(ErpSyncJob job) {
 		ErpSyncJobType jobType = job.getJobType();
@@ -73,9 +74,7 @@ public class ErpSyncJobRunner {
 					+ "Data extraction from POS is not yet implemented.", job.getJobType());
 			break;
 		case EXPORT_TICKETS:
-			LOGGER.info(
-					"ERP sync job {} is configured for EXPORT_TICKETS. " + "Ticket extraction is not yet implemented.",
-					job.getJobType());
+			ticketExportService.exportTickets();
 			break;
 		default:
 			LOGGER.warn("Unhandled ERP sync job type {} for job {}", jobType, job.getJobType());

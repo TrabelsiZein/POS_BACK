@@ -16,6 +16,7 @@ public class ProcessSaleRequestDTO {
 	private Double subtotal;
 	private Double taxAmount;
 	private Double discountAmount;
+	private Double discountPercentage;
 	private Double totalAmount;
 	private Double paidAmount;
 	private Double changeAmount;

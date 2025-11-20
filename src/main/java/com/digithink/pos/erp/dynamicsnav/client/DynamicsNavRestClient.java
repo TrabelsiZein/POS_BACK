@@ -10,9 +10,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -23,10 +30,17 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCollectionResponse;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCustomerDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
 import com.digithink.pos.erp.service.ErpSyncWarningException;
 import com.digithink.pos.service.GeneralSetupService;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Component
 @ConditionalOnProperty(prefix = "erp.dynamicsnav", name = "enabled", havingValue = "true")
@@ -37,6 +51,7 @@ public class DynamicsNavRestClient {
 	private final RestTemplate dynamicsNavRestTemplate;
 	private final DynamicsNavProperties properties;
 	private final GeneralSetupService generalSetupService;
+	private final ObjectMapper objectMapper;
 
 	public DynamicsNavRestClient(
 			@org.springframework.beans.factory.annotation.Qualifier("dynamicsNavRestTemplate") RestTemplate dynamicsNavRestTemplate,
@@ -44,6 +59,12 @@ public class DynamicsNavRestClient {
 		this.dynamicsNavRestTemplate = dynamicsNavRestTemplate;
 		this.properties = properties;
 		this.generalSetupService = generalSetupService;
+		// Configure ObjectMapper to exclude null fields (like Postman does)
+		// and serialize LocalDate as ISO date string (YYYY-MM-DD)
+		this.objectMapper = new ObjectMapper();
+		this.objectMapper.registerModule(new JavaTimeModule());
+		this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+		this.objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 	}
 
 	public List<DynamicsNavFamilyDTO> fetchItemFamilies() {
@@ -214,5 +235,142 @@ public class DynamicsNavRestClient {
 
 	private String resolveDefaultLocation() {
 		return generalSetupService.findValueByCode("DEFAULT_LOCATION");
+	}
+
+	/**
+	 * Create a sales order header in Dynamics NAV
+	 */
+	public DynamicsNavSalesOrderHeaderDTO createSalesOrderHeader(DynamicsNavSalesOrderHeaderDTO header) {
+		try {
+			String url = buildCompanyEndpointUrl("SalesOrdersPos");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavSalesOrderHeaderDTO> request = new HttpEntity<>(header, headers);
+
+			ResponseEntity<DynamicsNavSalesOrderHeaderDTO> response = dynamicsNavRestTemplate.postForEntity(url,
+					request, DynamicsNavSalesOrderHeaderDTO.class);
+
+			// Extract Document_No from response (it's read-only so it will be in the
+			// response)
+			DynamicsNavSalesOrderHeaderDTO createdHeader = response.getBody();
+			if (createdHeader != null && createdHeader.getDocumentNo() != null) {
+				header.setDocumentNo(createdHeader.getDocumentNo());
+			}
+
+			return header;
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create sales order header in Dynamics NAV: {} - {}", ex.getStatusCode(),
+					errorMessage, ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create sales order header in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw ex;
+		}
+	}
+
+	/**
+	 * Create a sales order line in Dynamics NAV
+	 */
+	public DynamicsNavSalesOrderLineDTO createSalesOrderLine(DynamicsNavSalesOrderLineDTO line) {
+		try {
+			String url = buildCompanyEndpointUrl("SalesOrdersPosSalesLines");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavSalesOrderLineDTO> request = new HttpEntity<>(line, headers);
+
+			ResponseEntity<DynamicsNavSalesOrderLineDTO> response = dynamicsNavRestTemplate.postForEntity(url, request,
+					DynamicsNavSalesOrderLineDTO.class);
+
+			return response.getBody();
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create sales order line in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
+					ex);
+			throw new RuntimeException("Failed to create sales order line: " + ex.getStatusCode() + " " + errorMessage,
+					ex);
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create sales order line in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw new RuntimeException("Failed to create sales order line: " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Update POS_Order field to true in Dynamics NAV header Note: This uses PATCH
+	 * method to update only the POS_Order field
+	 */
+	public void updateSalesOrderHeaderPosOrder(String documentNo, boolean posOrder) {
+		try {
+			// Build URL for specific document - escape the document number for URL
+			String escapedDocNo = documentNo.replace("'", "''");
+			String url = buildCompanyEndpointUrl("SalesOrdersPos") + "('" + escapedDocNo + "')";
+
+			// Create a partial update DTO with only POS_Order field
+			DynamicsNavSalesOrderHeaderDTO update = new DynamicsNavSalesOrderHeaderDTO();
+			update.setPosOrder(posOrder);
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavSalesOrderHeaderDTO> request = new HttpEntity<>(update, headers);
+
+			// Use exchange with PATCH method since RestTemplate doesn't have patch method
+			dynamicsNavRestTemplate.exchange(url, HttpMethod.PATCH, request, Void.class);
+			LOGGER.info("Updated POS_Order to {} for document {}", posOrder, documentNo);
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to update POS_Order for document {}: {} - {}", documentNo, ex.getStatusCode(),
+					errorMessage, ex);
+			throw new RuntimeException("Failed to update POS_Order: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to update POS_Order for document {}: {}", documentNo, ex.getMessage(), ex);
+			throw new RuntimeException("Failed to update POS_Order: " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Extract detailed error message from HTTP exception response body
+	 */
+	private String extractErrorMessage(HttpStatusCodeException ex) {
+		try {
+			String responseBody = ex.getResponseBodyAsString();
+			if (responseBody != null && !responseBody.trim().isEmpty()) {
+				// Try to parse JSON error response
+				JsonNode errorNode = objectMapper.readTree(responseBody);
+
+				// Handle array of errors: [{"error": {...}}]
+				if (errorNode.isArray() && errorNode.size() > 0) {
+					JsonNode firstError = errorNode.get(0);
+					if (firstError.has("error")) {
+						JsonNode error = firstError.get("error");
+						if (error.has("message")) {
+							return error.get("message").asText();
+						}
+						if (error.has("code")) {
+							return error.get("code").asText();
+						}
+					}
+				}
+
+				// Handle single error object: {"error": {...}}
+				if (errorNode.has("error")) {
+					JsonNode error = errorNode.get("error");
+					if (error.has("message")) {
+						return error.get("message").asText();
+					}
+					if (error.has("code")) {
+						return error.get("code").asText();
+					}
+				}
+
+				// If no structured error found, return the raw response body
+				return responseBody;
+			}
+		} catch (Exception parseEx) {
+			LOGGER.debug("Failed to parse error response body: {}", parseEx.getMessage());
+		}
+
+		// Fallback to status text or exception message
+		return ex.getStatusText() != null ? ex.getStatusText() : ex.getMessage();
 	}
 }

@@ -7,6 +7,7 @@ import java.util.Optional;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.SalesHeader;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 
 public interface SalesHeaderRepository extends _BaseRepository<SalesHeader, Long> {
@@ -26,4 +27,6 @@ public interface SalesHeaderRepository extends _BaseRepository<SalesHeader, Long
 	List<SalesHeader> findBySalesDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 	
 	List<SalesHeader> findBySalesDateBetweenAndStatus(LocalDateTime startDate, LocalDateTime endDate, TransactionStatus status);
+	
+	List<SalesHeader> findByStatusAndSynchronizationStatusNot(TransactionStatus status, SynchronizationStatus synchronizationStatus);
 }

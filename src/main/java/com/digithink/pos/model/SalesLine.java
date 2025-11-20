@@ -55,5 +55,8 @@ public class SalesLine extends _BaseEntity {
 	private transient Long salesHeaderId;
 	
 	private transient Long itemId;
+
+	@Column(nullable = false)
+	private Boolean synched = false;
 }
 

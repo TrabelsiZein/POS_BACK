@@ -103,6 +103,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesHeader.setSubtotal(request.getSubtotal());
 		salesHeader.setTaxAmount(request.getTaxAmount());
 		salesHeader.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
+		salesHeader.setDiscountPercentage(request.getDiscountPercentage());
 		salesHeader.setTotalAmount(request.getTotalAmount());
 		salesHeader.setPaidAmount(request.getPaidAmount());
 		salesHeader.setChangeAmount(request.getChangeAmount());
@@ -302,6 +303,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesHeader.setSubtotal(request.getSubtotal());
 		salesHeader.setTaxAmount(request.getTaxAmount());
 		salesHeader.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
+		salesHeader.setDiscountPercentage(request.getDiscountPercentage());
 		salesHeader.setTotalAmount(request.getTotalAmount());
 		salesHeader.setPaidAmount(0.0); // No payment yet
 		salesHeader.setChangeAmount(0.0);
@@ -434,6 +436,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesHeader.setSubtotal(request.getSubtotal());
 		salesHeader.setTaxAmount(request.getTaxAmount());
 		salesHeader.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
+		salesHeader.setDiscountPercentage(request.getDiscountPercentage());
 		salesHeader.setTotalAmount(request.getTotalAmount());
 		if (request.getNotes() != null) {
 			salesHeader.setNotes(request.getNotes());

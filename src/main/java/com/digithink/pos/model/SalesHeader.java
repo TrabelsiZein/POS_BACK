@@ -10,6 +10,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Transient;
 
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 
 import lombok.Data;
@@ -52,6 +53,8 @@ public class SalesHeader extends _BaseEntity {
 
 	private Double discountAmount;
 
+	private Double discountPercentage;
+
 	private Double totalAmount;
 
 	private Double paidAmount;
@@ -75,4 +78,9 @@ public class SalesHeader extends _BaseEntity {
 	// Transient field for display purposes
 	@Transient
 	private Long cashierSessionId;
+
+	@Enumerated(EnumType.STRING)
+	private SynchronizationStatus synchronizationStatus = SynchronizationStatus.NOT_SYNCHED;
+
+	private String erpNo; // Document_No from Dynamics NAV
 }
