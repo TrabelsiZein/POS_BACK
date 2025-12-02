@@ -1,12 +1,12 @@
 package com.digithink.pos.erp.service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
@@ -82,7 +82,11 @@ public class ErpSynchronizationManager {
 			return result;
 		} catch (Exception ex) {
 			LOGGER.error("ERP pull operation {} failed: {}", operation, ex.getMessage(), ex);
-			communicationService.logOperation(operation, filter, Collections.emptyList(),
+			
+			// Extract error response body if available (from HTTP exceptions)
+			Object errorResponse = extractErrorResponseBody(ex);
+			
+			communicationService.logOperation(operation, filter, errorResponse,
 					ErpCommunicationStatus.ERROR, null, ex.getMessage(), start, LocalDateTime.now());
 			throw ex;
 		}
@@ -102,10 +106,39 @@ public class ErpSynchronizationManager {
 			return result;
 		} catch (Exception ex) {
 			LOGGER.error("ERP push operation {} failed: {}", operation, ex.getMessage(), ex);
-			communicationService.logOperation(operation, payload, null,
+			
+			// Extract error response body if available (from HTTP exceptions)
+			Object errorResponse = extractErrorResponseBody(ex);
+			
+			communicationService.logOperation(operation, payload, errorResponse,
 					ErpCommunicationStatus.ERROR, null, ex.getMessage(), start, LocalDateTime.now());
 			throw ex;
 		}
+	}
+	
+	/**
+	 * Extract error response body from exception if it's an HTTP exception
+	 */
+	private Object extractErrorResponseBody(Exception ex) {
+		// Check if the exception itself is an HttpStatusCodeException
+		if (ex instanceof HttpStatusCodeException) {
+			String responseBody = ((HttpStatusCodeException) ex).getResponseBodyAsString();
+			if (responseBody != null && !responseBody.trim().isEmpty()) {
+				return responseBody;
+			}
+		}
+		
+		// Check if the cause is an HttpStatusCodeException (common when wrapped in RuntimeException)
+		Throwable cause = ex.getCause();
+		if (cause instanceof HttpStatusCodeException) {
+			String responseBody = ((HttpStatusCodeException) cause).getResponseBodyAsString();
+			if (responseBody != null && !responseBody.trim().isEmpty()) {
+				return responseBody;
+			}
+		}
+		
+		// No error response body available
+		return null;
 	}
 
 	@FunctionalInterface

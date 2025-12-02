@@ -3,13 +3,16 @@ package com.digithink.pos.erp.dynamicsnav.dto;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DynamicsNavSalesOrderHeaderDTO {
 
 	@JsonProperty("Document_Type")
 	private String documentType = "Order";
 
+	@JsonProperty("No")
 	private String documentNo;
 
 	@JsonProperty("Sell_to_Customer_No")

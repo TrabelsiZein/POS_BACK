@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.service.CustomerService;
+import com.digithink.pos.service.GeneralSetupService;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -24,6 +25,9 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 
 	@Autowired
 	private CustomerService customerService;
+
+	@Autowired
+	private GeneralSetupService generalSetupService;
 
 	/**
 	 * Search customers by name, code, phone, or email
@@ -57,12 +61,24 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 	public ResponseEntity<?> getPassengerCustomer() {
 		try {
 			log.info("CustomerAPI::getPassengerCustomer");
+			
+			// Get passenger customer code from GeneralSetup
+			String passengerCode = generalSetupService.findValueByCode("PASSENGER_CUSTOMER");
+			
+			// Check if passenger code is configured
+			if (passengerCode == null || passengerCode.trim().isEmpty()) {
+				log.warn("PASSENGER_CUSTOMER not configured in GeneralSetup");
+				return ResponseEntity.status(400).body(createErrorResponse("Passenger not configured"));
+			}
+			
+			// Retrieve customer using the code from GeneralSetup
 			java.util.Optional<Customer> passenger = customerService.getCustomerRepository()
-				.findByCustomerCode("PASSENGER");
+				.findByCustomerCode(passengerCode.trim());
 			
 			if (passenger.isPresent()) {
 				return ResponseEntity.ok(passenger.get());
 			} else {
+				log.warn("Passenger customer not found with code: " + passengerCode);
 				return ResponseEntity.status(404).body(createErrorResponse("Passenger customer not found"));
 			}
 		} catch (Exception e) {

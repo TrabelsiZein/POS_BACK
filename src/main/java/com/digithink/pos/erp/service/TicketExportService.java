@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
@@ -22,6 +23,8 @@ import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SalesLineRepository;
 import com.digithink.pos.service.GeneralSetupService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +39,7 @@ public class TicketExportService {
 	private final SalesLineRepository salesLineRepository;
 	private final GeneralSetupService generalSetupService;
 	private final ErpCommunicationService communicationService;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * Export tickets to Dynamics NAV
@@ -149,7 +153,7 @@ public class TicketExportService {
 		// Set customer information
 		if (ticket.getCustomer() != null) {
 			headerDTO.setSellToCustomerNo(ticket.getCustomer().getCustomerCode());
-			headerDTO.setSellToCustomerName(ticket.getCustomer().getName());
+//			headerDTO.setSellToCustomerName(ticket.getCustomer().getName());
 		}
 
 		// Set responsibility center and location from GeneralSetup
@@ -220,9 +224,13 @@ public class TicketExportService {
 				}
 			}
 
+			// Extract clean error message (without full payload)
+			String cleanErrorMessage = extractCleanErrorMessage(ex, errorResponseBody);
+
 			// Log error operation with error response body
+			// errorMessage contains short message, full response is in response_payload
 			communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, headerDTO, errorResponse,
-					ErpCommunicationStatus.ERROR, null, ex.getMessage(), start, LocalDateTime.now());
+					ErpCommunicationStatus.ERROR, null, cleanErrorMessage, start, LocalDateTime.now());
 			throw ex;
 		} catch (Exception ex) {
 			// Log error operation
@@ -261,7 +269,7 @@ public class TicketExportService {
 			lineDTO.setNo(line.getItem().getItemCode());
 			lineDTO.setQuantity(line.getQuantity().doubleValue());
 			lineDTO.setUnitPrice(line.getUnitPrice());
-
+			// Type is read-only in NAV, so set it to null to exclude it from request
 			if (line.getDiscountPercentage() != null) {
 				lineDTO.setLineDiscountPercent(line.getDiscountPercentage());
 			}
@@ -289,9 +297,13 @@ public class TicketExportService {
 					errorResponse = errorResponseBody;
 				}
 
+				// Extract clean error message (without full payload)
+				String cleanErrorMessage = extractCleanErrorMessage(ex, errorResponseBody);
+
 				// Log error operation with error response body
+				// errorMessage contains short message, full response is in response_payload
 				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, lineDTO, errorResponse,
-						ErpCommunicationStatus.ERROR, ticket.getErpNo() + "-" + lineNo, ex.getMessage(), lineStart,
+						ErpCommunicationStatus.ERROR, ticket.getErpNo() + "-" + lineNo, cleanErrorMessage, lineStart,
 						LocalDateTime.now());
 				LOGGER.error("Failed to export line {} for ticket {}: {}", line.getId(), ticket.getSalesNumber(),
 						ex.getMessage(), ex);
@@ -306,5 +318,42 @@ public class TicketExportService {
 				// Continue with next line
 			}
 		}
+	}
+
+	/**
+	 * Extract a clean error message from HTTP exception without the full JSON
+	 * payload
+	 */
+	private String extractCleanErrorMessage(HttpStatusCodeException ex, String errorResponseBody) {
+		// Try to extract just the error message from JSON response
+		if (errorResponseBody != null && !errorResponseBody.trim().isEmpty()) {
+			try {
+				JsonNode errorNode = objectMapper.readTree(errorResponseBody);
+
+				// Handle array of errors: [{"error": {...}}]
+				if (errorNode.isArray() && errorNode.size() > 0) {
+					JsonNode firstError = errorNode.get(0);
+					if (firstError.has("error")) {
+						JsonNode error = firstError.get("error");
+						if (error.has("message")) {
+							return ex.getStatusCode() + " " + error.get("message").asText();
+						}
+					}
+				}
+
+				// Handle single error object: {"error": {...}}
+				if (errorNode.has("error")) {
+					JsonNode error = errorNode.get("error");
+					if (error.has("message")) {
+						return ex.getStatusCode() + " " + error.get("message").asText();
+					}
+				}
+			} catch (Exception parseEx) {
+				LOGGER.debug("Failed to parse error response body: {}", parseEx.getMessage());
+			}
+		}
+
+		// Fallback to status code and status text
+		return ex.getStatusCode() + " " + (ex.getStatusText() != null ? ex.getStatusText() : "Unknown error");
 	}
 }

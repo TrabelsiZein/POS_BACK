@@ -57,10 +57,10 @@ public class ZZDataInitializer {
 			initPaymentMethods();
 		}
 
-		if (customerRepository.count() == 0) {
-			// Create default customer
-			initDefaultCustomer();
-		}
+//		if (customerRepository.count() == 0) {
+//			// Create default customer
+//			initDefaultCustomer();
+//		}
 //
 //		if (itemFamilyRepository.count() == 0) {
 //			// Create item families
@@ -252,21 +252,21 @@ public class ZZDataInitializer {
 	/**
 	 * Create initial customers for Hammai Group Tunisia
 	 */
-	private void initDefaultCustomer() {
-		// Passenger customer (for POS tickets when no customer selected)
-		Customer passengerCustomer = new Customer();
-		passengerCustomer.setCustomerCode("PASSENGER");
-		passengerCustomer.setName("Passenger Customer");
-		passengerCustomer.setEmail("passenger@pos.local");
-		passengerCustomer.setPhone("0000000000"); // Required field, use placeholder
-		passengerCustomer.setAddress("");
-		passengerCustomer.setCity("");
-		passengerCustomer.setCountry("");
-		passengerCustomer.setActive(true);
-		passengerCustomer.setCreatedBy("System");
-		passengerCustomer.setUpdatedBy("System");
-		customerRepository.save(passengerCustomer);
-	}
+//	private void initDefaultCustomer() {
+//		// Passenger customer (for POS tickets when no customer selected)
+//		Customer passengerCustomer = new Customer();
+//		passengerCustomer.setCustomerCode("PASSENGER");
+//		passengerCustomer.setName("Passenger Customer");
+//		passengerCustomer.setEmail("passenger@pos.local");
+//		passengerCustomer.setPhone("0000000000"); // Required field, use placeholder
+//		passengerCustomer.setAddress("");
+//		passengerCustomer.setCity("");
+//		passengerCustomer.setCountry("");
+//		passengerCustomer.setActive(true);
+//		passengerCustomer.setCreatedBy("System");
+//		passengerCustomer.setUpdatedBy("System");
+//		customerRepository.save(passengerCustomer);
+//	}
 //
 //	/**
 //	 * Create initial item families

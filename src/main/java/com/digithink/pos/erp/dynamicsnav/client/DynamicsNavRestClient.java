@@ -77,9 +77,13 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavFamilyDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch item families from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch item families: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch item families from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch item families: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -93,9 +97,13 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch item subfamilies: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch item subfamilies: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -109,9 +117,13 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavLocationDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch locations from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch locations: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch locations from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch locations: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -138,9 +150,13 @@ public class DynamicsNavRestClient {
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
 		} catch (ErpSyncWarningException warning) {
 			throw warning;
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch items from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch items: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch items from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch items: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -160,9 +176,13 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavBarcodeDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch item barcodes from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch item barcodes: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch item barcodes from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch item barcodes: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -179,9 +199,13 @@ public class DynamicsNavRestClient {
 
 			DynamicsNavCollectionResponse<DynamicsNavCustomerDTO> body = response.getBody();
 			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (Exception ex) {
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch customers from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			throw new RuntimeException("Failed to fetch customers: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
 			LOGGER.error("Failed to fetch customers from Dynamics NAV: {}", ex.getMessage(), ex);
-			return Collections.emptyList();
+			throw new RuntimeException("Failed to fetch customers: " + ex.getMessage(), ex);
 		}
 	}
 
@@ -288,8 +312,8 @@ public class DynamicsNavRestClient {
 			String errorMessage = extractErrorMessage(ex);
 			LOGGER.error("Failed to create sales order line in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
 					ex);
-			throw new RuntimeException("Failed to create sales order line: " + ex.getStatusCode() + " " + errorMessage,
-					ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
 		} catch (RestClientException ex) {
 			LOGGER.error("Failed to create sales order line in Dynamics NAV: {}", ex.getMessage(), ex);
 			throw new RuntimeException("Failed to create sales order line: " + ex.getMessage(), ex);
