@@ -39,7 +39,8 @@ public class ItemService extends _BaseService<Item, Long> {
 		return itemRepository;
 	}
 
-	public Page<Item> findActiveItems(String search, String filterType, Pageable pageable) {
+	public Page<Item> findActiveItems(String search, Long familyId, Long subFamilyId, Double priceMin, Double priceMax,
+			Pageable pageable) {
 		Specification<Item> specification = (root, query, cb) -> {
 			query.distinct(true);
 			Predicate predicate = cb.conjunction();
@@ -47,22 +48,37 @@ public class ItemService extends _BaseService<Item, Long> {
 
 			if (StringUtils.hasText(search)) {
 				String likeValue = "%" + search.toLowerCase() + "%";
-				predicate = cb.and(predicate, cb.or(cb.like(cb.lower(root.get("itemCode")), likeValue),
-						cb.like(cb.lower(root.get("name")), likeValue)));
+				// Search in item code and name
+				Predicate codeNameMatch = cb.or(cb.like(cb.lower(root.get("itemCode")), likeValue),
+						cb.like(cb.lower(root.get("name")), likeValue));
+				
+				// Search in barcodes
+				Subquery<Long> barcodeSubquery = query.subquery(Long.class);
+				var barcodeRoot = barcodeSubquery.from(com.digithink.pos.model.ItemBarcode.class);
+				barcodeSubquery.select(barcodeRoot.get("item").get("id"));
+				barcodeSubquery.where(cb.equal(barcodeRoot.get("item").get("id"), root.get("id")),
+						cb.or(cb.isTrue(barcodeRoot.get("active")), cb.isNull(barcodeRoot.get("active"))),
+						cb.like(cb.lower(barcodeRoot.get("barcode")), likeValue));
+				Predicate barcodeMatch = cb.exists(barcodeSubquery);
+				
+				// Match if code/name OR barcode matches
+				predicate = cb.and(predicate, cb.or(codeNameMatch, barcodeMatch));
 			}
 
-			if ("withBarcodes".equalsIgnoreCase(filterType) || "withoutBarcodes".equalsIgnoreCase(filterType)) {
-				Subquery<Long> subquery = query.subquery(Long.class);
-				var barcodeRoot = subquery.from(com.digithink.pos.model.ItemBarcode.class);
-				subquery.select(barcodeRoot.get("item").get("id"));
-				subquery.where(cb.equal(barcodeRoot.get("item").get("id"), root.get("id")),
-						cb.isTrue(barcodeRoot.get("active")));
+			if (familyId != null) {
+				predicate = cb.and(predicate, cb.equal(root.get("itemFamily").get("id"), familyId));
+			}
 
-				if ("withBarcodes".equalsIgnoreCase(filterType)) {
-					predicate = cb.and(predicate, cb.exists(subquery));
-				} else {
-					predicate = cb.and(predicate, cb.not(cb.exists(subquery)));
-				}
+			if (subFamilyId != null) {
+				predicate = cb.and(predicate, cb.equal(root.get("itemSubFamily").get("id"), subFamilyId));
+			}
+
+			if (priceMin != null) {
+				predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("unitPrice"), priceMin));
+			}
+
+			if (priceMax != null) {
+				predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("unitPrice"), priceMax));
 			}
 
 			return predicate;

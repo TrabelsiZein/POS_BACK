@@ -9,9 +9,7 @@ import com.digithink.pos.erp.enumeration.ErpSyncJobType;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.repository.ErpSyncJobRepository;
 import com.digithink.pos.erp.service.ErpSyncCheckpointService;
-import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
-import com.digithink.pos.model.Location;
 import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
@@ -51,7 +49,7 @@ public class ZZDataInitializer {
 			initUsers();
 		}
 
-		if (paymentMethodRepository.count() == 0 || !paymentMethodRepository.findByCode("CLIENT_ESPECES").isPresent()) {
+		if (paymentMethodRepository.count() == 0) {
 			// Reset payment methods to new configuration
 			paymentMethodRepository.deleteAll();
 			initPaymentMethods();
@@ -661,32 +659,23 @@ public class ZZDataInitializer {
 	 * Create initial general setup records
 	 */
 	private void initGeneralSetup() {
-		// Get default location
-		Location defaultLocation = locationRepository.findByIsDefaultTrue()
-				.orElse(locationRepository.findAll().stream().findFirst().orElse(null));
 
-		String locationValue = defaultLocation != null ? defaultLocation.getLocationCode() : "";
+		if (!generalSetupRepository.findByCode("DEFAULT_LOCATION").isPresent()) {
+			GeneralSetup locationSetup = new GeneralSetup();
+			locationSetup.setCode("DEFAULT_LOCATION");
+			locationSetup.setValeur("");
+			locationSetup.setDescription("Default location code for the system");
+			locationSetup.setReadOnly(false);
+			locationSetup.setActive(true);
+			locationSetup.setCreatedBy("System");
+			locationSetup.setUpdatedBy("System");
+			generalSetupRepository.save(locationSetup);
+		}
 
-		// Location setup record
-		GeneralSetup locationSetup = new GeneralSetup();
-		locationSetup.setCode("DEFAULT_LOCATION");
-		locationSetup.setValeur(locationValue);
-		locationSetup.setDescription("Default location code for the system");
-		locationSetup.setReadOnly(false);
-		locationSetup.setActive(true);
-		locationSetup.setCreatedBy("System");
-		locationSetup.setUpdatedBy("System");
-		generalSetupRepository.save(locationSetup);
-
-		// Passenger customer setup record
-		Customer passengerCustomer = customerRepository.findByCustomerCode("PASSENGER")
-				.orElse(customerRepository.findAll().stream().findFirst().orElse(null));
-
-		if (passengerCustomer != null) {
-			String customerValue = String.valueOf(passengerCustomer.getId());
+		if (!generalSetupRepository.findByCode("PASSENGER_CUSTOMER").isPresent()) {
 			GeneralSetup customerSetup = new GeneralSetup();
 			customerSetup.setCode("PASSENGER_CUSTOMER");
-			customerSetup.setValeur(customerValue);
+			customerSetup.setValeur("");
 			customerSetup.setDescription("Passenger customer ID for POS tickets when no customer is selected");
 			customerSetup.setReadOnly(false);
 			customerSetup.setActive(true);
@@ -737,7 +726,7 @@ public class ZZDataInitializer {
 		if (!generalSetupRepository.findByCode("ERP_SYNC_TRACKING_LEVEL").isPresent()) {
 			GeneralSetup erpTracking = new GeneralSetup();
 			erpTracking.setCode("ERP_SYNC_TRACKING_LEVEL");
-			erpTracking.setValeur("ERRORS_ONLY");
+			erpTracking.setValeur("ALL");
 			erpTracking.setDescription("ERP communication tracking level (ERRORS_ONLY | ERRORS_AND_WARNINGS | ALL)");
 			erpTracking.setReadOnly(false);
 			erpTracking.setActive(true);
@@ -775,6 +764,8 @@ public class ZZDataInitializer {
 				"Template job for exporting customers (disabled by default)", false);
 		createErpJob("0 0 0 1 1 *", ErpSyncJobType.EXPORT_TICKETS,
 				"Template job for exporting tickets (disabled by default)", false);
+		createErpJob("0 0 * * * *", ErpSyncJobType.EXPORT_RETURNS, "Export returns to ERP (runs every 1 hour)", true);
+		createErpJob("0 0 * * * *", ErpSyncJobType.EXPORT_SESSIONS, "Export sessions to ERP (runs every 1 hour)", true);
 	}
 
 	private void createErpJob(String cron, ErpSyncJobType type, String description, boolean enabled) {

@@ -7,6 +7,7 @@ import java.util.Optional;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.model.enumeration.SessionStatus;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 
 public interface CashierSessionRepository extends _BaseRepository<CashierSession, Long> {
 
@@ -21,5 +22,10 @@ public interface CashierSessionRepository extends _BaseRepository<CashierSession
 	List<CashierSession> findByVerifiedBy(UserAccount user);
 	
 	long countByOpenedAtGreaterThanEqual(LocalDateTime date);
+
+	// Query methods for synchronization
+	// Find sessions that are CLOSED or TERMINATED and not totally synched
+	List<CashierSession> findByStatusInAndSynchronizationStatusNot(
+			java.util.List<SessionStatus> statuses, SynchronizationStatus synchronizationStatus);
 }
 

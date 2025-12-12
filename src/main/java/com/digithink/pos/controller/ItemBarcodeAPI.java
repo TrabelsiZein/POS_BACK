@@ -72,19 +72,23 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 			@org.springframework.web.bind.annotation.RequestParam(name = "page", defaultValue = "0") int page,
 			@org.springframework.web.bind.annotation.RequestParam(name = "size", defaultValue = "20") int size,
 			@org.springframework.web.bind.annotation.RequestParam(name = "search", required = false) String search,
-			@org.springframework.web.bind.annotation.RequestParam(name = "filterType", defaultValue = "all") String filterType) {
+			@org.springframework.web.bind.annotation.RequestParam(name = "familyId", required = false) Long familyId,
+			@org.springframework.web.bind.annotation.RequestParam(name = "subFamilyId", required = false) Long subFamilyId,
+			@org.springframework.web.bind.annotation.RequestParam(name = "priceMin", required = false) Double priceMin,
+			@org.springframework.web.bind.annotation.RequestParam(name = "priceMax", required = false) Double priceMax) {
 		try {
-			log.info("ItemBarcodeAPI::getAllItemsWithBarcodes page={}, size={}, search={}, filter={} ", page, size, search,
-					filterType);
+			log.info(
+					"ItemBarcodeAPI::getAllItemsWithBarcodes page={}, size={}, search={}, familyId={}, subFamilyId={}, priceMin={}, priceMax={}",
+					page, size, search, familyId, subFamilyId, priceMin, priceMax);
 
 			int safePage = Math.max(page, 0);
 			int safeSize = Math.min(Math.max(size, 1), 200);
 
-			org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest
-					.of(safePage, safeSize, org.springframework.data.domain.Sort.by("itemCode").ascending());
+			org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(safePage,
+					safeSize, org.springframework.data.domain.Sort.by("itemCode").ascending());
 
-			org.springframework.data.domain.Page<Item> itemsPage = itemService.findActiveItems(search, filterType,
-					pageable);
+			org.springframework.data.domain.Page<Item> itemsPage = itemService.findActiveItems(search, familyId,
+					subFamilyId, priceMin, priceMax, pageable);
 
 			List<Long> itemIds = itemsPage.stream().map(Item::getId).collect(Collectors.toList());
 			Map<Long, List<ItemBarcode>> barcodesByItem = itemBarcodeService.getActiveBarcodesForItems(itemIds).stream()
@@ -111,4 +115,3 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 		}
 	}
 }
-

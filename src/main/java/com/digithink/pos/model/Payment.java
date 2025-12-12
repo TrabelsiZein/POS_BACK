@@ -56,5 +56,8 @@ public class Payment extends _BaseEntity {
 	private String drawerName;
 
 	private String issuingBank;
+
+	@Column(nullable = true)
+	private Boolean synched = false;
 }
 

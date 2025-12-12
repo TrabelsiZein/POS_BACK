@@ -1,8 +1,9 @@
 package com.digithink.pos.erp.dynamicsnav.client;
 
+import java.net.URI;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,8 +31,13 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCollectionResponse;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCustomerDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentHeaderDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSessionDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
 import com.digithink.pos.erp.service.ErpSyncWarningException;
@@ -47,6 +53,18 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 public class DynamicsNavRestClient {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DynamicsNavRestClient.class);
+
+	/**
+	 * ThreadLocal to store the URL used in the current fetch operation for logging.
+	 * Thread-safety: ThreadLocal ensures each thread has its own copy.
+	 */
+	private static final ThreadLocal<String> CURRENT_FETCH_URL = new ThreadLocal<>();
+
+	/**
+	 * ThreadLocal to store the raw NAV response for logging. Thread-safety:
+	 * ThreadLocal ensures each thread has its own copy.
+	 */
+	private static final ThreadLocal<Object> CURRENT_FETCH_RESPONSE = new ThreadLocal<>();
 
 	private final RestTemplate dynamicsNavRestTemplate;
 	private final DynamicsNavProperties properties;
@@ -67,63 +85,122 @@ public class DynamicsNavRestClient {
 		this.objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 	}
 
+	/**
+	 * Fetch all items from Dynamics NAV with pagination support.
+	 * Follows @odata.nextLink until all pages are retrieved. Stores the initial URL
+	 * in ThreadLocal for logging purposes.
+	 */
+	private <T> List<T> fetchAllWithPagination(String initialUrl,
+			ParameterizedTypeReference<DynamicsNavCollectionResponse<T>> typeRef) {
+		// Store the initial URL in ThreadLocal for logging
+		CURRENT_FETCH_URL.set(initialUrl);
+		List<T> allItems = new ArrayList<>();
+		String nextUrl = initialUrl;
+		boolean firstPage = true;
+
+		try {
+			while (nextUrl != null) {
+				ResponseEntity<DynamicsNavCollectionResponse<T>> response;
+				if (firstPage) {
+					// First page may contain unencoded spaces; let RestTemplate handle encoding from String
+					response = dynamicsNavRestTemplate.exchange(nextUrl, HttpMethod.GET, null, typeRef);
+					firstPage = false;
+				} else {
+					// Next links are already encoded by NAV; avoid re-encoding by using URI
+					URI nextUri = URI.create(nextUrl);
+					response = dynamicsNavRestTemplate.exchange(nextUri, HttpMethod.GET, null, typeRef);
+				}
+
+				DynamicsNavCollectionResponse<T> body = response.getBody();
+				if (body != null && body.getValue() != null) {
+					allItems.addAll(body.getValue());
+					nextUrl = body.getNextLink();
+
+					// Store raw response (only on first page) for logging
+					if (CURRENT_FETCH_RESPONSE.get() == null) {
+						CURRENT_FETCH_RESPONSE.set(body.getValue());
+					}
+
+					LOGGER.debug("Fetched {} items, total so far: {}", body.getValue().size(), allItems.size());
+				} else {
+					nextUrl = null;
+				}
+			}
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to fetch paginated data from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
+					ex);
+			throw new RuntimeException("Failed to fetch paginated data: " + ex.getStatusCode() + " " + errorMessage,
+					ex);
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to fetch paginated data from Dynamics NAV: {}", ex.getMessage(), ex);
+			throw new RuntimeException("Failed to fetch paginated data: " + ex.getMessage(), ex);
+		}
+		// Note: We don't remove the URL here - it will be retrieved by
+		// DynamicsNavConnector
+		// and cleaned up by ErpSynchronizationManager after logging
+
+		return allItems;
+	}
+
+	/**
+	 * Get the URL used in the last fetch operation (for logging purposes). This
+	 * should be called immediately after a fetch operation within the same thread.
+	 */
+	public static String getLastFetchUrl() {
+		return CURRENT_FETCH_URL.get();
+	}
+
+	/**
+	 * Get the raw NAV response from the last fetch operation (for logging
+	 * purposes).
+	 */
+	public static Object getLastFetchResponse() {
+		return CURRENT_FETCH_RESPONSE.get();
+	}
+
+	/**
+	 * Clear the stored fetch URL and response (should be called after retrieving
+	 * them).
+	 */
+	public static void clearLastFetchUrl() {
+		CURRENT_FETCH_URL.remove();
+		CURRENT_FETCH_RESPONSE.remove();
+	}
+
 	public List<DynamicsNavFamilyDTO> fetchItemFamilies() {
 		try {
 			String url = buildCompanyEndpointUrl("FamilyList");
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavFamilyDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavFamilyDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavFamilyDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch item families from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch item families: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch item families from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch item families: " + ex.getMessage(), ex);
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavFamilyDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch item families from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
 	public List<DynamicsNavSubFamilyDTO> fetchItemSubFamilies() {
 		try {
 			String url = buildCompanyEndpointUrl("SubFamilyList");
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch item subfamilies: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch item subfamilies: " + ex.getMessage(), ex);
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSubFamilyDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch item subfamilies from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
 	public List<DynamicsNavLocationDTO> fetchLocations() {
 		try {
 			String url = buildCompanyEndpointUrl("LocationList");
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavLocationDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavLocationDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavLocationDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch locations from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch locations: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch locations from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch locations: " + ex.getMessage(), ex);
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavLocationDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch locations from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
@@ -141,22 +218,14 @@ public class DynamicsNavRestClient {
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("StockkeepingUnitList");
 			appendSkuFilters(builder, filter, defaultLocation);
 			String url = builder.build(false).toUriString();
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavStockKeepingUnitDTO>>() {
+					});
 		} catch (ErpSyncWarningException warning) {
 			throw warning;
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch items from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch items: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch items from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch items: " + ex.getMessage(), ex);
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch items from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
@@ -169,20 +238,12 @@ public class DynamicsNavRestClient {
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("BarCodeList");
 			buildUpdatedAfterFilter(filter, "Modified_At").ifPresent(value -> builder.queryParam("$filter", value));
 			String url = builder.build(false).toUriString();
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavBarcodeDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavBarcodeDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavBarcodeDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch item barcodes from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch item barcodes: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch item barcodes from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch item barcodes: " + ex.getMessage(), ex);
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavBarcodeDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch item barcodes from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
@@ -192,20 +253,12 @@ public class DynamicsNavRestClient {
 			buildUpdatedAfterFilter(filter, "Last_Date_Modified")
 					.ifPresent(value -> builder.queryParam("$filter", value));
 			String url = builder.build(false).toUriString();
-			ResponseEntity<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>> response = dynamicsNavRestTemplate
-					.exchange(url, HttpMethod.GET, null,
-							new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>>() {
-							});
-
-			DynamicsNavCollectionResponse<DynamicsNavCustomerDTO> body = response.getBody();
-			return body != null && body.getValue() != null ? body.getValue() : Collections.emptyList();
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			String errorMessage = extractErrorMessage(ex);
-			LOGGER.error("Failed to fetch customers from Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
-			throw new RuntimeException("Failed to fetch customers: " + ex.getStatusCode() + " " + errorMessage, ex);
-		} catch (RestClientException ex) {
-			LOGGER.error("Failed to fetch customers from Dynamics NAV: {}", ex.getMessage(), ex);
-			throw new RuntimeException("Failed to fetch customers: " + ex.getMessage(), ex);
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch customers from Dynamics NAV", ex);
+			throw ex;
 		}
 	}
 
@@ -276,12 +329,12 @@ public class DynamicsNavRestClient {
 
 			// Extract Document_No from response (it's read-only so it will be in the
 			// response)
-			DynamicsNavSalesOrderHeaderDTO createdHeader = response.getBody();
-			if (createdHeader != null && createdHeader.getDocumentNo() != null) {
-				header.setDocumentNo(createdHeader.getDocumentNo());
-			}
+			DynamicsNavSalesOrderHeaderDTO responseDto = response.getBody();
+//			if (responseDto != null && responseDto.getDocumentNo() != null) {
+//				header.setDocumentNo(responseDto.getDocumentNo());
+//			}
 
-			return header;
+			return responseDto;
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
 			String errorMessage = extractErrorMessage(ex);
 			LOGGER.error("Failed to create sales order header in Dynamics NAV: {} - {}", ex.getStatusCode(),
@@ -324,29 +377,36 @@ public class DynamicsNavRestClient {
 	 * Update POS_Order field to true in Dynamics NAV header Note: This uses PATCH
 	 * method to update only the POS_Order field
 	 */
-	public void updateSalesOrderHeaderPosOrder(String documentNo, boolean posOrder) {
+	public DynamicsNavSalesOrderHeaderDTO updateSalesOrderHeaderPosOrder(String documentNo, boolean posOrder) {
 		try {
 			// Build URL for specific document - escape the document number for URL
 			String escapedDocNo = documentNo.replace("'", "''");
-			String url = buildCompanyEndpointUrl("SalesOrdersPos") + "('" + escapedDocNo + "')";
+			String url = buildCompanyEndpointUrl("SalesOrdersPos") + "(No='" + escapedDocNo
+					+ "',Document_Type='Order')";
 
-			// Create a partial update DTO with only POS_Order field
-			DynamicsNavSalesOrderHeaderDTO update = new DynamicsNavSalesOrderHeaderDTO();
-			update.setPosOrder(posOrder);
+			// Create a minimal JSON object with only POS_Order field
+			JsonNode updatePayload = objectMapper.createObjectNode().put("POS_Order", posOrder);
+			String jsonPayload = objectMapper.writeValueAsString(updatePayload);
 
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
-			HttpEntity<DynamicsNavSalesOrderHeaderDTO> request = new HttpEntity<>(update, headers);
+			headers.setIfMatch("*"); // Required for OData PATCH operations in Dynamics NAV
+			HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
 
 			// Use exchange with PATCH method since RestTemplate doesn't have patch method
-			dynamicsNavRestTemplate.exchange(url, HttpMethod.PATCH, request, Void.class);
+			ResponseEntity<DynamicsNavSalesOrderHeaderDTO> responseDto = dynamicsNavRestTemplate.exchange(url,
+					HttpMethod.PATCH, request, DynamicsNavSalesOrderHeaderDTO.class);
 			LOGGER.info("Updated POS_Order to {} for document {}", posOrder, documentNo);
+			return responseDto.getBody();
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
 			String errorMessage = extractErrorMessage(ex);
 			LOGGER.error("Failed to update POS_Order for document {}: {} - {}", documentNo, ex.getStatusCode(),
 					errorMessage, ex);
 			throw new RuntimeException("Failed to update POS_Order: " + ex.getStatusCode() + " " + errorMessage, ex);
 		} catch (RestClientException ex) {
+			LOGGER.error("Failed to update POS_Order for document {}: {}", documentNo, ex.getMessage(), ex);
+			throw new RuntimeException("Failed to update POS_Order: " + ex.getMessage(), ex);
+		} catch (Exception ex) {
 			LOGGER.error("Failed to update POS_Order for document {}: {}", documentNo, ex.getMessage(), ex);
 			throw new RuntimeException("Failed to update POS_Order: " + ex.getMessage(), ex);
 		}
@@ -396,5 +456,166 @@ public class DynamicsNavRestClient {
 
 		// Fallback to status text or exception message
 		return ex.getStatusText() != null ? ex.getStatusText() : ex.getMessage();
+	}
+
+	/**
+	 * Build URL for code unit endpoints (not entity pages) Format:
+	 * EndpointName?company=CompanyCode Note: baseUrl already includes ODataV4 path
+	 */
+	private String buildCodeUnitEndpointUrl(String endpointName) {
+		String baseUrl = ensureTrailingSlash(properties.getBaseUrl());
+		UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl).path(endpointName);
+
+		// Add company as query parameter
+		if (properties.getCompany() != null && !properties.getCompany().trim().isEmpty()) {
+			builder.queryParam("company", properties.getCompany());
+		}
+
+		return builder.build(false).toUriString();
+	}
+
+	/**
+	 * Create a payment header in Dynamics NAV Returns the document number from the
+	 * response
+	 */
+	public JsonNode createPaymentHeader(DynamicsNavPaymentHeaderDTO header) {
+		try {
+			String url = buildCodeUnitEndpointUrl("WarehouseManagement_CreatePaymentHeader");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavPaymentHeaderDTO> request = new HttpEntity<>(header, headers);
+
+			// Response is in format: {"@odata.context": "...", "value": "ESP-005-25-09919"}
+			ResponseEntity<JsonNode> response = dynamicsNavRestTemplate.postForEntity(url, request, JsonNode.class);
+
+			JsonNode responseBody = response.getBody();
+			if (responseBody != null && responseBody.has("value")) {
+//				return responseBody.get("value").asText();
+				return responseBody;
+			}
+
+			throw new RuntimeException("Failed to get document number from NAV payment header response");
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create payment header in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
+					ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create payment header in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw new RuntimeException("Failed to create payment header: " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Create a payment line in Dynamics NAV Returns the response (usually just a
+	 * success indicator)
+	 */
+	public Object createPaymentLine(DynamicsNavPaymentLineDTO line) {
+		try {
+			String url = buildCodeUnitEndpointUrl("WarehouseManagement_CreatePaymentLine");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavPaymentLineDTO> request = new HttpEntity<>(line, headers);
+
+			ResponseEntity<Object> response = dynamicsNavRestTemplate.postForEntity(url, request, Object.class);
+
+			return response.getBody();
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create payment line in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
+					ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create payment line in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw new RuntimeException("Failed to create payment line: " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Create a return header in Dynamics NAV
+	 */
+	public DynamicsNavReturnHeaderDTO createReturnHeader(DynamicsNavReturnHeaderDTO header) {
+		try {
+			String url = buildCompanyEndpointUrl("SalesReturnPOS");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavReturnHeaderDTO> request = new HttpEntity<>(header, headers);
+
+			ResponseEntity<DynamicsNavReturnHeaderDTO> response = dynamicsNavRestTemplate.postForEntity(url, request,
+					DynamicsNavReturnHeaderDTO.class);
+
+			// Extract Document_No from response (it's read-only so it will be in the
+			// response)
+			DynamicsNavReturnHeaderDTO responseDto = response.getBody();
+
+			return responseDto;
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create return header in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage,
+					ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create return header in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw ex;
+		}
+	}
+
+	/**
+	 * Create a return line in Dynamics NAV
+	 */
+	public DynamicsNavReturnLineDTO createReturnLine(DynamicsNavReturnLineDTO line) {
+		try {
+			String url = buildCompanyEndpointUrl("SalesReturnPOSSalesLines");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavReturnLineDTO> request = new HttpEntity<>(line, headers);
+
+			ResponseEntity<DynamicsNavReturnLineDTO> response = dynamicsNavRestTemplate.postForEntity(url, request,
+					DynamicsNavReturnLineDTO.class);
+
+			return response.getBody();
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create return line in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create return line in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw ex;
+		}
+	}
+
+	/**
+	 * Create a POS closing entry in Dynamics NAV The codeunit returns void, so we
+	 * just check the HTTP status code for success
+	 */
+	public void createSession(DynamicsNavSessionDTO session) {
+		try {
+			String url = buildCodeUnitEndpointUrl("WarehouseManagement_POSClosingEntries");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DynamicsNavSessionDTO> request = new HttpEntity<>(session, headers);
+
+			// Codeunit returns void, so we use Void.class and check status code
+			ResponseEntity<Void> response = dynamicsNavRestTemplate.postForEntity(url, request, Void.class);
+
+			// Check if response is successful (2xx status code)
+			if (!response.getStatusCode().is2xxSuccessful()) {
+				throw new RuntimeException("Unexpected status code: " + response.getStatusCode());
+			}
+
+			LOGGER.info("Session created successfully in Dynamics NAV");
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to create session in Dynamics NAV: {} - {}", ex.getStatusCode(), errorMessage, ex);
+			// Re-throw the original exception so parent can extract response body
+			throw ex;
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to create session in Dynamics NAV: {}", ex.getMessage(), ex);
+			throw ex;
+		}
 	}
 }

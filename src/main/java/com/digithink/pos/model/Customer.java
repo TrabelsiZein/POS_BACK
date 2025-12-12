@@ -41,5 +41,6 @@ public class Customer extends _BaseEntity {
 	private Double creditLimit;
 
 	private String notes;
-}
 
+	private Boolean isDefault = false;
+}

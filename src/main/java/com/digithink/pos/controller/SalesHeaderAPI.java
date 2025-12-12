@@ -168,9 +168,16 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			log.info("SalesHeaderAPI::getPendingSales");
 			UserAccount currentUser = currentUserProvider.getCurrentUser();
 
-			// Get current session
-			com.digithink.pos.model.CashierSession currentSession = service.getCurrentCashierSession(currentUser)
-					.orElseThrow(() -> new IllegalStateException("No open cashier session found"));
+			// Get current session - if no session, return empty list (session might be closed)
+			java.util.Optional<com.digithink.pos.model.CashierSession> currentSessionOpt = service.getCurrentCashierSession(currentUser);
+			
+			if (!currentSessionOpt.isPresent()) {
+				// No open session - return empty list (this is normal after closing a session)
+				log.info("SalesHeaderAPI::getPendingSales: No open session found, returning empty list");
+				return ResponseEntity.ok(new java.util.ArrayList<>());
+			}
+			
+			com.digithink.pos.model.CashierSession currentSession = currentSessionOpt.get();
 
 			// Get pending sales
 			java.util.List<SalesHeader> pendingSales = service.getPendingSalesForSession(currentSession);
@@ -318,12 +325,13 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String dateFrom,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String dateTo,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String syncStatus,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String paymentMethodId,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
 		try {
-			log.info("SalesHeaderAPI::getTicketsHistory: dateFrom=" + dateFrom + ", dateTo=" + dateTo + ", status=" + status + ", paymentMethodId=" + paymentMethodId + ", search=" + search);
+			log.info("SalesHeaderAPI::getTicketsHistory: dateFrom=" + dateFrom + ", dateTo=" + dateTo + ", status=" + status + ", syncStatus=" + syncStatus + ", paymentMethodId=" + paymentMethodId + ", search=" + search);
 
-			java.util.List<SalesHeader> tickets = service.getTicketsHistory(dateFrom, dateTo, status, paymentMethodId, search);
+			java.util.List<SalesHeader> tickets = service.getTicketsHistory(dateFrom, dateTo, status, syncStatus, paymentMethodId, search);
 
 			// Convert to response format with related data
 			java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
@@ -348,6 +356,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 				ticketMap.put("customer", ticket.getCustomer());
 				ticketMap.put("salesLinesCount", salesLines.size());
 				ticketMap.put("paymentsCount", payments.size());
+				ticketMap.put("synchronizationStatus", ticket.getSynchronizationStatus());
+				ticketMap.put("erpNo", ticket.getErpNo());
 
 				result.add(ticketMap);
 			}
@@ -393,6 +403,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			ticketMap.put("createdByUser", ticket.getCreatedByUser());
 			ticketMap.put("cashierSession", ticket.getCashierSession());
 			ticketMap.put("customer", ticket.getCustomer());
+			ticketMap.put("synchronizationStatus", ticket.getSynchronizationStatus());
+			ticketMap.put("erpNo", ticket.getErpNo());
 			ticketMap.put("salesLines", salesLines);
 			ticketMap.put("payments", payments);
 

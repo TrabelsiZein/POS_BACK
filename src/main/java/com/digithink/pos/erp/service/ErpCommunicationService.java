@@ -29,9 +29,8 @@ public class ErpCommunicationService {
 	private final GeneralSetupService generalSetupService;
 	private final ObjectMapper objectMapper;
 
-	public void logOperation(ErpSyncOperation operation, Object request, Object response,
-			ErpCommunicationStatus status, String externalReference, String errorMessage,
-			LocalDateTime startedAt, LocalDateTime completedAt) {
+	public void logOperation(ErpSyncOperation operation, Object request, Object response, ErpCommunicationStatus status,
+			String url, String errorMessage, LocalDateTime startedAt, LocalDateTime completedAt) {
 
 		ErpTrackingLevel level = resolveTrackingLevel();
 		if (level == ErpTrackingLevel.ERRORS_ONLY && status != ErpCommunicationStatus.ERROR) {
@@ -46,7 +45,7 @@ public class ErpCommunicationService {
 		entry.setStatus(status);
 		entry.setRequestPayload(toJsonSafely(request));
 		entry.setResponsePayload(toJsonSafely(response));
-		entry.setExternalReference(externalReference);
+		entry.setUrl(url);
 		entry.setErrorMessage(errorMessage);
 		entry.setStartedAt(startedAt != null ? startedAt : LocalDateTime.now());
 		entry.setCompletedAt(completedAt != null ? completedAt : LocalDateTime.now());
@@ -74,6 +73,10 @@ public class ErpCommunicationService {
 		if (value == null) {
 			return null;
 		}
+		// For simple String values (like URLs for GET requests), store as-is without JSON quotes
+		if (value instanceof String) {
+			return (String) value;
+		}
 		try {
 			return objectMapper.writeValueAsString(value);
 		} catch (JsonProcessingException ex) {
@@ -89,4 +92,3 @@ public class ErpCommunicationService {
 		return Duration.between(start, end).toMillis();
 	}
 }
-

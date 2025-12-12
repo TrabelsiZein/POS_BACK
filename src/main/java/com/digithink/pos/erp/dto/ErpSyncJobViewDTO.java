@@ -23,5 +23,6 @@ public class ErpSyncJobViewDTO {
 	private String checkpointCode;
 	private String checkpointValue;
 	private OffsetDateTime lastCheckpointAt;
+	private String cronDescription; // Human-readable CRON description
 }
 

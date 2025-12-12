@@ -44,7 +44,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 
 	@Autowired
 	private ReturnLineRepository returnLineRepository;
-	
+
 	@Autowired
 	private ReturnHeaderRepository returnHeaderRepository;
 
@@ -57,7 +57,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			log.info("ReturnHeaderAPI::getTicketDetails: ticketNumber=" + ticketNumber);
 
 			SalesHeader salesHeader = salesHeaderRepository.findBySalesNumber(ticketNumber)
-				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketNumber));
+					.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketNumber));
 
 			// Check if ticket can be returned
 			boolean canReturn = service.canReturnTicket(salesHeader);
@@ -66,33 +66,38 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			}
 
 			// Get sales lines
-			java.util.List<com.digithink.pos.model.SalesLine> salesLines = salesLineRepository.findBySalesHeader(salesHeader);
+			java.util.List<com.digithink.pos.model.SalesLine> salesLines = salesLineRepository
+					.findBySalesHeader(salesHeader);
 
-			// Get all return headers for this sales header (there can be multiple returns for the same ticket)
-			java.util.List<com.digithink.pos.model.ReturnHeader> returnHeaders = returnHeaderRepository.findAllByOriginalSalesHeader(salesHeader);
-			
+			// Get all return headers for this sales header (there can be multiple returns
+			// for the same ticket)
+			java.util.List<com.digithink.pos.model.ReturnHeader> returnHeaders = returnHeaderRepository
+					.findAllByOriginalSalesHeader(salesHeader);
+
 			// Calculate returned quantities for each sales line
 			// Map: salesLineId -> total returned quantity
 			Map<Long, Integer> returnedQuantities = new HashMap<>();
-			
+
 			for (com.digithink.pos.model.ReturnHeader returnHeader : returnHeaders) {
-				java.util.List<com.digithink.pos.model.ReturnLine> returnLines = returnLineRepository.findByReturnHeader(returnHeader);
+				java.util.List<com.digithink.pos.model.ReturnLine> returnLines = returnLineRepository
+						.findByReturnHeader(returnHeader);
 				for (com.digithink.pos.model.ReturnLine returnLine : returnLines) {
 					Long originalSalesLineId = returnLine.getOriginalSalesLine().getId();
 					int returnedQty = returnLine.getQuantity();
-					returnedQuantities.put(originalSalesLineId, 
-						returnedQuantities.getOrDefault(originalSalesLineId, 0) + returnedQty);
+					returnedQuantities.put(originalSalesLineId,
+							returnedQuantities.getOrDefault(originalSalesLineId, 0) + returnedQty);
 				}
 			}
-			
-			// Build sales lines with remaining quantities (only include lines with remaining > 0)
+
+			// Build sales lines with remaining quantities (only include lines with
+			// remaining > 0)
 			java.util.List<Map<String, Object>> salesLinesWithRemaining = new java.util.ArrayList<>();
-			
+
 			for (com.digithink.pos.model.SalesLine salesLine : salesLines) {
 				int originalQuantity = salesLine.getQuantity();
 				int returnedQuantity = returnedQuantities.getOrDefault(salesLine.getId(), 0);
 				int remainingQuantity = originalQuantity - returnedQuantity;
-				
+
 				// Only include lines that still have remaining quantity to return
 				if (remainingQuantity > 0) {
 					Map<String, Object> lineData = new HashMap<>();
@@ -109,7 +114,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 					lineData.put("lineTotalIncludingVat", salesLine.getLineTotalIncludingVat());
 					lineData.put("returnedQuantity", returnedQuantity); // Already returned
 					lineData.put("remainingQuantity", remainingQuantity); // Can still be returned
-					
+
 					salesLinesWithRemaining.add(lineData);
 				}
 			}
@@ -156,7 +161,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			}
 
 			// Validate return type
-			if (request.getReturnType() == com.digithink.pos.model.enumeration.ReturnType.SIMPLE_RETURN 
+			if (request.getReturnType() == com.digithink.pos.model.enumeration.ReturnType.SIMPLE_RETURN
 					&& !service.isSimpleReturnEnabled()) {
 				return ResponseEntity.badRequest().body(createErrorResponse("Simple return is not enabled"));
 			}
@@ -175,7 +180,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			returnResponse.put("totalReturnAmount", returnHeader.getTotalReturnAmount());
 			returnResponse.put("notes", returnHeader.getNotes());
 			returnResponse.put("status", returnHeader.getStatus());
-			
+
 			// Add original sales header info (avoiding circular references)
 			if (returnHeader.getOriginalSalesHeader() != null) {
 				Map<String, Object> originalSalesHeaderInfo = new HashMap<>();
@@ -185,7 +190,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				originalSalesHeaderInfo.put("totalAmount", returnHeader.getOriginalSalesHeader().getTotalAmount());
 				returnResponse.put("originalSalesHeader", originalSalesHeaderInfo);
 			}
-			
+
 			// Convert return lines to maps with item details (avoiding circular references)
 			java.util.List<Map<String, Object>> returnLinesData = new java.util.ArrayList<>();
 			for (ReturnLine line : returnLines) {
@@ -193,9 +198,12 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				lineData.put("id", line.getId());
 				lineData.put("quantity", line.getQuantity());
 				lineData.put("unitPrice", line.getUnitPrice());
+				lineData.put("unitPriceIncludingVat", line.getUnitPriceIncludingVat());
 				lineData.put("lineTotal", line.getLineTotal());
+				lineData.put("lineTotalIncludingVat", line.getLineTotalIncludingVat());
 				lineData.put("notes", line.getNotes());
-				
+				lineData.put("synched", line.getSynched());
+
 				// Add item details
 				if (line.getItem() != null) {
 					Map<String, Object> itemData = new HashMap<>();
@@ -204,11 +212,11 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 					itemData.put("itemCode", line.getItem().getItemCode());
 					lineData.put("item", itemData);
 				}
-				
+
 				returnLinesData.add(lineData);
 			}
 			returnResponse.put("returnLines", returnLinesData);
-			
+
 			// Add return voucher info if exists (avoiding circular references)
 			if (returnHeader.getReturnVoucher() != null) {
 				Map<String, Object> voucherInfo = new HashMap<>();
@@ -257,7 +265,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 
 			// Create response (avoiding circular references)
 			Map<String, Object> response = new HashMap<>();
-			
+
 			// Build return header info without circular references
 			Map<String, Object> returnHeaderInfo = new HashMap<>();
 			returnHeaderInfo.put("id", returnHeader.getId());
@@ -267,7 +275,9 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			returnHeaderInfo.put("totalReturnAmount", returnHeader.getTotalReturnAmount());
 			returnHeaderInfo.put("notes", returnHeader.getNotes());
 			returnHeaderInfo.put("status", returnHeader.getStatus());
-			
+			returnHeaderInfo.put("synchronizationStatus", returnHeader.getSynchronizationStatus());
+			returnHeaderInfo.put("erpNo", returnHeader.getErpNo());
+
 			if (returnHeader.getOriginalSalesHeader() != null) {
 				Map<String, Object> originalSalesHeaderInfo = new HashMap<>();
 				originalSalesHeaderInfo.put("id", returnHeader.getOriginalSalesHeader().getId());
@@ -276,7 +286,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				originalSalesHeaderInfo.put("totalAmount", returnHeader.getOriginalSalesHeader().getTotalAmount());
 				returnHeaderInfo.put("originalSalesHeader", originalSalesHeaderInfo);
 			}
-			
+
 			if (returnHeader.getReturnVoucher() != null) {
 				Map<String, Object> voucherInfo = new HashMap<>();
 				voucherInfo.put("id", returnHeader.getReturnVoucher().getId());
@@ -288,7 +298,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				voucherInfo.put("usedAmount", returnHeader.getReturnVoucher().getUsedAmount());
 				returnHeaderInfo.put("returnVoucher", voucherInfo);
 			}
-			
+
 			// Convert return lines to maps with item details (avoiding circular references)
 			java.util.List<Map<String, Object>> returnLinesData = new java.util.ArrayList<>();
 			for (ReturnLine line : returnLines) {
@@ -296,9 +306,12 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				lineData.put("id", line.getId());
 				lineData.put("quantity", line.getQuantity());
 				lineData.put("unitPrice", line.getUnitPrice());
+				lineData.put("unitPriceIncludingVat", line.getUnitPriceIncludingVat());
 				lineData.put("lineTotal", line.getLineTotal());
+				lineData.put("lineTotalIncludingVat", line.getLineTotalIncludingVat());
 				lineData.put("notes", line.getNotes());
-				
+				lineData.put("synched", line.getSynched());
+
 				// Add item details
 				if (line.getItem() != null) {
 					Map<String, Object> itemData = new HashMap<>();
@@ -307,10 +320,10 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 					itemData.put("itemCode", line.getItem().getItemCode());
 					lineData.put("item", itemData);
 				}
-				
+
 				returnLinesData.add(lineData);
 			}
-			
+
 			response.put("returnHeader", returnHeaderInfo);
 			response.put("returnLines", returnLinesData);
 
@@ -326,4 +339,3 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 		}
 	}
 }
-

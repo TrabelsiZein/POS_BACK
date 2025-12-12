@@ -22,6 +22,7 @@ import com.digithink.pos.model.enumeration.CounterType;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
 import com.digithink.pos.model.enumeration.ReturnType;
 import com.digithink.pos.model.enumeration.SessionStatus;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.CashierSessionRepository;
 import com.digithink.pos.repository.PaymentMethodRepository;
@@ -30,6 +31,8 @@ import com.digithink.pos.repository.ReturnHeaderRepository;
 import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SessionCashCountRepository;
 import com.digithink.pos.repository._BaseRepository;
+import com.digithink.pos.erp.repository.PaymentHeaderRepository;
+import com.digithink.pos.erp.repository.PaymentLineRepository;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,6 +64,12 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 	
 	@Autowired
 	private ReturnHeaderRepository returnHeaderRepository;
+
+	@Autowired
+	private PaymentHeaderRepository paymentHeaderRepository;
+
+	@Autowired
+	private PaymentLineRepository paymentLineRepository;
 
 	@Override
 	protected _BaseRepository<CashierSession, Long> getRepository() {
@@ -208,18 +217,11 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		// Use provided actualCash or calculated from lines for POS user closure cash
 		Double posUserClosureCash = request.getActualCash() != null ? request.getActualCash() : calculatedPosUserCash;
 		session.setPosUserClosureCash(posUserClosureCash);
-		
-		// Backward compatibility: set actualCash (deprecated - use posUserClosureCash instead)
-		session.setActualCash(posUserClosureCash);
-		
-		// Calculate difference
-		if (realCash != null && posUserClosureCash != null) {
-			session.setCashDifference(posUserClosureCash - realCash);
-		}
 
 		session.setClosedAt(LocalDateTime.now());
 		session.setStatus(SessionStatus.CLOSED);
-		session.setCashCountingDetails(request.getNotes());
+		// Mark session as not synched so it can be exported to ERP
+		session.setSynchronizationStatus(SynchronizationStatus.NOT_SYNCHED);
 
 		session = save(session);
 		log.info("Session closed: " + session.getSessionNumber() + 
@@ -280,6 +282,11 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		session.setVerifiedAt(LocalDateTime.now());
 		session.setVerificationNotes(verificationNotes);
 		session.setStatus(SessionStatus.TERMINATED);
+		// Mark session as not synched so it can be exported to ERP (if not already synched)
+		if (session.getSynchronizationStatus() == null || 
+			session.getSynchronizationStatus() == SynchronizationStatus.NOT_SYNCHED) {
+			session.setSynchronizationStatus(SynchronizationStatus.NOT_SYNCHED);
+		}
 
 		session = save(session);
 		log.info("Session verified by responsible: " + session.getSessionNumber() + 
@@ -388,6 +395,13 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		// Get cash count lines
 		List<SessionCashCount> cashCountLines = sessionCashCountRepository.findByCashierSession(session);
 
+		// Get payment headers and lines for this session
+		List<com.digithink.pos.erp.model.PaymentHeader> paymentHeaders = paymentHeaderRepository.findByCashierSession(session);
+		List<com.digithink.pos.erp.model.PaymentLine> paymentLines = new ArrayList<>();
+		for (com.digithink.pos.erp.model.PaymentHeader header : paymentHeaders) {
+			paymentLines.addAll(paymentLineRepository.findByPaymentHeader(header));
+		}
+
 		// Build response
 		Map<String, Object> response = new HashMap<>();
 		response.put("session", SessionDashboardDTO.fromEntity(session, salesCount, totalSalesAmount,
@@ -401,6 +415,8 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		response.put("cashCountLines", cashCountLines);
 		response.put("sales", sales);
 		response.put("returns", returns);
+		response.put("paymentHeaders", paymentHeaders);
+		response.put("paymentLines", paymentLines);
 
 		return response;
 	}

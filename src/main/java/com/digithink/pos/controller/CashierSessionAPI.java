@@ -186,6 +186,105 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 	}
 
 	/**
+	 * Close a session by ID (for admin users)
+	 */
+	@PostMapping("/{id}/close")
+	public ResponseEntity<?> closeSessionById(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+		try {
+			log.info("CashierSessionAPI::closeSessionById: " + id);
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+			
+			// Check if user is ADMIN
+			if (currentUser.getRole() == null || !currentUser.getRole().name().equals("ADMIN")) {
+				return ResponseEntity.status(403).body(createErrorResponse("Only administrators can close sessions by ID"));
+			}
+			
+			// Get session
+			java.util.Optional<CashierSession> sessionOpt = service.findById(id);
+			if (!sessionOpt.isPresent()) {
+				return ResponseEntity.badRequest().body(createErrorResponse("Session not found"));
+			}
+			
+			CashierSession session = sessionOpt.get();
+			
+			// Check if session is already closed
+			if (session.getStatus() != com.digithink.pos.model.enumeration.SessionStatus.OPENED) {
+				return ResponseEntity.badRequest().body(createErrorResponse("Session is not open"));
+			}
+			
+			// Parse request similar to closeSession method
+			com.digithink.pos.dto.CloseSessionRequestDTO closeRequest = new com.digithink.pos.dto.CloseSessionRequestDTO();
+			
+			String notes = (String) request.get("notes");
+			closeRequest.setNotes(notes);
+			
+			// Parse cash count lines
+			@SuppressWarnings("unchecked")
+			java.util.List<Map<String, Object>> cashCountLinesData = 
+				(java.util.List<Map<String, Object>>) request.get("cashCountLines");
+			
+			if (cashCountLinesData != null && !cashCountLinesData.isEmpty()) {
+				java.util.List<com.digithink.pos.dto.CloseSessionRequestDTO.CashCountLineDTO> cashCountLines = 
+					new java.util.ArrayList<>();
+				
+				for (Map<String, Object> lineData : cashCountLinesData) {
+					com.digithink.pos.dto.CloseSessionRequestDTO.CashCountLineDTO lineDTO = 
+						new com.digithink.pos.dto.CloseSessionRequestDTO.CashCountLineDTO();
+					
+					// Denomination value
+					if (lineData.get("denominationValue") != null) {
+						if (lineData.get("denominationValue") instanceof Number) {
+							lineDTO.setDenominationValue(((Number) lineData.get("denominationValue")).doubleValue());
+						} else if (lineData.get("denominationValue") instanceof String) {
+							lineDTO.setDenominationValue(Double.parseDouble((String) lineData.get("denominationValue")));
+						}
+					}
+					
+					// Quantity
+					if (lineData.get("quantity") != null) {
+						if (lineData.get("quantity") instanceof Number) {
+							lineDTO.setQuantity(((Number) lineData.get("quantity")).intValue());
+						} else if (lineData.get("quantity") instanceof String) {
+							lineDTO.setQuantity(Integer.parseInt((String) lineData.get("quantity")));
+						}
+					}
+					
+					// Payment method ID (optional)
+					if (lineData.get("paymentMethodId") != null) {
+						if (lineData.get("paymentMethodId") instanceof Number) {
+							lineDTO.setPaymentMethodId(((Number) lineData.get("paymentMethodId")).longValue());
+						} else if (lineData.get("paymentMethodId") instanceof String) {
+							lineDTO.setPaymentMethodId(Long.parseLong((String) lineData.get("paymentMethodId")));
+						}
+					}
+					
+					// Reference number (optional)
+					if (lineData.get("referenceNumber") != null) {
+						lineDTO.setReferenceNumber((String) lineData.get("referenceNumber"));
+					}
+					
+					// Notes (optional)
+					if (lineData.get("notes") != null) {
+						lineDTO.setNotes((String) lineData.get("notes"));
+					}
+					
+					cashCountLines.add(lineDTO);
+				}
+				
+				closeRequest.setCashCountLines(cashCountLines);
+			} else {
+				closeRequest.setCashCountLines(new java.util.ArrayList<>());
+			}
+			
+			CashierSession closedSession = service.closeSessionWithCashCount(id, closeRequest);
+			return ResponseEntity.ok(closedSession);
+		} catch (Exception e) {
+			log.error("CashierSessionAPI::closeSessionById:error: " + e.getMessage(), e);
+			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
 	 * Verify session and set responsible closure cash (for responsible user)
 	 */
 	@PostMapping("/verify")

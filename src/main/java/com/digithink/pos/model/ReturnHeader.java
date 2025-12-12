@@ -10,6 +10,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
 import com.digithink.pos.model.enumeration.ReturnType;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 
 import lombok.Data;
@@ -57,5 +58,11 @@ public class ReturnHeader extends _BaseEntity {
 	@ManyToOne
 	@JoinColumn(name = "return_voucher_id")
 	private ReturnVoucher returnVoucher;
+
+	// ERP synchronization fields
+	@Enumerated(EnumType.STRING)
+	private SynchronizationStatus synchronizationStatus = SynchronizationStatus.NOT_SYNCHED;
+
+	private String erpNo; // Document_No from Dynamics NAV
 }
 

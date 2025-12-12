@@ -16,6 +16,11 @@ public class ErpTicketDTO {
 	private String currency;
 	private List<ErpTicketLineDTO> lines = new ArrayList<>();
 	private List<ErpTicketPaymentDTO> payments = new ArrayList<>();
+	
+	// Additional fields for ERP export
+	private String responsibilityCenter;
+	private String cashierSessionId;
+	private Double discountPercentage;
 
 	public String getExternalId() {
 		return externalId;
@@ -87,6 +92,30 @@ public class ErpTicketDTO {
 
 	public void setPayments(List<ErpTicketPaymentDTO> payments) {
 		this.payments = payments != null ? payments : new ArrayList<>();
+	}
+
+	public String getResponsibilityCenter() {
+		return responsibilityCenter;
+	}
+
+	public void setResponsibilityCenter(String responsibilityCenter) {
+		this.responsibilityCenter = responsibilityCenter;
+	}
+
+	public String getCashierSessionId() {
+		return cashierSessionId;
+	}
+
+	public void setCashierSessionId(String cashierSessionId) {
+		this.cashierSessionId = cashierSessionId;
+	}
+
+	public Double getDiscountPercentage() {
+		return discountPercentage;
+	}
+
+	public void setDiscountPercentage(Double discountPercentage) {
+		this.discountPercentage = discountPercentage;
 	}
 }
 

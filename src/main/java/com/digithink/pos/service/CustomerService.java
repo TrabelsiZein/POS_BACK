@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository._BaseRepository;
+import com.digithink.pos.service.GeneralSetupService;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -18,6 +19,9 @@ public class CustomerService extends _BaseService<Customer, Long> {
 
 	@Autowired
 	private CustomerRepository customerRepository;
+
+	@Autowired
+	private GeneralSetupService generalSetupService;
 
 	@Override
 	protected _BaseRepository<Customer, Long> getRepository() {
@@ -101,6 +105,33 @@ public class CustomerService extends _BaseService<Customer, Long> {
 		};
 		
 		return customerRepository.findAll(spec);
+	}
+
+	@Transactional
+	public Customer setAsDefault(Long customerId) {
+		java.util.Optional<Customer> customerOpt = customerRepository.findById(customerId);
+		if (!customerOpt.isPresent()) {
+			throw new RuntimeException("Customer not found with id: " + customerId);
+		}
+
+		Customer customer = customerOpt.get();
+
+		// Unset all other default customers
+		customerRepository.findByIsDefaultTrue().ifPresent(currentDefault -> {
+			if (!currentDefault.getId().equals(customerId)) {
+				currentDefault.setIsDefault(false);
+				customerRepository.save(currentDefault);
+			}
+		});
+
+		// Set this customer as default
+		customer.setIsDefault(true);
+		Customer savedCustomer = customerRepository.save(customer);
+
+		// Update GeneralSetup
+		generalSetupService.updateValue("PASSENGER_CUSTOMER", customer.getCustomerCode());
+
+		return savedCustomer;
 	}
 }
 

@@ -14,7 +14,12 @@ import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
+import com.digithink.pos.erp.dto.ErpPaymentHeaderDTO;
+import com.digithink.pos.erp.dto.ErpPaymentLineDTO;
+import com.digithink.pos.erp.dto.ErpReturnDTO;
+import com.digithink.pos.erp.dto.ErpReturnLineDTO;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
+import com.digithink.pos.erp.dto.ErpTicketLineDTO;
 
 /**
  * Default connector used when no ERP implementation is configured.
@@ -61,6 +66,42 @@ public class NoOpErpConnector implements ErpConnector {
 	@Override
 	public ErpOperationResult pushTicket(ErpTicketDTO ticket) {
 		return ErpOperationResult.failure("ERP connector not configured");
+	}
+
+	@Override
+	public ErpOperationResult pushTicketHeader(ErpTicketDTO ticket) {
+		return ErpOperationResult.failure("ERP connector not configured");
+	}
+
+	@Override
+	public ErpOperationResult pushTicketLine(ErpTicketDTO ticket, String externalReference, ErpTicketLineDTO line) {
+		return ErpOperationResult.failure("ERP connector not configured");
+	}
+
+	@Override
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
+		return ErpOperationResult.failure("ERP connector not configured");
+	}
+
+	@Override
+	public ErpOperationResult pushPaymentHeader(ErpPaymentHeaderDTO headerDTO) {
+		return ErpOperationResult.success("NO-OP", null, null, null);
+	}
+
+	@Override
+	public ErpOperationResult pushPaymentLine(String paymentHeaderDocNo, ErpPaymentLineDTO lineDTO) {
+		return ErpOperationResult.success("NO-OP", null, null, null);
+	}
+
+	@Override
+	public ErpOperationResult pushReturnHeader(ErpReturnDTO returnDTO) {
+		return ErpOperationResult.failure("Return export not yet implemented");
+	}
+
+	@Override
+	public ErpOperationResult pushReturnLine(ErpReturnDTO returnDTO, String externalReference,
+			ErpReturnLineDTO lineDTO) {
+		return ErpOperationResult.failure("Return line export not yet implemented");
 	}
 }
 

@@ -28,7 +28,11 @@ public class ErpSyncJobService extends _BaseService<ErpSyncJob, Long> {
 	}
 
 	public void markExecution(ErpSyncJob job, String status, LocalDateTime nextRun) {
-		job.setLastRunAt(LocalDateTime.now());
+		markExecution(job, status, LocalDateTime.now(), nextRun);
+	}
+
+	public void markExecution(ErpSyncJob job, String status, LocalDateTime executionTime, LocalDateTime nextRun) {
+		job.setLastRunAt(executionTime);
 		job.setLastStatus(status);
 		job.setNextRunAt(nextRun);
 		job.setUpdatedAt(LocalDateTime.now());
@@ -41,5 +45,31 @@ public class ErpSyncJobService extends _BaseService<ErpSyncJob, Long> {
 		job.setUpdatedAt(LocalDateTime.now());
 		job.setUpdatedBy("System");
 		jobRepository.save(job);
+	}
+
+	public ErpSyncJob updateEnabled(Long jobId, Boolean enabled) {
+		ErpSyncJob job = findById(jobId)
+				.orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
+		job.setEnabled(enabled);
+		job.setUpdatedAt(LocalDateTime.now());
+		job.setUpdatedBy(currentUserProvider.getCurrentUserName());
+		return jobRepository.save(job);
+	}
+
+	public ErpSyncJob updateJob(Long jobId, String description, String cronExpression, Boolean enabled) {
+		ErpSyncJob job = findById(jobId)
+				.orElseThrow(() -> new RuntimeException("Job not found with id: " + jobId));
+		if (description != null) {
+			job.setDescription(description);
+		}
+		if (cronExpression != null) {
+			job.setCronExpression(cronExpression);
+		}
+		if (enabled != null) {
+			job.setEnabled(enabled);
+		}
+		job.setUpdatedAt(LocalDateTime.now());
+		job.setUpdatedBy(currentUserProvider.getCurrentUserName());
+		return jobRepository.save(job);
 	}
 }

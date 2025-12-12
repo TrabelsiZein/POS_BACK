@@ -37,11 +37,20 @@ public class ReturnLine extends _BaseEntity {
 	private Integer quantity;
 
 	@Column(nullable = false)
-	private Double unitPrice;
+	private Double unitPrice; // HT (excluding VAT)
 
 	@Column(nullable = false)
-	private Double lineTotal;
+	private Double unitPriceIncludingVat; // TTC (including VAT)
+
+	@Column(nullable = false)
+	private Double lineTotal; // HT (excluding VAT)
+
+	@Column(nullable = false)
+	private Double lineTotalIncludingVat; // TTC (including VAT)
 
 	private String notes;
+
+	// ERP synchronization field
+	private Boolean synched = false;
 }
 

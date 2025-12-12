@@ -36,7 +36,9 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 		if (itemIds == null || itemIds.isEmpty()) {
 			return List.of();
 		}
-		return itemBarcodeRepository.findByItemIdInAndActiveTrue(itemIds);
+		return itemBarcodeRepository.findByItemIdIn(itemIds).stream()
+				.filter(bc -> bc.getActive() == null || Boolean.TRUE.equals(bc.getActive()))
+				.toList();
 	}
 
 	/**
@@ -44,10 +46,8 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 	 */
 	public Optional<Item> getItemByBarcode(String barcode) {
 		Optional<ItemBarcode> itemBarcode = itemBarcodeRepository.findByBarcode(barcode);
-		if (itemBarcode.isPresent() && itemBarcode.get().getActive() != null && itemBarcode.get().getActive()) {
-			return Optional.of(itemBarcode.get().getItem());
-		}
-		return Optional.empty();
+		return itemBarcode.filter(bc -> bc.getActive() == null || Boolean.TRUE.equals(bc.getActive()))
+				.map(ItemBarcode::getItem);
 	}
 
 	/**

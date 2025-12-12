@@ -47,7 +47,7 @@ public class DynamicsNavConfig {
 		// and exclude null fields
 		ObjectMapper objectMapper = new ObjectMapper();
 		objectMapper.registerModule(new JavaTimeModule());
-		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+//		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
 		objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 		
 		// Configure the JSON message converter with our ObjectMapper

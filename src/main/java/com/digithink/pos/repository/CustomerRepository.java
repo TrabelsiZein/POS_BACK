@@ -13,5 +13,7 @@ public interface CustomerRepository extends _BaseRepository<Customer, Long> {
 
 	Optional<Customer> findByErpExternalId(String erpExternalId);
 
+	Optional<Customer> findByIsDefaultTrue();
+
 }
 

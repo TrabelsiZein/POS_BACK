@@ -440,8 +440,18 @@ public class ErpItemBootstrapService {
 		if (dto.getActive() != null) {
 			entity.setActive(dto.getActive());
 		}
-		resolveFamily(dto.getFamilyExternalId()).ifPresent(entity::setItemFamily);
-		resolveSubFamily(dto.getSubFamilyExternalId()).ifPresent(entity::setItemSubFamily);
+		Optional<ItemFamily> familyOpt = resolveFamily(dto.getFamilyExternalId());
+		Optional<ItemSubFamily> subFamilyOpt = resolveSubFamily(dto.getSubFamilyExternalId());
+
+		familyOpt.ifPresent(entity::setItemFamily);
+
+		subFamilyOpt.ifPresent(sf -> {
+			entity.setItemSubFamily(sf);
+			// If NAV only provides subfamily, ensure parent family is set from the subfamily mapping
+			if (entity.getItemFamily() == null && sf.getItemFamily() != null) {
+				entity.setItemFamily(sf.getItemFamily());
+			}
+		});
 	}
 
 	private void applyBarcodeValues(ItemBarcode entity, ErpItemBarcodeDTO dto, Item item) {
@@ -503,7 +513,7 @@ public class ErpItemBootstrapService {
 	}
 
 	private void recordWarning(ErpSyncOperation operation, Object payload, String externalReference, String message) {
-		communicationService.logOperation(operation, payload, null, ErpCommunicationStatus.WARNING, externalReference,
+		communicationService.logOperation(operation, payload, null, ErpCommunicationStatus.WARNING, null,
 				message, LocalDateTime.now(), LocalDateTime.now());
 	}
 

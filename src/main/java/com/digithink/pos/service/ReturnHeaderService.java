@@ -211,8 +211,12 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 						+ ") cannot exceed remaining returnable quantity (" + remainingReturnable + ")");
 			}
 
-			// Calculate line total
-			double lineTotal = originalSalesLine.getUnitPrice() * returnLineDTO.getQuantity();
+			// Calculate line totals (both HT and TTC)
+			// Calculate proportional amounts based on return quantity
+			double unitPriceHT = originalSalesLine.getUnitPrice();
+			double unitPriceTTC = originalSalesLine.getUnitPriceIncludingVat();
+			double lineTotalHT = (originalSalesLine.getLineTotal() / originalSalesLine.getQuantity()) * returnLineDTO.getQuantity();
+			double lineTotalTTC = (originalSalesLine.getLineTotalIncludingVat() / originalSalesLine.getQuantity()) * returnLineDTO.getQuantity();
 
 			// Create return line
 			ReturnLine returnLine = new ReturnLine();
@@ -220,12 +224,14 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			returnLine.setOriginalSalesLine(originalSalesLine);
 			returnLine.setItem(originalSalesLine.getItem());
 			returnLine.setQuantity(returnLineDTO.getQuantity());
-			returnLine.setUnitPrice(originalSalesLine.getUnitPrice());
-			returnLine.setLineTotal(lineTotal);
+			returnLine.setUnitPrice(unitPriceHT); // Store HT unit price
+			returnLine.setUnitPriceIncludingVat(unitPriceTTC); // Store TTC unit price
+			returnLine.setLineTotal(lineTotalHT); // Store HT line total
+			returnLine.setLineTotalIncludingVat(lineTotalTTC); // Store TTC line total
 			returnLine.setNotes("");
 
 			returnLines.add(returnLine);
-			totalReturnAmount += lineTotal;
+			totalReturnAmount += lineTotalTTC;
 		}
 
 		// Generate return number

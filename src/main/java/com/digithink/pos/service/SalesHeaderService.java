@@ -66,6 +66,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	@Autowired
 	private com.digithink.pos.service.ReturnVoucherService returnVoucherService;
 
+	@Autowired
+	private com.digithink.pos.erp.service.SessionExportService sessionExportService;
+
 	@Override
 	protected _BaseRepository<SalesHeader, Long> getRepository() {
 		return salesHeaderRepository;
@@ -267,6 +270,16 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		double change = totalPaid - request.getTotalAmount();
 		salesHeader.setChangeAmount(change > 0 ? change : 0.0);
 		salesHeader = save(salesHeader);
+
+		// Asynchronously create PaymentHeader and PaymentLine records for new payments
+		// This stores payments immediately instead of grouping them during session sync
+		try {
+			sessionExportService.createPaymentHeadersAndLinesAsync(payments);
+			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
+		} catch (Exception ex) {
+			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);
+			// Don't fail the transaction if async call fails
+		}
 
 		// Note: Printing is now handled by the frontend (each POS terminal)
 		// This allows multiple POS terminals to print independently
@@ -574,6 +587,16 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 
 		log.info("Pending sale completed successfully: " + salesHeader.getSalesNumber());
 
+		// Asynchronously create PaymentHeader and PaymentLine records for new payments
+		// This stores payments immediately instead of grouping them during session sync
+		try {
+			sessionExportService.createPaymentHeadersAndLinesAsync(payments);
+			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
+		} catch (Exception ex) {
+			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);
+			// Don't fail the transaction if async call fails
+		}
+
 		return salesHeader;
 	}
 
@@ -680,7 +703,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	 * Get tickets history with filters
 	 */
 	public java.util.List<SalesHeader> getTicketsHistory(String dateFromStr, String dateToStr, String statusStr,
-			String paymentMethodIdStr, String searchStr) {
+			String syncStatusStr, String paymentMethodIdStr, String searchStr) {
 		// Parse date from (start of day)
 		java.time.LocalDateTime dateFrom = null;
 		if (dateFromStr != null && !dateFromStr.trim().isEmpty()) {
@@ -713,6 +736,16 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			}
 		}
 
+		// Parse sync status
+		com.digithink.pos.model.enumeration.SynchronizationStatus syncStatus = null;
+		if (syncStatusStr != null && !syncStatusStr.trim().isEmpty() && !syncStatusStr.equalsIgnoreCase("all")) {
+			try {
+				syncStatus = com.digithink.pos.model.enumeration.SynchronizationStatus.valueOf(syncStatusStr.toUpperCase());
+			} catch (Exception e) {
+				log.warn("Invalid syncStatus: " + syncStatusStr);
+			}
+		}
+
 		// Parse payment method ID
 		Long paymentMethodId = null;
 		if (paymentMethodIdStr != null && !paymentMethodIdStr.trim().isEmpty()
@@ -728,6 +761,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		final java.time.LocalDateTime finalDateFrom = dateFrom;
 		final java.time.LocalDateTime finalDateTo = dateTo;
 		final TransactionStatus finalStatus = status;
+		final com.digithink.pos.model.enumeration.SynchronizationStatus finalSyncStatus = syncStatus;
 		final Long finalPaymentMethodId = paymentMethodId;
 		final String finalSearchStr = searchStr;
 
@@ -747,6 +781,11 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			// Status filter
 			if (finalStatus != null) {
 				predicates.add(criteriaBuilder.equal(root.get("status"), finalStatus));
+			}
+
+			// Sync status filter
+			if (finalSyncStatus != null) {
+				predicates.add(criteriaBuilder.equal(root.get("synchronizationStatus"), finalSyncStatus));
 			}
 
 			// Payment method filter (filter by tickets that have payments with this payment

@@ -17,16 +17,16 @@ public class DynamicsNavLocationDTO {
 	@JsonProperty("Name")
 	private String name;
 
-	@JsonProperty("Address")
-	private String address;
-
-	@JsonProperty("City")
-	private String city;
-
-	@JsonProperty("CountryRegionCode")
-	private String countryRegionCode;
-
-	@JsonProperty("Blocked")
-	private Boolean blocked;
+//	@JsonProperty("Address")
+//	private String address;
+//
+//	@JsonProperty("City")
+//	private String city;
+//
+//	@JsonProperty("CountryRegionCode")
+//	private String countryRegionCode;
+//
+//	@JsonProperty("Blocked")
+//	private Boolean blocked;
 }
 

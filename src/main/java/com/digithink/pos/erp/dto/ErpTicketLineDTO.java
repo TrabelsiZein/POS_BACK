@@ -10,6 +10,7 @@ public class ErpTicketLineDTO {
 	private BigDecimal quantity;
 	private BigDecimal unitPrice;
 	private BigDecimal discountAmount;
+	private BigDecimal discountPercentage;
 	private BigDecimal totalAmount;
 
 	public Integer getLineNumber() {
@@ -58,6 +59,14 @@ public class ErpTicketLineDTO {
 
 	public void setDiscountAmount(BigDecimal discountAmount) {
 		this.discountAmount = discountAmount;
+	}
+
+	public BigDecimal getDiscountPercentage() {
+		return discountPercentage;
+	}
+
+	public void setDiscountPercentage(BigDecimal discountPercentage) {
+		this.discountPercentage = discountPercentage;
 	}
 
 	public BigDecimal getTotalAmount() {

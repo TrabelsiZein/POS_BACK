@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.enumeration.SessionStatus;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,6 +34,8 @@ public class SessionDashboardDTO {
 	private String verificationNotes;
 	private String verifiedByName;
 	private LocalDateTime verifiedAt;
+	private SynchronizationStatus synchronizationStatus;
+	private String erpNo;
 
 	public static SessionDashboardDTO fromEntity(CashierSession session, Long salesCount, Double totalSalesAmount) {
 		return fromEntity(session, salesCount, totalSalesAmount, 0L, 0.0, 0.0, 0.0, null);
@@ -87,6 +90,9 @@ public class SessionDashboardDTO {
 				session.getVerifiedBy().getFullName() : session.getVerifiedBy().getUsername());
 			dto.setVerifiedAt(session.getVerifiedAt());
 		}
+		
+		dto.setSynchronizationStatus(session.getSynchronizationStatus());
+		dto.setErpNo(session.getErpNo());
 		
 		return dto;
 	}

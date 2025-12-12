@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -116,6 +117,22 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 		} catch (Exception e) {
 			String detailedMessage = getDetailedMessage(e);
 			log.error("CustomerAPI::deleteById:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(detailedMessage));
+		}
+	}
+
+	/**
+	 * Set customer as default
+	 */
+	@PutMapping("/{id}/set-default")
+	public ResponseEntity<?> setAsDefault(@PathVariable Long id) {
+		try {
+			log.info(this.getClass().getSimpleName() + "::setAsDefault::" + id);
+			Customer customer = customerService.setAsDefault(id);
+			return ResponseEntity.ok(customer);
+		} catch (Exception e) {
+			String detailedMessage = getDetailedMessage(e);
+			log.error(this.getClass().getSimpleName() + "::setAsDefault:error: " + detailedMessage, e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(detailedMessage));
 		}
 	}

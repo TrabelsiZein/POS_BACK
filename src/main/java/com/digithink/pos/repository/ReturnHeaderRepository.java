@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.ReturnHeader;
 import com.digithink.pos.model.SalesHeader;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
+import com.digithink.pos.model.enumeration.TransactionStatus;
 
 @Repository
 public interface ReturnHeaderRepository extends _BaseRepository<ReturnHeader, Long> {
@@ -19,4 +21,8 @@ public interface ReturnHeaderRepository extends _BaseRepository<ReturnHeader, Lo
 	List<ReturnHeader> findAllByOriginalSalesHeader(SalesHeader salesHeader);
 
 	List<ReturnHeader> findByCashierSession(CashierSession cashierSession);
+
+	// Query methods for synchronization
+	List<ReturnHeader> findByStatusAndSynchronizationStatusNot(TransactionStatus status,
+			SynchronizationStatus synchronizationStatus);
 }

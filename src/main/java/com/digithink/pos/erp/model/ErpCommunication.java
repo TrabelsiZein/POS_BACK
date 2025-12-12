@@ -36,8 +36,8 @@ public class ErpCommunication extends _BaseEntity {
 	@Column(name = "response_payload")
 	private String responsePayload;
 
-	@Column(name = "external_reference", length = 128)
-	private String externalReference;
+	@Column(name = "url", length = 512)
+	private String url;
 
 	@Column(name = "started_at")
 	private LocalDateTime startedAt;
@@ -84,12 +84,12 @@ public class ErpCommunication extends _BaseEntity {
 		this.responsePayload = responsePayload;
 	}
 
-	public String getExternalReference() {
-		return externalReference;
+	public String getUrl() {
+		return url;
 	}
 
-	public void setExternalReference(String externalReference) {
-		this.externalReference = externalReference;
+	public void setUrl(String url) {
+		this.url = url;
 	}
 
 	public LocalDateTime getStartedAt() {

@@ -1,21 +1,16 @@
 package com.digithink.pos.erp.service;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.HttpStatusCodeException;
 
-import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
-import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
-import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
-import com.digithink.pos.erp.enumeration.ErpCommunicationStatus;
-import com.digithink.pos.erp.enumeration.ErpSyncOperation;
+import com.digithink.pos.erp.dto.ErpOperationResult;
+import com.digithink.pos.erp.dto.ErpTicketDTO;
+import com.digithink.pos.erp.dto.ErpTicketLineDTO;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
 import com.digithink.pos.model.enumeration.SynchronizationStatus;
@@ -23,8 +18,6 @@ import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SalesLineRepository;
 import com.digithink.pos.service.GeneralSetupService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,19 +27,17 @@ public class TicketExportService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TicketExportService.class);
 
-	private final DynamicsNavRestClient dynamicsNavRestClient;
+	private final ErpSynchronizationManager synchronizationManager;
 	private final SalesHeaderRepository salesHeaderRepository;
 	private final SalesLineRepository salesLineRepository;
 	private final GeneralSetupService generalSetupService;
-	private final ErpCommunicationService communicationService;
-	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * Export tickets to Dynamics NAV
 	 */
 	@Transactional
 	public void exportTickets() {
-		LOGGER.info("Starting ticket export to Dynamics NAV");
+		LOGGER.info("Starting ticket export to ERP");
 
 		// Find all completed tickets that are not totally synched
 		List<SalesHeader> ticketsToSync = salesHeaderRepository.findByStatusAndSynchronizationStatusNot(
@@ -76,7 +67,7 @@ public class TicketExportService {
 	}
 
 	/**
-	 * Export a single ticket to Dynamics NAV
+	 * Export a single ticket to ERP
 	 */
 	@Transactional
 	public void exportTicket(SalesHeader ticket) {
@@ -95,153 +86,60 @@ public class TicketExportService {
 		boolean allLinesSynched = allLines.stream().allMatch(SalesLine::getSynched);
 
 		if (allLinesSynched && !allLines.isEmpty()) {
-			// Update POS_Order to true in NAV
+			// Update POS_Order to true in ERP
 			if (ticket.getErpNo() != null) {
-				LocalDateTime updateStart = LocalDateTime.now();
 				try {
-					dynamicsNavRestClient.updateSalesOrderHeaderPosOrder(ticket.getErpNo(), true);
-
-					// Log successful POS_Order update
-					DynamicsNavSalesOrderHeaderDTO updatePayload = new DynamicsNavSalesOrderHeaderDTO();
-					updatePayload.setPosOrder(true);
-					communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, updatePayload, null,
-							ErpCommunicationStatus.SUCCESS, ticket.getErpNo(), null, updateStart, LocalDateTime.now());
-				} catch (HttpClientErrorException | HttpServerErrorException ex) {
-					// Extract error response body for logging
-					String errorResponseBody = ex.getResponseBodyAsString();
-					Object errorResponse = null;
-					if (errorResponseBody != null && !errorResponseBody.trim().isEmpty()) {
-						errorResponse = errorResponseBody;
+					ErpOperationResult result = synchronizationManager.updateTicketStatus(ticket.getErpNo(), true);
+					if (result.isSuccess()) {
+						// After POS_Order update succeeds, mark ticket as totally synchronized
+						ticket.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
+						salesHeaderRepository.save(ticket);
+						LOGGER.info("Ticket {} fully synchronized", ticket.getSalesNumber());
+					} else {
+						LOGGER.error("Failed to update POS_Order for ticket {}: {}", ticket.getSalesNumber(),
+								result.getMessage());
+						// Don't update status - we'll try again next time
 					}
-
-					// Log error operation with error response body
-					DynamicsNavSalesOrderHeaderDTO updatePayload = new DynamicsNavSalesOrderHeaderDTO();
-					updatePayload.setPosOrder(true);
-					communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, updatePayload, errorResponse,
-							ErpCommunicationStatus.ERROR, ticket.getErpNo(), ex.getMessage(), updateStart,
-							LocalDateTime.now());
-					LOGGER.error("Failed to update POS_Order for ticket {}: {}", ticket.getSalesNumber(),
-							ex.getMessage(), ex);
-					// Don't throw - we'll try again next time
 				} catch (Exception ex) {
-					// Log error operation
-					DynamicsNavSalesOrderHeaderDTO updatePayload = new DynamicsNavSalesOrderHeaderDTO();
-					updatePayload.setPosOrder(true);
-					communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, updatePayload, null,
-							ErpCommunicationStatus.ERROR, ticket.getErpNo(), ex.getMessage(), updateStart,
-							LocalDateTime.now());
 					LOGGER.error("Failed to update POS_Order for ticket {}: {}", ticket.getSalesNumber(),
 							ex.getMessage(), ex);
-					// Don't throw - we'll try again next time
+					// Don't update status - we'll try again next time
 				}
+			} else {
+				// No ERP document number, can't update status
+				LOGGER.warn("Cannot update POS_Order for ticket {} - no ERP document number", ticket.getSalesNumber());
 			}
-
-			// Update status to totally synched
-			ticket.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
-			salesHeaderRepository.save(ticket);
-			LOGGER.info("Ticket {} fully synchronized", ticket.getSalesNumber());
 		}
 	}
 
 	/**
-	 * Export ticket header to Dynamics NAV
+	 * Export ticket header to ERP
 	 */
 	private void exportTicketHeader(SalesHeader ticket) {
-		LocalDateTime start = LocalDateTime.now();
-		DynamicsNavSalesOrderHeaderDTO headerDTO = new DynamicsNavSalesOrderHeaderDTO();
+		// Convert to ErpTicketDTO
+		ErpTicketDTO ticketDTO = toErpTicketDTO(ticket);
 
-		// Set customer information
-		if (ticket.getCustomer() != null) {
-			headerDTO.setSellToCustomerNo(ticket.getCustomer().getCustomerCode());
-//			headerDTO.setSellToCustomerName(ticket.getCustomer().getName());
-		}
+		// Push header to ERP
+		ErpOperationResult result = synchronizationManager.pushTicketHeader(ticketDTO);
 
-		// Set responsibility center and location from GeneralSetup
-		String responsibilityCenter = generalSetupService.findValueByCode("RESPONSIBILITY_CENTER");
-		if (responsibilityCenter != null) {
-			headerDTO.setResponsibilityCenter(responsibilityCenter);
-		}
+		if (result.isSuccess() && result.getExternalReference() != null) {
+			// Save external reference (document number) to ticket
+			ticket.setErpNo(result.getExternalReference());
+			ticket.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
+			salesHeaderRepository.save(ticket);
 
-		String locationCode = generalSetupService.findValueByCode("DEFAULT_LOCATION");
-		if (locationCode != null) {
-			headerDTO.setLocationCode(locationCode);
-		}
-
-		// Set posting date
-		headerDTO.setPostingDate(ticket.getSalesDate().toLocalDate());
-
-		// Set Fence_No to cashier session ID
-		if (ticket.getCashierSession() != null) {
-			headerDTO.setFenceNo(ticket.getCashierSession().getSessionNumber());
-		}
-
-		// Set POS document number
-		headerDTO.setPosDocumentNo(ticket.getSalesNumber());
-
-		// Set discount percentage
-		if (ticket.getDiscountPercentage() != null) {
-			headerDTO.setDiscountPercent(ticket.getDiscountPercentage());
-		}
-
-		// Set POS_Order to false initially
-		headerDTO.setPosOrder(false);
-
-		try {
-			// Create header in NAV
-			DynamicsNavSalesOrderHeaderDTO createdHeader = dynamicsNavRestClient.createSalesOrderHeader(headerDTO);
-
-			// Extract Document_No from response
-			if (createdHeader != null && createdHeader.getDocumentNo() != null) {
-				ticket.setErpNo(createdHeader.getDocumentNo());
-				ticket.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
-				salesHeaderRepository.save(ticket);
-
-				// Log successful operation
-				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, headerDTO, createdHeader,
-						ErpCommunicationStatus.SUCCESS, createdHeader.getDocumentNo(), null, start,
-						LocalDateTime.now());
-
-				LOGGER.info("Ticket header {} exported to NAV with document number: {}", ticket.getSalesNumber(),
-						createdHeader.getDocumentNo());
-			} else {
-				String errorMsg = "Failed to get document number from NAV response";
-				// Log error operation
-				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, headerDTO, createdHeader,
-						ErpCommunicationStatus.ERROR, null, errorMsg, start, LocalDateTime.now());
-				LOGGER.error("Failed to get document number from NAV response for ticket {}", ticket.getSalesNumber());
-				throw new RuntimeException(errorMsg);
-			}
-		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			// Extract error response body for logging
-			String errorResponseBody = ex.getResponseBodyAsString();
-			Object errorResponse = null;
-			if (errorResponseBody != null && !errorResponseBody.trim().isEmpty()) {
-				try {
-					// Try to parse as JSON for better display
-					errorResponse = errorResponseBody;
-				} catch (Exception parseEx) {
-					errorResponse = errorResponseBody;
-				}
-			}
-
-			// Extract clean error message (without full payload)
-			String cleanErrorMessage = extractCleanErrorMessage(ex, errorResponseBody);
-
-			// Log error operation with error response body
-			// errorMessage contains short message, full response is in response_payload
-			communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, headerDTO, errorResponse,
-					ErpCommunicationStatus.ERROR, null, cleanErrorMessage, start, LocalDateTime.now());
-			throw ex;
-		} catch (Exception ex) {
-			// Log error operation
-			communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, headerDTO, null,
-					ErpCommunicationStatus.ERROR, null, ex.getMessage(), start, LocalDateTime.now());
-			throw ex;
+			LOGGER.info("Ticket header {} exported to ERP with document number: {}", ticket.getSalesNumber(),
+					result.getExternalReference());
+		} else {
+			String errorMsg = result.getMessage() != null ? result.getMessage()
+					: "Failed to get document number from ERP response";
+			LOGGER.error("Failed to export ticket header {}: {}", ticket.getSalesNumber(), errorMsg);
+			throw new RuntimeException(errorMsg);
 		}
 	}
 
 	/**
-	 * Export ticket lines to Dynamics NAV
+	 * Export ticket lines to ERP
 	 */
 	private void exportTicketLines(SalesHeader ticket) {
 		if (ticket.getErpNo() == null) {
@@ -260,59 +158,30 @@ public class TicketExportService {
 
 		LOGGER.info("Exporting {} lines for ticket {}", unsynchedLines.size(), ticket.getSalesNumber());
 
-		int lineNo = 10000; // Starting line number
+		// Convert ticket to ErpTicketDTO (needed for pushTicketLine)
+		ErpTicketDTO ticketDTO = toErpTicketDTO(ticket);
+
 		for (SalesLine line : unsynchedLines) {
-			LocalDateTime lineStart = LocalDateTime.now();
-			DynamicsNavSalesOrderLineDTO lineDTO = new DynamicsNavSalesOrderLineDTO();
-			lineDTO.setDocumentNo(ticket.getErpNo());
-			lineDTO.setLineNo(lineNo);
-			lineDTO.setNo(line.getItem().getItemCode());
-			lineDTO.setQuantity(line.getQuantity().doubleValue());
-			lineDTO.setUnitPrice(line.getUnitPrice());
-			// Type is read-only in NAV, so set it to null to exclude it from request
-			if (line.getDiscountPercentage() != null) {
-				lineDTO.setLineDiscountPercent(line.getDiscountPercentage());
-			}
-
 			try {
-				// Create line in NAV
-				DynamicsNavSalesOrderLineDTO createdLine = dynamicsNavRestClient.createSalesOrderLine(lineDTO);
+				// Convert line to ErpTicketLineDTO
+				ErpTicketLineDTO lineDTO = toErpTicketLineDTO(line);
 
-				// Mark line as synched
-				line.setSynched(true);
-				salesLineRepository.save(line);
+				// Push line to ERP
+				ErpOperationResult result = synchronizationManager.pushTicketLine(ticketDTO, ticket.getErpNo(),
+						lineDTO);
 
-				// Log successful operation
-				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, lineDTO, createdLine,
-						ErpCommunicationStatus.SUCCESS, ticket.getErpNo() + "-" + lineNo, null, lineStart,
-						LocalDateTime.now());
+				if (result.isSuccess()) {
+					// Mark line as synched
+					line.setSynched(true);
+					salesLineRepository.save(line);
 
-				lineNo += 10000; // Increment by 10000 for next line
-				LOGGER.info("Exported line {} for ticket {}", line.getId(), ticket.getSalesNumber());
-			} catch (HttpClientErrorException | HttpServerErrorException ex) {
-				// Extract error response body for logging
-				String errorResponseBody = ex.getResponseBodyAsString();
-				Object errorResponse = null;
-				if (errorResponseBody != null && !errorResponseBody.trim().isEmpty()) {
-					errorResponse = errorResponseBody;
+					LOGGER.info("Exported line {} for ticket {}", line.getId(), ticket.getSalesNumber());
+				} else {
+					LOGGER.error("Failed to export line {} for ticket {}: {}", line.getId(), ticket.getSalesNumber(),
+							result.getMessage());
+					// Continue with next line
 				}
-
-				// Extract clean error message (without full payload)
-				String cleanErrorMessage = extractCleanErrorMessage(ex, errorResponseBody);
-
-				// Log error operation with error response body
-				// errorMessage contains short message, full response is in response_payload
-				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, lineDTO, errorResponse,
-						ErpCommunicationStatus.ERROR, ticket.getErpNo() + "-" + lineNo, cleanErrorMessage, lineStart,
-						LocalDateTime.now());
-				LOGGER.error("Failed to export line {} for ticket {}: {}", line.getId(), ticket.getSalesNumber(),
-						ex.getMessage(), ex);
-				// Continue with next line
 			} catch (Exception ex) {
-				// Log error operation
-				communicationService.logOperation(ErpSyncOperation.EXPORT_TICKET, lineDTO, null,
-						ErpCommunicationStatus.ERROR, ticket.getErpNo() + "-" + lineNo, ex.getMessage(), lineStart,
-						LocalDateTime.now());
 				LOGGER.error("Failed to export line {} for ticket {}: {}", line.getId(), ticket.getSalesNumber(),
 						ex.getMessage(), ex);
 				// Continue with next line
@@ -321,39 +190,80 @@ public class TicketExportService {
 	}
 
 	/**
-	 * Extract a clean error message from HTTP exception without the full JSON
-	 * payload
+	 * Convert SalesHeader to ErpTicketDTO
 	 */
-	private String extractCleanErrorMessage(HttpStatusCodeException ex, String errorResponseBody) {
-		// Try to extract just the error message from JSON response
-		if (errorResponseBody != null && !errorResponseBody.trim().isEmpty()) {
-			try {
-				JsonNode errorNode = objectMapper.readTree(errorResponseBody);
+	private ErpTicketDTO toErpTicketDTO(SalesHeader ticket) {
+		ErpTicketDTO dto = new ErpTicketDTO();
+		dto.setTicketNumber(ticket.getSalesNumber());
+		dto.setSaleDate(ticket.getSalesDate());
+		dto.setExternalId(ticket.getErpNo());
 
-				// Handle array of errors: [{"error": {...}}]
-				if (errorNode.isArray() && errorNode.size() > 0) {
-					JsonNode firstError = errorNode.get(0);
-					if (firstError.has("error")) {
-						JsonNode error = firstError.get("error");
-						if (error.has("message")) {
-							return ex.getStatusCode() + " " + error.get("message").asText();
-						}
-					}
-				}
-
-				// Handle single error object: {"error": {...}}
-				if (errorNode.has("error")) {
-					JsonNode error = errorNode.get("error");
-					if (error.has("message")) {
-						return ex.getStatusCode() + " " + error.get("message").asText();
-					}
-				}
-			} catch (Exception parseEx) {
-				LOGGER.debug("Failed to parse error response body: {}", parseEx.getMessage());
-			}
+		// Set customer external ID
+		if (ticket.getCustomer() != null) {
+			dto.setCustomerExternalId(ticket.getCustomer().getCustomerCode());
 		}
 
-		// Fallback to status code and status text
-		return ex.getStatusCode() + " " + (ex.getStatusText() != null ? ex.getStatusText() : "Unknown error");
+		// Set responsibility center and location from GeneralSetup
+		String responsibilityCenter = generalSetupService.findValueByCode("RESPONSIBILITY_CENTER");
+		if (responsibilityCenter != null) {
+			dto.setResponsibilityCenter(responsibilityCenter);
+		}
+
+		String locationCode = generalSetupService.findValueByCode("DEFAULT_LOCATION");
+		if (locationCode != null) {
+			dto.setLocationExternalId(locationCode);
+		}
+
+		// Set cashier session ID
+		if (ticket.getCashierSession() != null) {
+			dto.setCashierSessionId(ticket.getCashierSession().getSessionNumber());
+		}
+
+		// Set discount percentage
+		if (ticket.getDiscountPercentage() != null) {
+			dto.setDiscountPercentage(ticket.getDiscountPercentage());
+		}
+
+		// Set total amount
+		if (ticket.getTotalAmount() != null) {
+			dto.setTotalAmount(BigDecimal.valueOf(ticket.getTotalAmount()));
+		}
+
+		// Convert lines
+		List<SalesLine> salesLines = salesLineRepository.findBySalesHeader(ticket);
+		for (SalesLine salesLine : salesLines) {
+			dto.getLines().add(toErpTicketLineDTO(salesLine));
+		}
+
+		return dto;
 	}
+
+	/**
+	 * Convert SalesLine to ErpTicketLineDTO
+	 */
+	private ErpTicketLineDTO toErpTicketLineDTO(SalesLine line) {
+		ErpTicketLineDTO dto = new ErpTicketLineDTO();
+
+		if (line.getItem() != null) {
+			dto.setItemExternalId(line.getItem().getItemCode());
+		}
+
+		dto.setQuantity(BigDecimal.valueOf(line.getQuantity()));
+		dto.setUnitPrice(BigDecimal.valueOf(line.getUnitPrice()));
+
+		if (line.getDiscountPercentage() != null) {
+			dto.setDiscountPercentage(BigDecimal.valueOf(line.getDiscountPercentage()));
+		}
+
+		if (line.getDiscountAmount() != null) {
+			dto.setDiscountAmount(BigDecimal.valueOf(line.getDiscountAmount()));
+		}
+
+		if (line.getLineTotal() != null) {
+			dto.setTotalAmount(BigDecimal.valueOf(line.getLineTotal()));
+		}
+
+		return dto;
+	}
+
 }

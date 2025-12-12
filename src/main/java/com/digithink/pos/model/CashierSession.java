@@ -4,21 +4,22 @@ import java.time.LocalDateTime;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Enumerated;
 import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
 import com.digithink.pos.model.enumeration.SessionStatus;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 /**
- * Cashier session entity - represents a cashier's shift/session
- * When POS user opens his shift, creates a session
- * When closing, counts the money and closes the session
+ * Cashier session entity - represents a cashier's shift/session When POS user
+ * opens his shift, creates a session When closing, counts the money and closes
+ * the session
  */
 @Entity
 @Data
@@ -45,7 +46,8 @@ public class CashierSession extends _BaseEntity {
 	@Column(nullable = false)
 	private Double openingCash;
 
-	// Real cash - what should be in cashier (openingCash + cash sales - change given)
+	// Real cash - what should be in cashier (openingCash + cash sales - change
+	// given)
 	private Double realCash;
 
 	// POS user closure cash - cash counted by POS user when closing session
@@ -53,12 +55,6 @@ public class CashierSession extends _BaseEntity {
 
 	// Responsible closure cash - cash counted by responsible user when verifying
 	private Double responsibleClosureCash;
-
-	// Actual counted cash at closing (deprecated - use posUserClosureCash instead)
-	private Double actualCash;
-
-	// Difference between expected and actual (deprecated - calculate from realCash and posUserClosureCash)
-	private Double cashDifference;
 
 	// Responsible user who verified the count
 	@ManyToOne
@@ -69,6 +65,8 @@ public class CashierSession extends _BaseEntity {
 
 	private String verificationNotes;
 
-	private String cashCountingDetails; // e.g., "5 pieces of 10 dinar, 6 pieces of 50 dinar, 2 checks..."
-}
+	@Enumerated(EnumType.STRING)
+	private SynchronizationStatus synchronizationStatus = SynchronizationStatus.NOT_SYNCHED;
 
+	private String erpNo; // External reference from ERP (e.g., document number)
+}

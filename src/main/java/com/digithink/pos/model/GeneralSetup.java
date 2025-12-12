@@ -27,4 +27,3 @@ public class GeneralSetup extends _BaseEntity {
 	@Column(nullable = false)
 	private Boolean readOnly = false;
 }
-

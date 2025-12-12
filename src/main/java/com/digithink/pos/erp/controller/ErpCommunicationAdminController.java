@@ -72,7 +72,7 @@ public class ErpCommunicationAdminController {
 		dto.setId(entity.getId());
 		dto.setOperation(entity.getOperation());
 		dto.setStatus(entity.getStatus());
-		dto.setExternalReference(entity.getExternalReference());
+		dto.setUrl(entity.getUrl());
 		dto.setErrorMessage(entity.getErrorMessage());
 		dto.setStartedAt(entity.getStartedAt());
 		dto.setCompletedAt(entity.getCompletedAt());

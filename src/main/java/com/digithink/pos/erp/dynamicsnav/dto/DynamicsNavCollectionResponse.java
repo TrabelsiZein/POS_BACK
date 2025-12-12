@@ -15,5 +15,8 @@ public class DynamicsNavCollectionResponse<T> {
 
 	@JsonProperty("value")
 	private List<T> value;
+
+	@JsonProperty("@odata.nextLink")
+	private String nextLink;
 }
 
