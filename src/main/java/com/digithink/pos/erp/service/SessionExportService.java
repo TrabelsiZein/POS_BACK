@@ -26,11 +26,11 @@ import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.ReturnHeader;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
-import com.digithink.pos.model.enumeration.ReturnType;
 import com.digithink.pos.model.enumeration.SessionStatus;
 import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.CashierSessionRepository;
+import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.PaymentRepository;
 import com.digithink.pos.repository.ReturnHeaderRepository;
 import com.digithink.pos.repository.SalesHeaderRepository;
@@ -50,6 +50,7 @@ public class SessionExportService {
 	private final SalesHeaderRepository salesHeaderRepository;
 	private final ReturnHeaderRepository returnHeaderRepository;
 	private final PaymentRepository paymentRepository;
+	private final PaymentMethodRepository paymentMethodRepository;
 	private final PaymentHeaderRepository paymentHeaderRepository;
 	private final PaymentLineRepository paymentLineRepository;
 
@@ -628,50 +629,11 @@ public class SessionExportService {
 	private ErpSessionDTO toErpSessionDTO(CashierSession session) {
 		ErpSessionDTO dto = new ErpSessionDTO();
 		dto.setSessionNumber(session.getSessionNumber());
-		dto.setExternalId(session.getErpNo());
-
-		// Set cashier information
-		if (session.getCashier() != null) {
-			dto.setCashierUsername(session.getCashier().getUsername());
-			// Use username as external ID if no separate external ID exists
-			dto.setCashierExternalId(session.getCashier().getUsername());
-		}
-
-		dto.setOpenedAt(session.getOpenedAt());
-		dto.setClosedAt(session.getClosedAt());
-		dto.setStatus(session.getStatus() != null ? session.getStatus().name() : null);
-
-		// Set cash amounts
-		if (session.getOpeningCash() != null) {
-			dto.setOpeningCash(BigDecimal.valueOf(session.getOpeningCash()));
-		}
-		if (session.getRealCash() != null) {
-			dto.setRealCash(BigDecimal.valueOf(session.getRealCash()));
-		}
-		if (session.getPosUserClosureCash() != null) {
-			dto.setPosUserClosureCash(BigDecimal.valueOf(session.getPosUserClosureCash()));
-		}
-		if (session.getResponsibleClosureCash() != null) {
-			dto.setResponsibleClosureCash(BigDecimal.valueOf(session.getResponsibleClosureCash()));
-		}
-
-		// Set verification information
-		if (session.getVerifiedBy() != null) {
-			dto.setVerifiedByUsername(session.getVerifiedBy().getUsername());
-		}
-		dto.setVerifiedAt(session.getVerifiedAt());
-		dto.setVerificationNotes(session.getVerificationNotes());
-
-		// Set responsibility center from GeneralSetup
-		String responsibilityCenter = generalSetupService.findValueByCode("RESPONSIBILITY_CENTER");
-		if (responsibilityCenter != null) {
-			dto.setResponsibilityCenter(responsibilityCenter);
-		}
 
 		// Set location from GeneralSetup (for NAV export)
 		String locationCode = generalSetupService.findValueByCode("DEFAULT_LOCATION");
 		if (locationCode != null) {
-			dto.setLocationExternalId(locationCode);
+			dto.setLocationCode(locationCode);
 		}
 
 		// Calculate ticket count (excluding PENDING and CANCELLED)
@@ -679,21 +641,29 @@ public class SessionExportService {
 		List<SalesHeader> sales = allSales.stream().filter(sale -> sale.getStatus() != TransactionStatus.PENDING
 				&& sale.getStatus() != TransactionStatus.CANCELLED).toList();
 		dto.setTicketCount(sales.size());
+		dto.setClosingAmount(sales.stream().mapToDouble(s -> s.getTotalAmount()).sum());
 
-		// Calculate return count and amount (simple returns only - cashed returns)
+		// Calculate return count (simple returns only - cash refunds)
 		List<ReturnHeader> returns = returnHeaderRepository.findByCashierSession(session);
-		List<ReturnHeader> simpleReturns = returns.stream()
-				.filter(ret -> ret.getReturnType() == ReturnType.SIMPLE_RETURN).toList();
-		dto.setReturnCount(simpleReturns.size());
+//		List<ReturnHeader> simpleReturns = returns.stream()
+//				.filter(ret -> ret.getReturnType() == ReturnType.SIMPLE_RETURN).toList();
+		dto.setReturnCount(returns.size());
 
-		Double returnAmount = simpleReturns.stream()
-				.mapToDouble(ret -> ret.getTotalReturnAmount() != null ? ret.getTotalReturnAmount() : 0.0).sum();
-		dto.setReturnAmount(returnAmount);
+		// Calculate voucher redemptions (payments of type RETURN_VOUCHER)
+		List<Payment> voucherPayments = sales.stream()
+				.flatMap(sale -> paymentRepository.findBySalesHeader(sale).stream())
+				.filter(payment -> payment.getPaymentMethod() != null
+						&& payment.getPaymentMethod().getType() == PaymentMethodType.RETURN_VOUCHER)
+				.toList();
 
-		// Calculate total return count (all returns - simple + voucher)
-		dto.setTotalReturnCount(returns.size());
+		dto.setReturnCashedCount(voucherPayments.size());
+
+		Double returnCashedAmount = voucherPayments.stream()
+				.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+		dto.setReturnCashedAmount(returnCashedAmount);
 
 		return dto;
+
 	}
 
 }

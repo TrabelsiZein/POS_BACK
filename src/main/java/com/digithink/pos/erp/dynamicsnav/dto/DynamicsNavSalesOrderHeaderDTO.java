@@ -6,8 +6,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import lombok.Data;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Data
 public class DynamicsNavSalesOrderHeaderDTO {
 
 	@JsonProperty("Document_Type")
@@ -49,110 +52,13 @@ public class DynamicsNavSalesOrderHeaderDTO {
 	@JsonProperty("POS_Order")
 	private Boolean posOrder = false;
 
-	// Getters and setters
-	public String getDocumentType() {
-		return documentType;
-	}
+	@JsonProperty("Billing_type")
+	public String billingType;
 
-	public void setDocumentType(String documentType) {
-		this.documentType = documentType;
-	}
+	@JsonProperty("Ship_to_Code")
+	public String shipToCode;
 
-	public String getDocumentNo() {
-		return documentNo;
-	}
+	@JsonProperty("Ticket_Amount")
+	public Double ticketAmount;
 
-	// Setter without @JsonProperty to prevent serialization
-	// We'll manually set this from the response
-	public void setDocumentNo(String documentNo) {
-		this.documentNo = documentNo;
-	}
-
-	public String getSellToCustomerNo() {
-		return sellToCustomerNo;
-	}
-
-	public void setSellToCustomerNo(String sellToCustomerNo) {
-		this.sellToCustomerNo = sellToCustomerNo;
-	}
-
-	public String getSellToCustomerName() {
-		return sellToCustomerName;
-	}
-
-	public void setSellToCustomerName(String sellToCustomerName) {
-		this.sellToCustomerName = sellToCustomerName;
-	}
-
-	public String getResponsibilityCenter() {
-		return responsibilityCenter;
-	}
-
-	public void setResponsibilityCenter(String responsibilityCenter) {
-		this.responsibilityCenter = responsibilityCenter;
-	}
-
-	public String getLocationCode() {
-		return locationCode;
-	}
-
-	public void setLocationCode(String locationCode) {
-		this.locationCode = locationCode;
-	}
-
-	public LocalDate getPostingDate() {
-		return postingDate;
-	}
-
-	public void setPostingDate(LocalDate postingDate) {
-		this.postingDate = postingDate;
-	}
-
-	public String getFenceNo() {
-		return fenceNo;
-	}
-
-	public void setFenceNo(String fenceNo) {
-		this.fenceNo = fenceNo;
-	}
-
-	public String getPosDocumentNo() {
-		return posDocumentNo;
-	}
-
-	public void setPosDocumentNo(String posDocumentNo) {
-		this.posDocumentNo = posDocumentNo;
-	}
-
-	public Boolean getPosInvoice() {
-		return posInvoice;
-	}
-
-	public void setPosInvoice(Boolean posInvoice) {
-		this.posInvoice = posInvoice;
-	}
-
-	public String getFiscalRegistration() {
-		return fiscalRegistration;
-	}
-
-	public void setFiscalRegistration(String fiscalRegistration) {
-		this.fiscalRegistration = fiscalRegistration;
-	}
-
-	public Double getDiscountPercent() {
-		return discountPercent;
-	}
-
-	public void setDiscountPercent(Double discountPercent) {
-		this.discountPercent = discountPercent;
-	}
-
-	public Boolean getPosOrder() {
-		return posOrder;
-	}
-
-	public void setPosOrder(Boolean posOrder) {
-		this.posOrder = posOrder;
-	}
 }

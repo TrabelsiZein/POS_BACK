@@ -12,6 +12,7 @@ public class ErpTicketLineDTO {
 	private BigDecimal discountAmount;
 	private BigDecimal discountPercentage;
 	private BigDecimal totalAmount;
+	private String locationCode;
 
 	public Integer getLineNumber() {
 		return lineNumber;
@@ -76,5 +77,13 @@ public class ErpTicketLineDTO {
 	public void setTotalAmount(BigDecimal totalAmount) {
 		this.totalAmount = totalAmount;
 	}
-}
 
+	public String getLocationCode() {
+		return locationCode;
+	}
+
+	public void setLocationCode(String locationCode) {
+		this.locationCode = locationCode;
+	}
+
+}

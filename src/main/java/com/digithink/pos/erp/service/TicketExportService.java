@@ -263,6 +263,11 @@ public class TicketExportService {
 			dto.setTotalAmount(BigDecimal.valueOf(line.getLineTotal()));
 		}
 
+		String locationCode = generalSetupService.findValueByCode("DEFAULT_LOCATION");
+		if (locationCode != null) {
+			dto.setLocationCode(locationCode);
+		}
+
 		return dto;
 	}
 

@@ -15,4 +15,3 @@ public interface PaymentRepository extends _BaseRepository<Payment, Long> {
 
 	List<Payment> findByPaymentMethod(PaymentMethod paymentMethod);
 }
-

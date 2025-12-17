@@ -208,6 +208,11 @@ public class DynamicsNavMapper {
 			dto.setDiscountPercent(ticket.getDiscountPercentage());
 		}
 
+		// Set TicketAmount
+		if (ticket.getTotalAmount() != null) {
+			dto.setTicketAmount(ticket.getTotalAmount().doubleValue());
+		}
+
 		// Set POS_Order to false initially
 		dto.setPosOrder(false);
 
@@ -244,6 +249,11 @@ public class DynamicsNavMapper {
 		// Set line discount percentage
 		if (line.getDiscountPercentage() != null) {
 			dto.setLineDiscountPercent(line.getDiscountPercentage().doubleValue());
+		}
+
+		// Set location code
+		if (line.getLocationCode() != null) {
+			dto.setLocationCode(line.getLocationCode());
 		}
 
 		// Type is read-only, so it's excluded from serialization via @JsonIgnore on
@@ -351,8 +361,8 @@ public class DynamicsNavMapper {
 		}
 
 		// Set location
-		if (sessionDTO.getLocationExternalId() != null) {
-			dto.setLocation(sessionDTO.getLocationExternalId());
+		if (sessionDTO.getLocationCode() != null) {
+			dto.setLocation(sessionDTO.getLocationCode());
 		}
 
 		// Set number of tickets
@@ -362,33 +372,30 @@ public class DynamicsNavMapper {
 			dto.setNberTicket(0);
 		}
 
-		// Set closing amount - use responsibleClosureCash if available, otherwise
-		// posUserClosureCash
-		if (sessionDTO.getResponsibleClosureCash() != null) {
-			dto.setClosingAmount(sessionDTO.getResponsibleClosureCash().doubleValue());
-		} else if (sessionDTO.getPosUserClosureCash() != null) {
-			dto.setClosingAmount(sessionDTO.getPosUserClosureCash().doubleValue());
-		} else if (sessionDTO.getRealCash() != null) {
-			dto.setClosingAmount(sessionDTO.getRealCash().doubleValue());
+		// Set closing amount
+		if (sessionDTO.getClosingAmount() != null) {
+			dto.setClosingAmount(sessionDTO.getClosingAmount());
+		} else {
+			dto.setClosingAmount(0.0);
 		}
 
 		// Set number of returns cashed
-		if (sessionDTO.getReturnCount() != null) {
-			dto.setNberReturnCashed(sessionDTO.getReturnCount());
+		if (sessionDTO.getReturnCashedCount() != null) {
+			dto.setNberReturnCashed(sessionDTO.getReturnCashedCount());
 		} else {
 			dto.setNberReturnCashed(0);
 		}
 
 		// Set amount of returns cashed
-		if (sessionDTO.getReturnAmount() != null) {
-			dto.setAmountReturnCashed(sessionDTO.getReturnAmount());
+		if (sessionDTO.getReturnCashedAmount() != null) {
+			dto.setAmountReturnCashed(sessionDTO.getReturnCashedAmount().doubleValue());
 		} else {
 			dto.setAmountReturnCashed(0.0);
 		}
 
 		// Set number of returns (all returns - simple + voucher)
-		if (sessionDTO.getTotalReturnCount() != null) {
-			dto.setNberReturn(sessionDTO.getTotalReturnCount());
+		if (sessionDTO.getReturnCount() != null) {
+			dto.setNberReturn(sessionDTO.getReturnCount());
 		} else {
 			dto.setNberReturn(0);
 		}

@@ -47,12 +47,13 @@ import lombok.RequiredArgsConstructor;
 public class DynamicsNavConnector implements ErpConnector {
 
 	/**
-	 * ThreadLocal to store pull operation metadata (URL and raw response) for logging.
-	 * This is similar to how push operations return ErpOperationResult with metadata.
+	 * ThreadLocal to store pull operation metadata (URL and raw response) for
+	 * logging. This is similar to how push operations return ErpOperationResult
+	 * with metadata.
 	 * 
 	 * Thread-safety: ThreadLocal ensures each thread has its own copy, making this
-	 * thread-safe for concurrent operations. The metadata is stored immediately after
-	 * fetch and cleared after logging to prevent memory leaks.
+	 * thread-safe for concurrent operations. The metadata is stored immediately
+	 * after fetch and cleared after logging to prevent memory leaks.
 	 */
 	private static final ThreadLocal<PullOperationResult<?>> LAST_PULL_RESULT = new ThreadLocal<>();
 

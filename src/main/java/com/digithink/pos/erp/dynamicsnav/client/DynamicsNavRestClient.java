@@ -102,7 +102,8 @@ public class DynamicsNavRestClient {
 			while (nextUrl != null) {
 				ResponseEntity<DynamicsNavCollectionResponse<T>> response;
 				if (firstPage) {
-					// First page may contain unencoded spaces; let RestTemplate handle encoding from String
+					// First page may contain unencoded spaces; let RestTemplate handle encoding
+					// from String
 					response = dynamicsNavRestTemplate.exchange(nextUrl, HttpMethod.GET, null, typeRef);
 					firstPage = false;
 				} else {

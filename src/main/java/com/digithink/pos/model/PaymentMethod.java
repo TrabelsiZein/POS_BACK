@@ -27,6 +27,7 @@ public class PaymentMethod extends _BaseEntity {
 	private String name;
 
 	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, unique = true)
 	private PaymentMethodType type;
 
 	private String description;

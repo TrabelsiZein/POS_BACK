@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import lombok.Data;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Data
 public class DynamicsNavSalesOrderLineDTO {
 
 	@JsonProperty("Document_Type")
@@ -34,68 +37,7 @@ public class DynamicsNavSalesOrderLineDTO {
 	@JsonProperty("Line_Discount_Percent")
 	private Double lineDiscountPercent;
 
-	// Getters and setters
-	public String getDocumentType() {
-		return documentType;
-	}
+	@JsonProperty("Location_Code")
+	private String locationCode;
 
-	public void setDocumentType(String documentType) {
-		this.documentType = documentType;
-	}
-
-	public String getDocumentNo() {
-		return documentNo;
-	}
-
-	public void setDocumentNo(String documentNo) {
-		this.documentNo = documentNo;
-	}
-
-	public Integer getLineNo() {
-		return lineNo;
-	}
-
-	public void setLineNo(Integer lineNo) {
-		this.lineNo = lineNo;
-	}
-
-	public String getType() {
-		return type;
-	}
-
-	public void setType(String type) {
-		this.type = type;
-	}
-
-	public String getNo() {
-		return no;
-	}
-
-	public void setNo(String no) {
-		this.no = no;
-	}
-
-	public Double getQuantity() {
-		return quantity;
-	}
-
-	public void setQuantity(Double quantity) {
-		this.quantity = quantity;
-	}
-
-	public Double getUnitPrice() {
-		return unitPrice;
-	}
-
-	public void setUnitPrice(Double unitPrice) {
-		this.unitPrice = unitPrice;
-	}
-
-	public Double getLineDiscountPercent() {
-		return lineDiscountPercent;
-	}
-
-	public void setLineDiscountPercent(Double lineDiscountPercent) {
-		this.lineDiscountPercent = lineDiscountPercent;
-	}
 }
