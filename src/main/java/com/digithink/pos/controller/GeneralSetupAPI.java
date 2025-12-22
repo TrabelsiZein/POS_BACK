@@ -5,9 +5,11 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +30,27 @@ public class GeneralSetupAPI extends _BaseController<GeneralSetup, Long, General
 
 	@Autowired
 	private CustomerService customerService;
+
+	/**
+	 * Find GeneralSetup by code
+	 * GET /general-setup/findByCode?code=CODE
+	 */
+	@GetMapping("/findByCode")
+	public ResponseEntity<?> findByCode(@RequestParam String code) {
+		try {
+			log.info("GeneralSetupAPI::findByCode: {}", code);
+			GeneralSetup setup = service.findByCode(code);
+			if (setup == null) {
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(createErrorResponse("GeneralSetup not found with code: " + code));
+			}
+			return ResponseEntity.ok(setup);
+		} catch (Exception e) {
+			log.error("GeneralSetupAPI::findByCode:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody GeneralSetup updatedSetting) {

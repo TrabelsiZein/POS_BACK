@@ -7,6 +7,8 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
 import javax.persistence.EnumType;
+import javax.persistence.ManyToOne;
+import javax.persistence.JoinColumn;
 import javax.persistence.Transient;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -49,6 +51,29 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
 	private Role role;
+
+	// Badge fields
+	@Column(name = "badge_code", unique = true, nullable = true)
+	private String badgeCode;
+
+	@Column(name = "badge_permissions", length = 500, nullable = true)
+	private String badgePermissions; // Comma-separated BadgePermission enum values
+
+	@Column(name = "badge_expiration_date", nullable = true)
+	private LocalDateTime badgeExpirationDate;
+
+	@Column(name = "badge_revoked", nullable = false)
+	private Boolean badgeRevoked = false;
+
+	@Column(name = "badge_revoked_at", nullable = true)
+	private LocalDateTime badgeRevokedAt;
+
+	@ManyToOne
+	@JoinColumn(name = "badge_revoked_by_id", nullable = true)
+	private UserAccount badgeRevokedBy;
+
+	@Column(name = "badge_revoke_reason", length = 500, nullable = true)
+	private String badgeRevokeReason;
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

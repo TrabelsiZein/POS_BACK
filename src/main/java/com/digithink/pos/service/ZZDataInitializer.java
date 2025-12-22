@@ -1,5 +1,7 @@
 package com.digithink.pos.service;
 
+import java.time.LocalDateTime;
+
 import javax.annotation.PostConstruct;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -120,6 +122,11 @@ public class ZZDataInitializer {
 		responsible.setEmail("responsible@hammai-group.tn");
 		responsible.setActive(true);
 		responsible.setRole(Role.RESPONSIBLE);
+		// Assign default badge code and all permissions to RESPONSIBLE role
+		responsible.setBadgeCode("RESP-BADGE-001");
+		responsible.setBadgePermissions("CONSULT_CUSTOMER_LIST,MAKE_RETURN,APPLY_LINE_DISCOUNT,APPLY_TOTAL_DISCOUNT");
+		responsible.setBadgeExpirationDate(LocalDateTime.now().plusYears(10)); // 10 years from now
+		responsible.setBadgeRevoked(false);
 		responsible.setCreatedBy("System");
 		responsible.setUpdatedBy("System");
 		userRepository.save(responsible);
@@ -734,6 +741,22 @@ public class ZZDataInitializer {
 			erpTracking.setUpdatedBy("System");
 			generalSetupRepository.save(erpTracking);
 		}
+
+		// Badge-related configurations
+
+		// ALWAYS_SHOW_BADGE_SCAN_POPUP
+		if (!generalSetupRepository.findByCode("ALWAYS_SHOW_BADGE_SCAN_POPUP").isPresent()) {
+			GeneralSetup alwaysShowPopup = new GeneralSetup();
+			alwaysShowPopup.setCode("ALWAYS_SHOW_BADGE_SCAN_POPUP");
+			alwaysShowPopup.setValeur("false");
+			alwaysShowPopup.setDescription("If true, always show badge scan popup for restricted functionalities, even if the current user has permission. If false, only show if current user lacks permission.");
+			alwaysShowPopup.setReadOnly(false);
+			alwaysShowPopup.setActive(true);
+			alwaysShowPopup.setCreatedBy("System");
+			alwaysShowPopup.setUpdatedBy("System");
+			generalSetupRepository.save(alwaysShowPopup);
+		}
+
 	}
 
 	private void ensureErpSyncCheckpointConfigs() {

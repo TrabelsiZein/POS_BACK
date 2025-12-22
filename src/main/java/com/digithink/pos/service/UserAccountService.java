@@ -60,6 +60,13 @@ public class UserAccountService extends _BaseService<UserAccount, Long> {
 	}
 
 	/**
+	 * Find user by badge code
+	 */
+	public Optional<UserAccount> findByBadgeCode(String badgeCode) {
+		return accountRepository.findByBadgeCode(badgeCode);
+	}
+
+	/**
 	 * Create a new user with role
 	 */
 	@Transactional

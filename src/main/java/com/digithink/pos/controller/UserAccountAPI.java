@@ -1,5 +1,6 @@
 package com.digithink.pos.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +15,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.digithink.pos.dto.CreateUserRequestDTO;
 import com.digithink.pos.dto.UserAccountDTO;
 import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.model.enumeration.BadgePermission;
 import com.digithink.pos.model.enumeration.Role;
 import com.digithink.pos.security.CurrentUserProvider;
+import com.digithink.pos.service.BadgeService;
 import com.digithink.pos.service.UserAccountService;
 
 import lombok.extern.log4j.Log4j2;
@@ -32,7 +40,13 @@ public class UserAccountAPI {
 	private UserAccountService userAccountService;
 
 	@Autowired
+	private BadgeService badgeService;
+
+	@Autowired
 	private CurrentUserProvider currentUserProvider;
+
+	@Autowired
+	private com.digithink.pos.repository.UserAccountRepository accountRepository;
 
 	/**
 	 * Check if current user is admin
@@ -69,23 +83,42 @@ public class UserAccountAPI {
 	/**
 	 * Get user by ID (admin only)
 	 */
-	@GetMapping("/{id}")
-	public ResponseEntity<?> getUserById(@PathVariable Long id) {
-		try {
-			log.info("UserAccountAPI::getUserById: " + id);
-			
-			if (!isAdmin()) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("Only administrators can access this resource"));
-			}
+        @GetMapping("/{id}")
+        public ResponseEntity<?> getUserById(@PathVariable Long id) {
+            try {
+                log.info("UserAccountAPI::getUserById: " + id);
+                
+                if (!isAdmin()) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("Only administrators can access this resource"));
+                }
 
-			UserAccountDTO user = userAccountService.getUserById(id);
-			return ResponseEntity.ok(user);
-		} catch (Exception e) {
-			log.error("UserAccountAPI::getUserById:error: " + e.getMessage(), e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body(createErrorResponse(getDetailedMessage(e)));
-		}
-	}
+                UserAccountDTO user = userAccountService.getUserById(id);
+                return ResponseEntity.ok(user);
+            } catch (Exception e) {
+                log.error("UserAccountAPI::getUserById:error: " + e.getMessage(), e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(createErrorResponse(getDetailedMessage(e)));
+            }
+        }
+
+        @GetMapping("/current")
+        public ResponseEntity<?> getCurrentUser() {
+            try {
+                log.info("UserAccountAPI::getCurrentUser");
+                
+                UserAccount currentUser = currentUserProvider.getCurrentUser();
+                if (currentUser == null) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("User not authenticated"));
+                }
+
+                UserAccountDTO user = UserAccountDTO.fromEntity(currentUser);
+                return ResponseEntity.ok(user);
+            } catch (Exception e) {
+                log.error("UserAccountAPI::getCurrentUser:error: " + e.getMessage(), e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(createErrorResponse(getDetailedMessage(e)));
+            }
+        }
 
 	/**
 	 * Create new user (admin only)
@@ -165,6 +198,64 @@ public class UserAccountAPI {
 				} else if (activeObj instanceof String) {
 					user.setActive(Boolean.parseBoolean((String) activeObj));
 				}
+			}
+
+			// Badge fields
+			if (request.containsKey("badgeCode")) {
+				String badgeCode = (String) request.get("badgeCode");
+				if (badgeCode != null && !badgeCode.trim().isEmpty()) {
+					// Validate badge code format
+					if (!badgeService.validateBadgeCode(badgeCode)) {
+						return ResponseEntity.badRequest().body(createErrorResponse("Invalid badge code format. Must be 6-50 alphanumeric characters."));
+					}
+					// Check uniqueness (excluding current user)
+					java.util.Optional<UserAccount> existingUser = accountRepository.findByBadgeCode(badgeCode.trim());
+					if (existingUser.isPresent() && !existingUser.get().getId().equals(user.getId())) {
+						return ResponseEntity.badRequest().body(createErrorResponse("Badge code already exists"));
+					}
+					user.setBadgeCode(badgeCode.trim());
+				} else {
+					user.setBadgeCode(null);
+				}
+			}
+
+			if (request.containsKey("badgePermissions")) {
+				Object permissionsObj = request.get("badgePermissions");
+				if (permissionsObj instanceof List) {
+					@SuppressWarnings("unchecked")
+					List<String> permissionsList = (List<String>) permissionsObj;
+					Set<BadgePermission> permissions = permissionsList.stream()
+							.map(p -> {
+								try {
+									return BadgePermission.valueOf(p);
+								} catch (IllegalArgumentException e) {
+									return null;
+								}
+							})
+							.filter(p -> p != null)
+							.collect(Collectors.toSet());
+					user.setBadgePermissions(badgeService.badgePermissionsToString(permissions));
+				} else if (permissionsObj instanceof String) {
+					user.setBadgePermissions((String) permissionsObj);
+				}
+			}
+
+			if (request.containsKey("badgeExpirationDate")) {
+				Object expirationObj = request.get("badgeExpirationDate");
+				if (expirationObj == null || expirationObj.toString().trim().isEmpty()) {
+					user.setBadgeExpirationDate(null);
+				} else if (expirationObj instanceof String) {
+					try {
+						user.setBadgeExpirationDate(LocalDateTime.parse((String) expirationObj));
+					} catch (Exception e) {
+						log.warn("Invalid badge expiration date format: {}", expirationObj);
+					}
+				}
+			}
+
+			// Initialize badge permissions based on role if not set
+			if (user.getBadgePermissions() == null || user.getBadgePermissions().trim().isEmpty()) {
+				badgeService.initializeBadgePermissionsForRole(user);
 			}
 
 			UserAccount updatedUser = userAccountService.save(user);
@@ -247,6 +338,252 @@ public class UserAccountAPI {
 
 	private Map<String, String> createSuccessResponse(String message) {
 		return java.util.Map.of("message", message);
+	}
+
+	/**
+	 * Get user by badge code
+	 * GET /user-account/by-badge/{badgeCode}
+	 */
+	@GetMapping("/by-badge/{badgeCode}")
+	public ResponseEntity<?> getUserByBadgeCode(@PathVariable String badgeCode) {
+		try {
+			log.info("UserAccountAPI::getUserByBadgeCode: {}", badgeCode);
+			
+			java.util.Optional<UserAccount> userOpt = accountRepository.findByBadgeCode(badgeCode);
+			if (!userOpt.isPresent()) {
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(createErrorResponse("User not found with badge code: " + badgeCode));
+			}
+
+			return ResponseEntity.ok(UserAccountDTO.fromEntity(userOpt.get()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::getUserByBadgeCode:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get user's badge info
+	 * GET /user-account/{id}/badge
+	 */
+	@GetMapping("/{id}/badge")
+	public ResponseEntity<?> getUserBadge(@PathVariable Long id) {
+		try {
+			log.info("UserAccountAPI::getUserBadge: {}", id);
+			
+			if (!isAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Only administrators can access badge info"));
+			}
+
+			UserAccount user = userAccountService.findById(id)
+					.orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("badgeCode", user.getBadgeCode());
+			response.put("badgePermissions", user.getBadgePermissions());
+			response.put("badgeExpirationDate", user.getBadgeExpirationDate());
+			response.put("badgeRevoked", user.getBadgeRevoked());
+			response.put("badgeRevokedAt", user.getBadgeRevokedAt());
+			response.put("badgeRevokeReason", user.getBadgeRevokeReason());
+			response.put("isExpired", badgeService.isBadgeExpired(user));
+			response.put("isRevoked", badgeService.isBadgeRevoked(user));
+
+			return ResponseEntity.ok(response);
+		} catch (RuntimeException e) {
+			log.error("UserAccountAPI::getUserBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::getUserBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Update user badge
+	 * PUT /user-account/{id}/badge
+	 */
+	@PutMapping("/{id}/badge")
+	public ResponseEntity<?> updateUserBadge(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+		try {
+			log.info("UserAccountAPI::updateUserBadge: {}", id);
+			
+			if (!isAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Only administrators can update badges"));
+			}
+
+			UserAccount user = userAccountService.findById(id)
+					.orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+			if (request.containsKey("badgeCode")) {
+				String badgeCode = (String) request.get("badgeCode");
+				if (badgeCode != null && !badgeCode.trim().isEmpty()) {
+					if (!badgeService.validateBadgeCode(badgeCode)) {
+						return ResponseEntity.badRequest()
+								.body(createErrorResponse("Invalid badge code format. Must be 6-50 alphanumeric characters."));
+					}
+					java.util.Optional<UserAccount> existingUser = accountRepository.findByBadgeCode(badgeCode.trim());
+					if (existingUser.isPresent() && !existingUser.get().getId().equals(user.getId())) {
+						return ResponseEntity.badRequest().body(createErrorResponse("Badge code already exists"));
+					}
+					user.setBadgeCode(badgeCode.trim());
+				} else {
+					user.setBadgeCode(null);
+				}
+			}
+
+			if (request.containsKey("badgePermissions")) {
+				Object permissionsObj = request.get("badgePermissions");
+				if (permissionsObj instanceof List) {
+					@SuppressWarnings("unchecked")
+					List<String> permissionsList = (List<String>) permissionsObj;
+					Set<BadgePermission> permissions = permissionsList.stream()
+							.map(p -> {
+								try {
+									return BadgePermission.valueOf(p);
+								} catch (IllegalArgumentException e) {
+									return null;
+								}
+							})
+							.filter(p -> p != null)
+							.collect(Collectors.toSet());
+					user.setBadgePermissions(badgeService.badgePermissionsToString(permissions));
+				} else if (permissionsObj instanceof String) {
+					user.setBadgePermissions((String) permissionsObj);
+				}
+			}
+
+			if (request.containsKey("badgeExpirationDate")) {
+				Object expirationObj = request.get("badgeExpirationDate");
+				if (expirationObj == null || expirationObj.toString().trim().isEmpty()) {
+					user.setBadgeExpirationDate(null);
+				} else if (expirationObj instanceof String) {
+					try {
+						user.setBadgeExpirationDate(LocalDateTime.parse((String) expirationObj));
+					} catch (Exception e) {
+						log.warn("Invalid badge expiration date format: {}", expirationObj);
+					}
+				}
+			}
+
+			UserAccount updatedUser = userAccountService.save(user);
+			return ResponseEntity.ok(UserAccountDTO.fromEntity(updatedUser));
+		} catch (RuntimeException e) {
+			log.error("UserAccountAPI::updateUserBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::updateUserBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Generate badge code for user
+	 * POST /user-account/{id}/badge/generate
+	 */
+	@PostMapping("/{id}/badge/generate")
+	public ResponseEntity<?> generateBadgeCode(@PathVariable Long id) {
+		try {
+			log.info("UserAccountAPI::generateBadgeCode: {}", id);
+			
+			if (!isAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Only administrators can generate badge codes"));
+			}
+
+			UserAccount user = userAccountService.findById(id)
+					.orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+			String badgeCode = badgeService.generateBadgeCode(user);
+			user.setBadgeCode(badgeCode);
+			
+			// Initialize permissions based on role if not set
+			if (user.getBadgePermissions() == null || user.getBadgePermissions().trim().isEmpty()) {
+				badgeService.initializeBadgePermissionsForRole(user);
+			}
+
+			UserAccount updatedUser = userAccountService.save(user);
+			
+			Map<String, Object> response = new HashMap<>();
+			response.put("badgeCode", badgeCode);
+			response.put("user", UserAccountDTO.fromEntity(updatedUser));
+			
+			return ResponseEntity.ok(response);
+		} catch (RuntimeException e) {
+			log.error("UserAccountAPI::generateBadgeCode:error: {}", e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::generateBadgeCode:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Revoke badge
+	 * POST /user-account/{id}/badge/revoke
+	 */
+	@PostMapping("/{id}/badge/revoke")
+	public ResponseEntity<?> revokeBadge(@PathVariable Long id, @RequestBody Map<String, String> request) {
+		try {
+			log.info("UserAccountAPI::revokeBadge: {}", id);
+			
+			if (!isAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Only administrators can revoke badges"));
+			}
+
+			UserAccount user = userAccountService.findById(id)
+					.orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+			String reason = request.get("reason");
+			UserAccount revokedBy = currentUserProvider.getCurrentUser();
+
+			badgeService.revokeBadge(user, revokedBy, reason);
+
+			return ResponseEntity.ok(UserAccountDTO.fromEntity(user));
+		} catch (RuntimeException e) {
+			log.error("UserAccountAPI::revokeBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::revokeBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Reactivate revoked badge
+	 * POST /user-account/{id}/badge/reactivate
+	 */
+	@PostMapping("/{id}/badge/reactivate")
+	public ResponseEntity<?> reactivateBadge(@PathVariable Long id) {
+		try {
+			log.info("UserAccountAPI::reactivateBadge: {}", id);
+			
+			if (!isAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Only administrators can reactivate badges"));
+			}
+
+			UserAccount user = userAccountService.findById(id)
+					.orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+			badgeService.reactivateBadge(user);
+
+			return ResponseEntity.ok(UserAccountDTO.fromEntity(user));
+		} catch (RuntimeException e) {
+			log.error("UserAccountAPI::reactivateBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("UserAccountAPI::reactivateBadge:error: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
 	}
 }
 
