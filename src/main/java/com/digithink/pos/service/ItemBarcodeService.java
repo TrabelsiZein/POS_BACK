@@ -47,7 +47,8 @@ public class ItemBarcodeService extends _BaseService<ItemBarcode, Long> {
 	public Optional<Item> getItemByBarcode(String barcode) {
 		Optional<ItemBarcode> itemBarcode = itemBarcodeRepository.findByBarcode(barcode);
 		return itemBarcode.filter(bc -> bc.getActive() == null || Boolean.TRUE.equals(bc.getActive()))
-				.map(ItemBarcode::getItem);
+				.map(ItemBarcode::getItem)
+				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0);
 	}
 
 	/**

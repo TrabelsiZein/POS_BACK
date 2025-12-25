@@ -11,12 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.digithink.pos.dto.ProcessSaleRequestDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
+import com.digithink.pos.model.GeneralSetup;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
 import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.model.enumeration.PaymentMethodType;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.CashierSessionRepository;
 import com.digithink.pos.repository.CustomerRepository;
@@ -618,6 +620,20 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			throw new IllegalArgumentException(
 					"Title number is required for payment method: " + paymentMethod.getName());
 		}
+
+		// Validate title number length if configured in GeneralSetup
+		if (requireTitle && !isBlank(paymentDTO.getTitleNumber())) {
+			Integer requiredLength = getTitleNumberLengthForPaymentType(paymentMethod.getType());
+			if (requiredLength != null) {
+				String titleNumber = paymentDTO.getTitleNumber().trim();
+				if (titleNumber.length() != requiredLength) {
+					throw new IllegalArgumentException(
+							"Title number must be exactly " + requiredLength + " characters for payment method: "
+									+ paymentMethod.getName() + ". Provided: " + titleNumber.length() + " characters.");
+				}
+			}
+		}
+
 		if (requireDueDate && paymentDTO.getDueDate() == null) {
 			throw new IllegalArgumentException("Due date is required for payment method: " + paymentMethod.getName());
 		}
@@ -640,6 +656,36 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 
 	private boolean isBlank(String value) {
 		return value == null || value.trim().isEmpty();
+	}
+
+	/**
+	 * Get the required title number length for a payment method type from
+	 * GeneralSetup. Returns null if not configured (backward compatible).
+	 * 
+	 * Configuration pattern: PAYMENT_METHOD_{TYPE}_TITLE_NUMBER_LENGTH Example:
+	 * PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH = "7"
+	 * 
+	 * @param paymentMethodType The payment method type
+	 * @return The required length as Integer, or null if not configured
+	 */
+	private Integer getTitleNumberLengthForPaymentType(PaymentMethodType paymentMethodType) {
+		if (paymentMethodType == null) {
+			return null;
+		}
+
+		String configCode = "PAYMENT_METHOD_" + paymentMethodType.name() + "_TITLE_NUMBER_LENGTH";
+		java.util.Optional<GeneralSetup> setup = generalSetupRepository.findByCode(configCode);
+
+		if (setup.isPresent() && setup.get().getValeur() != null) {
+			try {
+				return Integer.parseInt(setup.get().getValeur().trim());
+			} catch (NumberFormatException e) {
+				log.warn("Invalid title number length configuration for {}: {}", configCode, setup.get().getValeur());
+				return null;
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -740,7 +786,8 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		com.digithink.pos.model.enumeration.SynchronizationStatus syncStatus = null;
 		if (syncStatusStr != null && !syncStatusStr.trim().isEmpty() && !syncStatusStr.equalsIgnoreCase("all")) {
 			try {
-				syncStatus = com.digithink.pos.model.enumeration.SynchronizationStatus.valueOf(syncStatusStr.toUpperCase());
+				syncStatus = com.digithink.pos.model.enumeration.SynchronizationStatus
+						.valueOf(syncStatusStr.toUpperCase());
 			} catch (Exception e) {
 				log.warn("Invalid syncStatus: " + syncStatusStr);
 			}

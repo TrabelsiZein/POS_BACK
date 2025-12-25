@@ -45,6 +45,11 @@ public class ItemService extends _BaseService<Item, Long> {
 			query.distinct(true);
 			Predicate predicate = cb.conjunction();
 			predicate = cb.and(predicate, cb.isTrue(root.get("active")));
+			
+			// Filter out items with price 0 or null
+			Predicate priceNotNull = cb.isNotNull(root.get("unitPrice"));
+			Predicate priceNotZero = cb.notEqual(root.get("unitPrice"), 0.0);
+			predicate = cb.and(predicate, priceNotNull, priceNotZero);
 
 			if (StringUtils.hasText(search)) {
 				String likeValue = "%" + search.toLowerCase() + "%";
@@ -117,6 +122,7 @@ public class ItemService extends _BaseService<Item, Long> {
 
 		return itemRepository.findByItemFamily(family).stream()
 				.filter(item -> item.getActive() == null || Boolean.TRUE.equals(item.getActive()))
+				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0)
 				.collect(Collectors.toList());
 	}
 
@@ -126,6 +132,7 @@ public class ItemService extends _BaseService<Item, Long> {
 
 		return itemRepository.findByItemSubFamily(subFamily).stream()
 				.filter(item -> item.getActive() == null || Boolean.TRUE.equals(item.getActive()))
+				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0)
 				.collect(Collectors.toList());
 	}
 }

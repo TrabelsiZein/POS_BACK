@@ -757,6 +757,20 @@ public class ZZDataInitializer {
 			generalSetupRepository.save(alwaysShowPopup);
 		}
 
+		// Payment Method Title Number Length Configurations
+		// PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH
+		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH").isPresent()) {
+			GeneralSetup chequeTitleLength = new GeneralSetup();
+			chequeTitleLength.setCode("PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH");
+			chequeTitleLength.setValeur("7");
+			chequeTitleLength.setDescription("Required length for title number (N° Titre) for CLIENT_CHEQUE payment method. Must be exactly this number of characters.");
+			chequeTitleLength.setReadOnly(false);
+			chequeTitleLength.setActive(true);
+			chequeTitleLength.setCreatedBy("System");
+			chequeTitleLength.setUpdatedBy("System");
+			generalSetupRepository.save(chequeTitleLength);
+		}
+
 	}
 
 	private void ensureErpSyncCheckpointConfigs() {
