@@ -3,6 +3,7 @@ package com.digithink.pos.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import com.digithink.pos.model.GeneralSetup;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.PaymentMethod;
+import com.digithink.pos.model.ReturnVoucher;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
 import com.digithink.pos.model.UserAccount;
@@ -79,7 +81,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	/**
 	 * Get current cashier session for a user (helper method)
 	 */
-	public java.util.Optional<CashierSession> getCurrentCashierSession(UserAccount user) {
+	public Optional<CashierSession> getCurrentCashierSession(UserAccount user) {
 		return cashierSessionService.getCurrentOpenSession(user);
 	}
 
@@ -226,9 +228,8 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 				}
 
 				// Validate and use voucher
-				com.digithink.pos.model.ReturnVoucher voucher = returnVoucherService
-						.findByVoucherNumber(paymentDTO.getReference()).orElseThrow(() -> new IllegalArgumentException(
-								"Return voucher not found: " + paymentDTO.getReference()));
+				ReturnVoucher voucher = returnVoucherService.findByVoucherNumber(paymentDTO.getReference()).orElseThrow(
+						() -> new IllegalArgumentException("Return voucher not found: " + paymentDTO.getReference()));
 
 				if (!returnVoucherService.isVoucherValid(voucher)) {
 					throw new IllegalStateException("Return voucher is not valid (expired or fully used)");
@@ -276,7 +277,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		// Asynchronously create PaymentHeader and PaymentLine records for new payments
 		// This stores payments immediately instead of grouping them during session sync
 		try {
-			sessionExportService.createPaymentHeadersAndLinesAsync(payments);
+			sessionExportService.createPaymentHeadersAndLinesAsync(payments, salesHeader);
 			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
 		} catch (Exception ex) {
 			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);
@@ -330,20 +331,13 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 
 		// If no customer provided, use passenger customer from GeneralSetup
 		if (customer == null) {
-			Long passengerCustomerId = generalSetupRepository.findByCode("PASSENGER_CUSTOMER").map(gs -> {
-				try {
-					return Long.parseLong(gs.getValeur());
-				} catch (NumberFormatException e) {
-					log.warn("Failed to parse PASSENGER_CUSTOMER ID: " + gs.getValeur());
-					return null;
-				}
-			}).orElse(null);
+			String passengerCustomerId = generalSetupRepository.findByCode("PASSENGER_CUSTOMER").get().getValeur();
 
 			if (passengerCustomerId != null) {
-				customer = customerRepository.findById(passengerCustomerId).orElse(null);
+				customer = customerRepository.findByCustomerCode(passengerCustomerId)
+						.orElseThrow(() -> new IllegalStateException("Deafult customer not found"));
 				if (customer != null) {
-					log.info("Using passenger customer for pending sale: " + customer.getCustomerCode() + " - "
-							+ customer.getName());
+					log.info("Using passenger customer: " + customer.getCustomerCode() + " - " + customer.getName());
 				} else {
 					log.warn("Passenger customer ID found in GeneralSetup but customer not found: "
 							+ passengerCustomerId);
@@ -592,7 +586,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		// Asynchronously create PaymentHeader and PaymentLine records for new payments
 		// This stores payments immediately instead of grouping them during session sync
 		try {
-			sessionExportService.createPaymentHeadersAndLinesAsync(payments);
+			sessionExportService.createPaymentHeadersAndLinesAsync(payments, salesHeader);
 			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
 		} catch (Exception ex) {
 			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);

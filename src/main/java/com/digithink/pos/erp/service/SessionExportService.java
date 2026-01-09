@@ -354,7 +354,7 @@ public class SessionExportService {
 	 */
 	@Async("asyncExecutor")
 	@Transactional
-	public void createPaymentHeadersAndLinesAsync(List<Payment> payments) {
+	public void createPaymentHeadersAndLinesAsync(List<Payment> payments, SalesHeader salesHeader) {
 		if (payments == null || payments.isEmpty()) {
 			LOGGER.debug("No payments provided to createPaymentHeadersAndLinesAsync");
 			return;
@@ -448,6 +448,10 @@ public class SessionExportService {
 							double totalAmount = newCashPayments.stream()
 									.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
 
+							totalAmount = (totalAmount - salesHeader.getChangeAmount()) > 0
+									? (totalAmount - salesHeader.getChangeAmount())
+									: totalAmount;
+
 							// Get customer code from first payment's ticket
 							String custNo = newCashPayments.get(0).getSalesHeader().getCustomer() != null
 									? newCashPayments.get(0).getSalesHeader().getCustomer().getCustomerCode()
@@ -473,30 +477,71 @@ public class SessionExportService {
 							}
 						}
 					} else {
-						// Update existing CLIENT_ESPECES line: get all CLIENT_ESPECES payments for this
-						// session and recalculate total
-						List<SalesHeader> tickets = salesHeaderRepository.findByCashierSession(session);
-						List<Payment> allClientEspecesPayments = tickets.stream()
-								.flatMap(ticket -> paymentRepository.findBySalesHeader(ticket).stream())
-								.filter(p -> p.getPaymentMethod().getType() == PaymentMethodType.CLIENT_ESPECES)
-								.collect(Collectors.toList());
+//						// Update existing CLIENT_ESPECES line: get all CLIENT_ESPECES payments for this
+//						// session and recalculate total
+//						List<SalesHeader> tickets = salesHeaderRepository.findByCashierSession(session);
+//						List<Payment> allClientEspecesPayments = tickets.stream()
+//								.flatMap(ticket -> paymentRepository.findBySalesHeader(ticket).stream())
+//								.filter(p -> p.getPaymentMethod().getType() == PaymentMethodType.CLIENT_ESPECES)
+//								.collect(Collectors.toList());
+//
+//						double totalAmount = allClientEspecesPayments.stream()
+//								.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+//
+//						// Update the existing line with the new total amount
+//						existingClientEspecesLine.setAmount(totalAmount);
+//						// Update ticket number to the latest one (or keep the first one - your choice)
+//						if (!allClientEspecesPayments.isEmpty()) {
+//							String latestTicketNo = allClientEspecesPayments.get(allClientEspecesPayments.size() - 1)
+//									.getSalesHeader().getSalesNumber();
+//							existingClientEspecesLine.setTicketNo(latestTicketNo);
+//						}
+//						paymentLineRepository.save(existingClientEspecesLine);
+//						LOGGER.info(
+//								"Updated existing CLIENT_ESPECES line amount to {} for {} total payments in session {}",
+//								totalAmount, allClientEspecesPayments.size(), session.getSessionNumber());
 
-						double totalAmount = allClientEspecesPayments.stream()
-								.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+						// Update existing CLIENT_ESPECES line: add only new payments from current batch
+						// Get the current amount from the existing line
+						double currentAmount = existingClientEspecesLine.getAmount() != null
+								? existingClientEspecesLine.getAmount()
+								: 0.0;
 
-						// Update the existing line with the new total amount
-						existingClientEspecesLine.setAmount(totalAmount);
-						// Update ticket number to the latest one (or keep the first one - your choice)
-						if (!allClientEspecesPayments.isEmpty()) {
-							String latestTicketNo = allClientEspecesPayments.get(allClientEspecesPayments.size() - 1)
-									.getSalesHeader().getSalesNumber();
+						// Get only new CLIENT_ESPECES payments from the current batch that aren't
+						// already in existing lines
+						List<Payment> newCashPayments = paymentGroup.stream()
+								.filter(p -> !existingPaymentIds.contains(p.getId())).collect(Collectors.toList());
+
+						if (!newCashPayments.isEmpty()) {
+							// Sum only the new payments from the current batch
+							double newAmount = newCashPayments.stream()
+									.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+
+							// Subtract change amount if applicable (same logic as creation)
+							double adjustedNewAmount = (newAmount - salesHeader.getChangeAmount()) > 0
+									? (newAmount - salesHeader.getChangeAmount())
+									: newAmount;
+
+							// Add to existing amount
+							double totalAmount = currentAmount + adjustedNewAmount;
+
+							// Update the existing line with the new total amount
+							existingClientEspecesLine.setAmount(totalAmount);
+
+							// Update ticket number to the latest one from the new batch
+							String latestTicketNo = newCashPayments.get(newCashPayments.size() - 1).getSalesHeader()
+									.getSalesNumber();
 							existingClientEspecesLine.setTicketNo(latestTicketNo);
+
+							paymentLineRepository.save(existingClientEspecesLine);
+							LOGGER.info(
+									"Updated existing CLIENT_ESPECES line: added {} from {} new payments. New total: {}",
+									adjustedNewAmount, newCashPayments.size(), totalAmount);
+						} else {
+							LOGGER.debug("No new CLIENT_ESPECES payments to add to existing line");
 						}
-						paymentLineRepository.save(existingClientEspecesLine);
-						LOGGER.info(
-								"Updated existing CLIENT_ESPECES line amount to {} for {} total payments in session {}",
-								totalAmount, allClientEspecesPayments.size(), session.getSessionNumber());
 					}
+
 				} else {
 					// Other payment classes: create one line per payment that doesn't have a line
 					// yet
@@ -533,7 +578,9 @@ public class SessionExportService {
 
 			LOGGER.info("Successfully created payment headers and lines asynchronously for session {}",
 					session.getSessionNumber());
-		} catch (Exception ex) {
+		} catch (
+
+		Exception ex) {
 			LOGGER.error("Error creating payment headers and lines asynchronously: {}", ex.getMessage(), ex);
 		}
 	}
