@@ -43,4 +43,8 @@ public class Customer extends _BaseEntity {
 	private String notes;
 
 	private Boolean isDefault = false;
+
+	private String customerPriceGroup;
+	private String customerDiscGroup;
+	private String auxiliaryIndex1;
 }

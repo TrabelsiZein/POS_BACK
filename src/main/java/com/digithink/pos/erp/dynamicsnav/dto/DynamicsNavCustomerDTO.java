@@ -26,6 +26,15 @@ public class DynamicsNavCustomerDTO {
 	@JsonProperty("E_Mail")
 	private String email;
 
-	@JsonProperty("Last_Date_Modified")
+	@JsonProperty("Modified_At")
 	private OffsetDateTime lastModifiedAt;
+
+	@JsonProperty("Status")
+	public String status;
+	@JsonProperty("Customer_Price_Group")
+	public String customerPriceGroup;
+	@JsonProperty("Customer_Disc_Group")
+	public String customerDiscGroup;
+	@JsonProperty("AuxiliaryIndex1")
+	public String auxiliaryIndex1;
 }

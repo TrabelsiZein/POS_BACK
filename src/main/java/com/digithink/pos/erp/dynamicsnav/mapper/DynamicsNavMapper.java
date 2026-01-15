@@ -12,6 +12,8 @@ import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
 import com.digithink.pos.erp.dto.ErpReturnDTO;
 import com.digithink.pos.erp.dto.ErpReturnLineDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
 import com.digithink.pos.erp.dto.ErpSessionDTO;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
 import com.digithink.pos.erp.dto.ErpTicketLineDTO;
@@ -21,8 +23,10 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesDiscountDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesPriceDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSessionDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
@@ -137,7 +141,11 @@ public class DynamicsNavMapper {
 		dto.setEmail(navCustomer.getEmail());
 		dto.setPhone(navCustomer.getPhoneNumber());
 		dto.setAddress(buildFullAddress(navCustomer));
-		dto.setActive(Boolean.TRUE);
+		dto.setLastModifiedAt(navCustomer.getLastModifiedAt());
+		dto.setActive(navCustomer.getStatus().equals("Active"));
+		dto.setCustomerPriceGroup(navCustomer.getCustomerPriceGroup());
+		dto.setCustomerDiscGroup(navCustomer.getCustomerDiscGroup());
+		dto.setAuxiliaryIndex1(navCustomer.getAuxiliaryIndex1());
 		return dto;
 	}
 
@@ -165,6 +173,100 @@ public class DynamicsNavMapper {
 //			builder.append(navCustomer.getCity());
 //		}
 		return builder.length() == 0 ? null : builder.toString();
+	}
+
+	public List<ErpSalesPriceDTO> toSalesPriceDTOs(List<DynamicsNavSalesPriceDTO> navSalesPrices) {
+		if (navSalesPrices == null) {
+			return List.of();
+		}
+		return navSalesPrices.stream().map(this::toSalesPriceDTO).toList();
+	}
+
+	public ErpSalesPriceDTO toSalesPriceDTO(DynamicsNavSalesPriceDTO navSalesPrice) {
+		ErpSalesPriceDTO dto = new ErpSalesPriceDTO();
+		// Build composite externalId: Item_No + Sales_Type + Sales_Code +
+		// Responsibility_Center + Starting_Date + Currency_Code + Variant_Code +
+		// Unit_of_Measure_Code + Minimum_Quantity
+		String externalId = buildSalesPriceExternalId(navSalesPrice.getItemNo(), navSalesPrice.getSalesType(),
+				navSalesPrice.getSalesCode(), navSalesPrice.getResponsibilityCenter(), navSalesPrice.getStartingDate(),
+				navSalesPrice.getCurrencyCode(), navSalesPrice.getVariantCode(), navSalesPrice.getUnitOfMeasureCode(),
+				navSalesPrice.getMinimumQuantity());
+		dto.setExternalId(externalId);
+		dto.setItemNo(navSalesPrice.getItemNo());
+		dto.setSalesType(navSalesPrice.getSalesType());
+		dto.setSalesCode(navSalesPrice.getSalesCode());
+		if (navSalesPrice.getUnitPrice() != null) {
+			dto.setUnitPrice(java.math.BigDecimal.valueOf(navSalesPrice.getUnitPrice()));
+		}
+		dto.setResponsibilityCenter(navSalesPrice.getResponsibilityCenter());
+		dto.setResponsibilityCenterType(navSalesPrice.getResponsibilityCenterType());
+		dto.setStartingDate(navSalesPrice.getStartingDate());
+		dto.setEndingDate(navSalesPrice.getEndingDate());
+		dto.setCurrencyCode(navSalesPrice.getCurrencyCode());
+		dto.setVariantCode(navSalesPrice.getVariantCode());
+		dto.setUnitOfMeasureCode(navSalesPrice.getUnitOfMeasureCode());
+		dto.setMinimumQuantity(navSalesPrice.getMinimumQuantity());
+		dto.setLastModifiedAt(navSalesPrice.getModifiedAt());
+		return dto;
+	}
+
+	public List<ErpSalesDiscountDTO> toSalesDiscountDTOs(List<DynamicsNavSalesDiscountDTO> navSalesDiscounts) {
+		if (navSalesDiscounts == null) {
+			return List.of();
+		}
+		return navSalesDiscounts.stream().map(this::toSalesDiscountDTO).toList();
+	}
+
+	public ErpSalesDiscountDTO toSalesDiscountDTO(DynamicsNavSalesDiscountDTO navSalesDiscount) {
+		ErpSalesDiscountDTO dto = new ErpSalesDiscountDTO();
+		// Build composite externalId: Type + Code + Sales_Type + Sales_Code +
+		// Responsibility_Center + Starting_Date + AuxiliaryIndex1-4
+		String externalId = buildSalesDiscountExternalId(navSalesDiscount.getType(), navSalesDiscount.getCode(),
+				navSalesDiscount.getSalesType(), navSalesDiscount.getSalesCode(),
+				navSalesDiscount.getResponsibilityCenter(), navSalesDiscount.getStartingDate(),
+				navSalesDiscount.getAuxiliaryIndex1(), navSalesDiscount.getAuxiliaryIndex2(),
+				navSalesDiscount.getAuxiliaryIndex3(), navSalesDiscount.getAuxiliaryIndex4());
+		dto.setExternalId(externalId);
+		dto.setType(navSalesDiscount.getType());
+		dto.setCode(navSalesDiscount.getCode());
+		dto.setSalesType(navSalesDiscount.getSalesType());
+		dto.setSalesCode(navSalesDiscount.getSalesCode());
+		dto.setResponsibilityCenterType(navSalesDiscount.getResponsibilityCenterType());
+		dto.setResponsibilityCenter(navSalesDiscount.getResponsibilityCenter());
+		dto.setStartingDate(navSalesDiscount.getStartingDate());
+		dto.setEndingDate(navSalesDiscount.getEndingDate());
+		if (navSalesDiscount.getLineDiscount() != null) {
+			dto.setLineDiscount(java.math.BigDecimal.valueOf(navSalesDiscount.getLineDiscount()));
+		}
+		dto.setLastModifiedAt(navSalesDiscount.getModifiedAt());
+		dto.setAuxiliaryIndex1(navSalesDiscount.getAuxiliaryIndex1());
+		dto.setAuxiliaryIndex2(navSalesDiscount.getAuxiliaryIndex2());
+		dto.setAuxiliaryIndex3(navSalesDiscount.getAuxiliaryIndex3());
+		dto.setAuxiliaryIndex4(navSalesDiscount.getAuxiliaryIndex4());
+		return dto;
+	}
+
+	private String buildSalesPriceExternalId(String itemNo, String salesType, String salesCode,
+			String responsibilityCenter, String startingDate, String currencyCode, String variantCode,
+			String unitOfMeasureCode, Double minimumQuantity) {
+		return (itemNo != null ? itemNo : "") + "|" + (salesType != null ? salesType : "") + "|"
+				+ (salesCode != null ? salesCode : "") + "|"
+				+ (responsibilityCenter != null ? responsibilityCenter : "") + "|"
+				+ (startingDate != null ? startingDate : "") + "|" + (currencyCode != null ? currencyCode : "") + "|"
+				+ (variantCode != null ? variantCode : "") + "|" + (unitOfMeasureCode != null ? unitOfMeasureCode : "")
+				+ "|" + (minimumQuantity != null ? minimumQuantity.toString() : "");
+	}
+
+	private String buildSalesDiscountExternalId(String type, String code, String salesType, String salesCode,
+			String responsibilityCenter, String startingDate, String auxiliaryIndex1, String auxiliaryIndex2,
+			String auxiliaryIndex3, Integer auxiliaryIndex4) {
+		return (type != null ? type : "") + "|" + (code != null ? code : "") + "|"
+				+ (salesType != null ? salesType : "") + "|" + (salesCode != null ? salesCode : "") + "|"
+				+ (responsibilityCenter != null ? responsibilityCenter : "") + "|"
+				+ (startingDate != null ? startingDate : "") + "|" + (auxiliaryIndex1 != null ? auxiliaryIndex1 : "")
+				+ "|" + (auxiliaryIndex2 != null ? auxiliaryIndex2 : "") + "|"
+				+ (auxiliaryIndex3 != null ? auxiliaryIndex3 : "") + "|"
+				+ (auxiliaryIndex4 != null ? auxiliaryIndex4.toString() : "");
 	}
 
 	/**

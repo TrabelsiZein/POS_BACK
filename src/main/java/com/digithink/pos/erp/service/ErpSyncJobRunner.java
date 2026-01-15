@@ -12,6 +12,8 @@ import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.enumeration.ErpSyncJobType;
 import com.digithink.pos.erp.model.ErpSyncJob;
@@ -70,6 +72,23 @@ public class ErpSyncJobRunner {
 				List<ErpCustomerDTO> customers = synchronizationManager.pullCustomers(filter);
 				erpItemBootstrapService.importCustomers(customers);
 				checkpointService.updateLastSync(jobType, customers);
+				break;
+			case IMPORT_SALES_PRICES_AND_DISCOUNTS:
+				// Create separate filters for each operation
+				ErpSyncFilter priceFilter = new ErpSyncFilter();
+				checkpointService.resolveLastSyncForSalesPrices().ifPresent(priceFilter::setUpdatedAfter);
+				ErpSyncFilter discountFilter = new ErpSyncFilter();
+				checkpointService.resolveLastSyncForSalesDiscounts().ifPresent(discountFilter::setUpdatedAfter);
+
+				// Pull and import sales prices
+				List<ErpSalesPriceDTO> salesPrices = synchronizationManager.pullSalesPrices(priceFilter);
+				erpItemBootstrapService.importSalesPrices(salesPrices);
+				checkpointService.updateLastSyncForSalesPrices(salesPrices);
+
+				// Pull and import sales discounts
+				List<ErpSalesDiscountDTO> salesDiscounts = synchronizationManager.pullSalesDiscounts(discountFilter);
+				erpItemBootstrapService.importSalesDiscounts(salesDiscounts);
+				checkpointService.updateLastSyncForSalesDiscounts(salesDiscounts);
 				break;
 			case EXPORT_CUSTOMERS:
 				LOGGER.info("ERP sync job {} is configured for EXPORT_CUSTOMERS. "

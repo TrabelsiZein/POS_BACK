@@ -42,6 +42,7 @@ public class ErpSyncCheckpointService {
 		jobToCode.put(ErpSyncJobType.IMPORT_ITEM_BARCODES, "ERP_SYNC_LAST_ITEM_BARCODE");
 		jobToCode.put(ErpSyncJobType.IMPORT_LOCATIONS, "ERP_SYNC_LAST_LOCATION");
 		jobToCode.put(ErpSyncJobType.IMPORT_CUSTOMERS, "ERP_SYNC_LAST_CUSTOMER");
+		jobToCode.put(ErpSyncJobType.IMPORT_SALES_PRICES_AND_DISCOUNTS, "a");
 		JOB_TYPE_TO_CODE = Collections.unmodifiableMap(jobToCode);
 
 		Map<String, String> descriptions = new HashMap<>();
@@ -51,6 +52,10 @@ public class ErpSyncCheckpointService {
 		descriptions.put("ERP_SYNC_LAST_ITEM_BARCODE", "Timestamp (Modified_At) of last synchronized item barcode");
 		descriptions.put("ERP_SYNC_LAST_LOCATION", "Timestamp (Modified_At) of last synchronized location");
 		descriptions.put("ERP_SYNC_LAST_CUSTOMER", "Timestamp (Modified_At) of last synchronized customer");
+		descriptions.put("ERP_SYNC_LAST_SALES_PRICE_AND_DISCOUNT",
+				"Timestamp (Modified_At) of last synchronized sales price and discount");
+		descriptions.put("ERP_SYNC_LAST_SALES_PRICE", "Timestamp (Modified_At) of last synchronized sales price");
+		descriptions.put("ERP_SYNC_LAST_SALES_DISCOUNT", "Timestamp (Modified_At) of last synchronized sales discount");
 		CODE_TO_DESCRIPTION = Collections.unmodifiableMap(descriptions);
 	}
 
@@ -113,5 +118,83 @@ public class ErpSyncCheckpointService {
 
 	public static Map<String, String> getCheckpointDescriptions() {
 		return CODE_TO_DESCRIPTION;
+	}
+
+	/**
+	 * Update checkpoint for sales prices operation
+	 */
+	public void updateLastSyncForSalesPrices(OffsetDateTime timestamp) {
+		if (timestamp == null) {
+			return;
+		}
+		generalSetupService.updateValue("ERP_SYNC_LAST_SALES_PRICE", FORMATTER.format(timestamp));
+	}
+
+	/**
+	 * Update checkpoint for sales prices operation from collection
+	 */
+	public void updateLastSyncForSalesPrices(Collection<?> payload) {
+		if (payload == null || payload.isEmpty()) {
+			return;
+		}
+		Optional<OffsetDateTime> maxTimestamp = payload.stream().filter(Objects::nonNull)
+				.filter(ErpTimestamped.class::isInstance).map(ErpTimestamped.class::cast)
+				.map(ErpTimestamped::getLastModifiedAt).filter(Objects::nonNull).max(Comparator.naturalOrder());
+		maxTimestamp.ifPresent(this::updateLastSyncForSalesPrices);
+	}
+
+	/**
+	 * Update checkpoint for sales discounts operation
+	 */
+	public void updateLastSyncForSalesDiscounts(OffsetDateTime timestamp) {
+		if (timestamp == null) {
+			return;
+		}
+		generalSetupService.updateValue("ERP_SYNC_LAST_SALES_DISCOUNT", FORMATTER.format(timestamp));
+	}
+
+	/**
+	 * Update checkpoint for sales discounts operation from collection
+	 */
+	public void updateLastSyncForSalesDiscounts(Collection<?> payload) {
+		if (payload == null || payload.isEmpty()) {
+			return;
+		}
+		Optional<OffsetDateTime> maxTimestamp = payload.stream().filter(Objects::nonNull)
+				.filter(ErpTimestamped.class::isInstance).map(ErpTimestamped.class::cast)
+				.map(ErpTimestamped::getLastModifiedAt).filter(Objects::nonNull).max(Comparator.naturalOrder());
+		maxTimestamp.ifPresent(this::updateLastSyncForSalesDiscounts);
+	}
+
+	/**
+	 * Get last sync timestamp for sales prices
+	 */
+	public Optional<OffsetDateTime> resolveLastSyncForSalesPrices() {
+		String value = generalSetupService.findValueByCode("ERP_SYNC_LAST_SALES_PRICE");
+		if (value == null || value.trim().isEmpty()) {
+			return Optional.empty();
+		}
+		try {
+			return Optional.of(OffsetDateTime.parse(value.trim()));
+		} catch (DateTimeParseException ex) {
+			LOGGER.warn("Invalid timestamp '{}' for ERP sync checkpoint '{}'", value, "ERP_SYNC_LAST_SALES_PRICE");
+			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Get last sync timestamp for sales discounts
+	 */
+	public Optional<OffsetDateTime> resolveLastSyncForSalesDiscounts() {
+		String value = generalSetupService.findValueByCode("ERP_SYNC_LAST_SALES_DISCOUNT");
+		if (value == null || value.trim().isEmpty()) {
+			return Optional.empty();
+		}
+		try {
+			return Optional.of(OffsetDateTime.parse(value.trim()));
+		} catch (DateTimeParseException ex) {
+			LOGGER.warn("Invalid timestamp '{}' for ERP sync checkpoint '{}'", value, "ERP_SYNC_LAST_SALES_DISCOUNT");
+			return Optional.empty();
+		}
 	}
 }

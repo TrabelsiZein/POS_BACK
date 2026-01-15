@@ -19,6 +19,8 @@ import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
 import com.digithink.pos.erp.enumeration.ErpCommunicationStatus;
 import com.digithink.pos.erp.enumeration.ErpSyncOperation;
 import com.digithink.pos.model.Customer;
@@ -27,12 +29,16 @@ import com.digithink.pos.model.ItemBarcode;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
 import com.digithink.pos.model.Location;
+import com.digithink.pos.model.SalesDiscount;
+import com.digithink.pos.model.SalesPrice;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.ItemBarcodeRepository;
 import com.digithink.pos.repository.ItemFamilyRepository;
 import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.ItemSubFamilyRepository;
 import com.digithink.pos.repository.LocationRepository;
+import com.digithink.pos.repository.SalesDiscountRepository;
+import com.digithink.pos.repository.SalesPriceRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -49,6 +55,8 @@ public class ErpItemBootstrapService {
 	private final ItemBarcodeRepository itemBarcodeRepository;
 	private final CustomerRepository customerRepository;
 	private final LocationRepository locationRepository;
+	private final SalesPriceRepository salesPriceRepository;
+	private final SalesDiscountRepository salesDiscountRepository;
 	private final ErpCommunicationService communicationService;
 
 	@Transactional
@@ -447,7 +455,8 @@ public class ErpItemBootstrapService {
 
 		subFamilyOpt.ifPresent(sf -> {
 			entity.setItemSubFamily(sf);
-			// If NAV only provides subfamily, ensure parent family is set from the subfamily mapping
+			// If NAV only provides subfamily, ensure parent family is set from the
+			// subfamily mapping
 			if (entity.getItemFamily() == null && sf.getItemFamily() != null) {
 				entity.setItemFamily(sf.getItemFamily());
 			}
@@ -490,6 +499,9 @@ public class ErpItemBootstrapService {
 		if (dto.getActive() != null) {
 			entity.setActive(dto.getActive());
 		}
+		entity.setCustomerPriceGroup(dto.getCustomerPriceGroup());
+		entity.setCustomerDiscGroup(dto.getCustomerDiscGroup());
+		entity.setAuxiliaryIndex1(dto.getAuxiliaryIndex1());
 	}
 
 	private Double toDouble(BigDecimal value) {
@@ -513,8 +525,8 @@ public class ErpItemBootstrapService {
 	}
 
 	private void recordWarning(ErpSyncOperation operation, Object payload, String externalReference, String message) {
-		communicationService.logOperation(operation, payload, null, ErpCommunicationStatus.WARNING, null,
-				message, LocalDateTime.now(), LocalDateTime.now());
+		communicationService.logOperation(operation, payload, null, ErpCommunicationStatus.WARNING, null, message,
+				LocalDateTime.now(), LocalDateTime.now());
 	}
 
 	private String resolveIdentifier(String... identifiers) {
@@ -524,5 +536,178 @@ public class ErpItemBootstrapService {
 			}
 		}
 		return null;
+	}
+
+	@Transactional
+	public List<SalesPrice> importSalesPrices(List<ErpSalesPriceDTO> salesPrices) {
+		if (salesPrices == null || salesPrices.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<SalesPrice> persisted = new ArrayList<>();
+		for (ErpSalesPriceDTO dto : salesPrices) {
+			if (dto == null) {
+				continue;
+			}
+
+			// Validate only the most critical required fields (itemNo, salesType,
+			// salesCode)
+			// Other composite key fields can be empty strings but will be set to defaults
+			// if null
+			if (!StringUtils.hasText(dto.getItemNo()) || !StringUtils.hasText(dto.getSalesType())
+					|| !StringUtils.hasText(dto.getSalesCode())) {
+				String message = "Skipping sales price import because required fields (itemNo, salesType, salesCode) are missing";
+				LOGGER.warn("{}: {}", message, dto);
+				recordWarning(ErpSyncOperation.IMPORT_SALES_PRICES, dto,
+						resolveIdentifier(dto.getExternalId(), dto.getItemNo()), message);
+				continue;
+			}
+
+			// Find existing record by externalId (which contains all 9 composite key
+			// fields)
+			// If not found, resolveSalesPrice will return a new entity
+			SalesPrice entity = resolveSalesPrice(dto);
+			boolean isNew = entity.getId() == null;
+
+			// Apply all values from DTO to entity (this will update existing or set values
+			// for new)
+			applySalesPriceValues(entity, dto);
+
+			// Set audit fields
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+
+			// Save: will INSERT if new (id == null) or UPDATE if existing (id != null)
+			persisted.add(salesPriceRepository.save(entity));
+		}
+		return persisted;
+	}
+
+	@Transactional
+	public List<SalesDiscount> importSalesDiscounts(List<ErpSalesDiscountDTO> salesDiscounts) {
+		if (salesDiscounts == null || salesDiscounts.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<SalesDiscount> persisted = new ArrayList<>();
+		for (ErpSalesDiscountDTO dto : salesDiscounts) {
+			if (dto == null) {
+				continue;
+			}
+
+			// Validate only the most critical required fields (Type, Code, SalesType,
+			// SalesCode)
+			// Other composite key fields can be empty strings but will be set to defaults
+			// if null
+			if (!StringUtils.hasText(dto.getType()) || !StringUtils.hasText(dto.getCode())
+					|| !StringUtils.hasText(dto.getSalesType()) || !StringUtils.hasText(dto.getSalesCode())) {
+				String message = "Skipping sales discount import because required fields (type, code, salesType, salesCode) are missing";
+				LOGGER.warn("{}: {}", message, dto);
+				recordWarning(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, dto,
+						resolveIdentifier(dto.getExternalId(), dto.getCode()), message);
+				continue;
+			}
+
+			// Find existing record by externalId (which contains all 10 composite key
+			// fields)
+			// If not found, resolveSalesDiscount will return a new entity
+			SalesDiscount entity = resolveSalesDiscount(dto);
+			boolean isNew = entity.getId() == null;
+
+			// Apply all values from DTO to entity (this will update existing or set values
+			// for new)
+			applySalesDiscountValues(entity, dto);
+
+			// Set audit fields
+			if (isNew) {
+				entity.setCreatedBy(SYSTEM_USER);
+				entity.setCreatedAt(LocalDateTime.now());
+			}
+			entity.setUpdatedBy(SYSTEM_USER);
+			entity.setUpdatedAt(LocalDateTime.now());
+
+			// Save: will INSERT if new (id == null) or UPDATE if existing (id != null)
+			persisted.add(salesDiscountRepository.save(entity));
+		}
+		return persisted;
+	}
+
+	/**
+	 * Resolves a SalesPrice entity by finding an existing record or creating a new
+	 * one.
+	 * 
+	 * The externalId is built from all 9 composite key fields, so we only need to
+	 * lookup by externalId. If not found, returns a new entity.
+	 * 
+	 * @param dto The DTO containing the sales price data
+	 * @return An existing SalesPrice entity if found by externalId, or a new
+	 *         SalesPrice entity if not found
+	 */
+	private SalesPrice resolveSalesPrice(ErpSalesPriceDTO dto) {
+		if (StringUtils.hasText(dto.getExternalId())) {
+			return salesPriceRepository.findByErpExternalId(dto.getExternalId()).orElseGet(SalesPrice::new);
+		}
+		return new SalesPrice();
+	}
+
+	/**
+	 * Resolves a SalesDiscount entity by finding an existing record or creating a
+	 * new one.
+	 * 
+	 * The externalId is built from all 10 composite key fields, so we only need to
+	 * lookup by externalId. If not found, returns a new entity.
+	 * 
+	 * @param dto The DTO containing the sales discount data
+	 * @return An existing SalesDiscount entity if found by externalId, or a new
+	 *         SalesDiscount entity if not found
+	 */
+	private SalesDiscount resolveSalesDiscount(ErpSalesDiscountDTO dto) {
+		if (StringUtils.hasText(dto.getExternalId())) {
+			return salesDiscountRepository.findByErpExternalId(dto.getExternalId()).orElseGet(SalesDiscount::new);
+		}
+		return new SalesDiscount();
+	}
+
+	private void applySalesPriceValues(SalesPrice entity, ErpSalesPriceDTO dto) {
+		entity.setErpExternalId(defaultString(dto.getExternalId()));
+		entity.setItemNo(defaultString(dto.getItemNo()));
+		entity.setSalesType(defaultString(dto.getSalesType()));
+		entity.setSalesCode(defaultString(dto.getSalesCode()));
+		entity.setUnitPrice(toDouble(dto.getUnitPrice()));
+		entity.setResponsibilityCenter(defaultString(dto.getResponsibilityCenter()));
+		entity.setResponsibilityCenterType(defaultString(dto.getResponsibilityCenterType()));
+		entity.setStartingDate(defaultString(dto.getStartingDate()));
+		entity.setEndingDate(defaultString(dto.getEndingDate()));
+		entity.setCurrencyCode(defaultString(dto.getCurrencyCode()));
+		entity.setVariantCode(defaultString(dto.getVariantCode()));
+		entity.setUnitOfMeasureCode(defaultString(dto.getUnitOfMeasureCode()));
+		// Set minimumQuantity, default to 0.0 if null (since it's part of composite key
+		// and nullable = false)
+		entity.setMinimumQuantity(dto.getMinimumQuantity() != null ? dto.getMinimumQuantity() : 0.0);
+		entity.setActive(Boolean.TRUE);
+	}
+
+	private void applySalesDiscountValues(SalesDiscount entity, ErpSalesDiscountDTO dto) {
+		entity.setErpExternalId(defaultString(dto.getExternalId()));
+		entity.setType(defaultString(dto.getType()));
+		entity.setCode(defaultString(dto.getCode()));
+		entity.setSalesType(defaultString(dto.getSalesType()));
+		entity.setSalesCode(defaultString(dto.getSalesCode()));
+		entity.setResponsibilityCenterType(defaultString(dto.getResponsibilityCenterType()));
+		entity.setResponsibilityCenter(defaultString(dto.getResponsibilityCenter()));
+		entity.setStartingDate(defaultString(dto.getStartingDate()));
+		entity.setEndingDate(defaultString(dto.getEndingDate()));
+		entity.setLineDiscount(toDouble(dto.getLineDiscount()));
+		// Set AuxiliaryIndex fields with defaults for null values (since they're part
+		// of composite key and nullable = false)
+		entity.setAuxiliaryIndex1(defaultString(dto.getAuxiliaryIndex1()));
+		entity.setAuxiliaryIndex2(defaultString(dto.getAuxiliaryIndex2()));
+		entity.setAuxiliaryIndex3(defaultString(dto.getAuxiliaryIndex3()));
+		entity.setAuxiliaryIndex4(dto.getAuxiliaryIndex4() != null ? dto.getAuxiliaryIndex4() : 0);
+		entity.setActive(Boolean.TRUE);
 	}
 }

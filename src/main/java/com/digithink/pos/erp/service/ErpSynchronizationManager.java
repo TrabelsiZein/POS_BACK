@@ -19,6 +19,8 @@ import com.digithink.pos.erp.dto.ErpPaymentHeaderDTO;
 import com.digithink.pos.erp.dto.ErpPaymentLineDTO;
 import com.digithink.pos.erp.dto.ErpReturnDTO;
 import com.digithink.pos.erp.dto.ErpReturnLineDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
 import com.digithink.pos.erp.dto.ErpSessionDTO;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
@@ -66,6 +68,16 @@ public class ErpSynchronizationManager {
 	public List<ErpCustomerDTO> pullCustomers(ErpSyncFilter filter) {
 		return executePullOperation(ErpSyncOperation.IMPORT_CUSTOMERS, filter,
 				() -> erpConnector.fetchCustomers(filter));
+	}
+
+	public List<ErpSalesPriceDTO> pullSalesPrices(ErpSyncFilter filter) {
+		return executePullOperation(ErpSyncOperation.IMPORT_SALES_PRICES, filter,
+				() -> erpConnector.fetchSalesPrices(filter));
+	}
+
+	public List<ErpSalesDiscountDTO> pullSalesDiscounts(ErpSyncFilter filter) {
+		return executePullOperation(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, filter,
+				() -> erpConnector.fetchSalesDiscounts(filter));
 	}
 
 	public ErpOperationResult pushCustomer(ErpCustomerDTO customerDTO) {
@@ -174,12 +186,13 @@ public class ErpSynchronizationManager {
 	}
 
 	/**
-	 * Execute a pull operation (fetch from ERP) with proper logging and thread-safety.
+	 * Execute a pull operation (fetch from ERP) with proper logging and
+	 * thread-safety.
 	 * 
-	 * Thread-safety: This method uses ThreadLocal in the connector to store operation
-	 * metadata. Each thread has its own ThreadLocal copy, ensuring thread-safety for
-	 * concurrent operations. The metadata is read immediately after the fetch and
-	 * cleaned up in a finally block to prevent memory leaks.
+	 * Thread-safety: This method uses ThreadLocal in the connector to store
+	 * operation metadata. Each thread has its own ThreadLocal copy, ensuring
+	 * thread-safety for concurrent operations. The metadata is read immediately
+	 * after the fetch and cleaned up in a finally block to prevent memory leaks.
 	 */
 	private <T> List<T> executePullOperation(ErpSyncOperation operation, ErpSyncFilter filter,
 			OperationExecutor<List<T>> executor) {
@@ -194,7 +207,8 @@ public class ErpSynchronizationManager {
 			PullOperationResult<?> pullResult = erpConnector.getLastPullOperationResult();
 
 			// For GET requests (pull operations), there is NO request payload/body
-			// The URL is already stored in the 'url' field, so requestPayload should be null
+			// The URL is already stored in the 'url' field, so requestPayload should be
+			// null
 			String url = pullResult != null ? pullResult.getUrl() : null;
 			// Remove quotes from URL if present (JSON serialization adds them)
 			String cleanUrl = url != null ? url.replaceAll("^\"|\"$", "") : null;
@@ -227,7 +241,8 @@ public class ErpSynchronizationManager {
 			String cleanUrl = url != null ? url.replaceAll("^\"|\"$", "") : null;
 
 			// For GET requests, there is NO request payload/body
-			// The URL is already stored in the 'url' field, so requestPayload should be null
+			// The URL is already stored in the 'url' field, so requestPayload should be
+			// null
 			Object requestPayload = null;
 
 			communicationService.logOperation(operation, requestPayload, errorResponse, ErpCommunicationStatus.ERROR,

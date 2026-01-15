@@ -797,6 +797,8 @@ public class ZZDataInitializer {
 		createErpJob("0 10 * * * *", ErpSyncJobType.IMPORT_ITEM_BARCODES, "Hourly import of item barcodes", false);
 		createErpJob("0 20 2 * * *", ErpSyncJobType.IMPORT_LOCATIONS, "Daily import of locations", false);
 		createErpJob("0 30 * * * *", ErpSyncJobType.IMPORT_CUSTOMERS, "Hourly import of customers", false);
+		createErpJob("0 40 * * * *", ErpSyncJobType.IMPORT_SALES_PRICES_AND_DISCOUNTS,
+				"Hourly import of sales prices and discounts", false);
 		createErpJob("0 0 0 1 1 *", ErpSyncJobType.EXPORT_CUSTOMERS,
 				"Template job for exporting customers (disabled by default)", false);
 		createErpJob("0 0 0 1 1 *", ErpSyncJobType.EXPORT_TICKETS,

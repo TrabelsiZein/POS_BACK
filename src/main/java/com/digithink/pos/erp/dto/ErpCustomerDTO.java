@@ -1,6 +1,8 @@
 package com.digithink.pos.erp.dto;
 
-public class ErpCustomerDTO {
+import java.time.OffsetDateTime;
+
+public class ErpCustomerDTO implements ErpTimestamped {
 
 	private String externalId;
 	private String code;
@@ -12,6 +14,42 @@ public class ErpCustomerDTO {
 	private String country;
 	private String taxNumber;
 	private Boolean active;
+	private OffsetDateTime lastModifiedAt;
+	public String customerPriceGroup;
+	public String customerDiscGroup;
+	public String auxiliaryIndex1;
+
+	public String getCustomerPriceGroup() {
+		return customerPriceGroup;
+	}
+
+	public void setCustomerPriceGroup(String customerPriceGroup) {
+		this.customerPriceGroup = customerPriceGroup;
+	}
+
+	public String getCustomerDiscGroup() {
+		return customerDiscGroup;
+	}
+
+	public void setCustomerDiscGroup(String customerDiscGroup) {
+		this.customerDiscGroup = customerDiscGroup;
+	}
+
+	public String getAuxiliaryIndex1() {
+		return auxiliaryIndex1;
+	}
+
+	public void setAuxiliaryIndex1(String auxiliaryIndex1) {
+		this.auxiliaryIndex1 = auxiliaryIndex1;
+	}
+
+	public OffsetDateTime getLastModifiedAt() {
+		return lastModifiedAt;
+	}
+
+	public void setLastModifiedAt(OffsetDateTime lastModifiedAt) {
+		this.lastModifiedAt = lastModifiedAt;
+	}
 
 	public String getExternalId() {
 		return externalId;
@@ -93,4 +131,3 @@ public class ErpCustomerDTO {
 		this.active = active;
 	}
 }
-

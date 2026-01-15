@@ -40,6 +40,8 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSessionDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesPriceDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesDiscountDTO;
 import com.digithink.pos.erp.service.ErpSyncWarningException;
 import com.digithink.pos.service.GeneralSetupService;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -251,7 +253,7 @@ public class DynamicsNavRestClient {
 	public List<DynamicsNavCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
 		try {
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("CustomerList");
-			buildUpdatedAfterFilter(filter, "Last_Date_Modified")
+			buildUpdatedAfterFilter(filter, "Modified_At")
 					.ifPresent(value -> builder.queryParam("$filter", value));
 			String url = builder.build(false).toUriString();
 			return fetchAllWithPagination(url,
@@ -259,6 +261,36 @@ public class DynamicsNavRestClient {
 					});
 		} catch (RuntimeException ex) {
 			LOGGER.error("Failed to fetch customers from Dynamics NAV", ex);
+			throw ex;
+		}
+	}
+
+	public List<DynamicsNavSalesPriceDTO> fetchSalesPrices(ErpSyncFilter filter) {
+		try {
+			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("SalesPrice");
+			buildUpdatedAfterFilter(filter, "Modified_At")
+					.ifPresent(value -> builder.queryParam("$filter", value));
+			String url = builder.build(false).toUriString();
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSalesPriceDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch sales prices from Dynamics NAV", ex);
+			throw ex;
+		}
+	}
+
+	public List<DynamicsNavSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
+		try {
+			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("SalesDiscount");
+			buildUpdatedAfterFilter(filter, "Modified_At")
+					.ifPresent(value -> builder.queryParam("$filter", value));
+			String url = builder.build(false).toUriString();
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSalesDiscountDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch sales discounts from Dynamics NAV", ex);
 			throw ex;
 		}
 	}

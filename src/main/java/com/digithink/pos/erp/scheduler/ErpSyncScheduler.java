@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.support.CronSequenceGenerator;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,11 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+	    name = "erp.sync.enabled",
+	    havingValue = "true",
+	    matchIfMissing = false
+	)
 public class ErpSyncScheduler {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ErpSyncScheduler.class);
@@ -27,7 +33,7 @@ public class ErpSyncScheduler {
 	private final ErpSyncJobService jobService;
 	private final ErpSyncJobRunner jobRunner;
 
-	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:100000}")
+	@Scheduled(fixedDelayString = "${erp.sync.scheduler.delay:60000}")
 	public void pollJobs() {
 		List<ErpSyncJob> jobs = jobService.findEnabledJobs();
 		if (jobs.isEmpty()) {

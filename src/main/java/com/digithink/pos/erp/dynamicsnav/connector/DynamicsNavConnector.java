@@ -14,6 +14,8 @@ import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpPaymentHeaderDTO;
 import com.digithink.pos.erp.dto.ErpPaymentLineDTO;
@@ -128,6 +130,30 @@ public class DynamicsNavConnector implements ErpConnector {
 	public List<ErpCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
 		try {
 			List<ErpCustomerDTO> result = mapper.toCustomerDTOs(restClient.fetchCustomers(filter));
+			storePullOperationMetadata(result);
+			return result;
+		} catch (Exception ex) {
+			storePullOperationMetadata(null);
+			throw ex;
+		}
+	}
+
+	@Override
+	public List<ErpSalesPriceDTO> fetchSalesPrices(ErpSyncFilter filter) {
+		try {
+			List<ErpSalesPriceDTO> result = mapper.toSalesPriceDTOs(restClient.fetchSalesPrices(filter));
+			storePullOperationMetadata(result);
+			return result;
+		} catch (Exception ex) {
+			storePullOperationMetadata(null);
+			throw ex;
+		}
+	}
+
+	@Override
+	public List<ErpSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
+		try {
+			List<ErpSalesDiscountDTO> result = mapper.toSalesDiscountDTOs(restClient.fetchSalesDiscounts(filter));
 			storePullOperationMetadata(result);
 			return result;
 		} catch (Exception ex) {

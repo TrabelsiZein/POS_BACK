@@ -12,6 +12,8 @@ import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dto.ErpPaymentHeaderDTO;
@@ -55,6 +57,16 @@ public class NoOpErpConnector implements ErpConnector {
 
 	@Override
 	public List<ErpCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpSalesPriceDTO> fetchSalesPrices(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
 		return Collections.emptyList();
 	}
 
