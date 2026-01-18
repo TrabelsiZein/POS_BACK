@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -35,15 +36,17 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesDiscountDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesPriceDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSessionDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavStockKeepingUnitDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSubFamilyDTO;
-import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesPriceDTO;
-import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesDiscountDTO;
 import com.digithink.pos.erp.service.ErpSyncWarningException;
+import com.digithink.pos.model.Location;
 import com.digithink.pos.service.GeneralSetupService;
+import com.digithink.pos.service.LocationService;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,14 +74,16 @@ public class DynamicsNavRestClient {
 	private final RestTemplate dynamicsNavRestTemplate;
 	private final DynamicsNavProperties properties;
 	private final GeneralSetupService generalSetupService;
+	private final LocationService locationService;
 	private final ObjectMapper objectMapper;
 
-	public DynamicsNavRestClient(
-			@org.springframework.beans.factory.annotation.Qualifier("dynamicsNavRestTemplate") RestTemplate dynamicsNavRestTemplate,
-			DynamicsNavProperties properties, GeneralSetupService generalSetupService) {
+	public DynamicsNavRestClient(@Qualifier("dynamicsNavRestTemplate") RestTemplate dynamicsNavRestTemplate,
+			DynamicsNavProperties properties, GeneralSetupService generalSetupService,
+			LocationService locationService) {
 		this.dynamicsNavRestTemplate = dynamicsNavRestTemplate;
 		this.properties = properties;
 		this.generalSetupService = generalSetupService;
+		this.locationService = locationService;
 		// Configure ObjectMapper to exclude null fields (like Postman does)
 		// and serialize LocalDate as ISO date string (YYYY-MM-DD)
 		this.objectMapper = new ObjectMapper();
@@ -253,8 +258,7 @@ public class DynamicsNavRestClient {
 	public List<DynamicsNavCustomerDTO> fetchCustomers(ErpSyncFilter filter) {
 		try {
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("CustomerList");
-			buildUpdatedAfterFilter(filter, "Modified_At")
-					.ifPresent(value -> builder.queryParam("$filter", value));
+			buildUpdatedAfterFilter(filter, "Modified_At").ifPresent(value -> builder.queryParam("$filter", value));
 			String url = builder.build(false).toUriString();
 			return fetchAllWithPagination(url,
 					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavCustomerDTO>>() {
@@ -267,9 +271,22 @@ public class DynamicsNavRestClient {
 
 	public List<DynamicsNavSalesPriceDTO> fetchSalesPrices(ErpSyncFilter filter) {
 		try {
+			List<Location> defLocations = locationService.findByField("isDefault", "=", true);
+			if (defLocations.size() == 0)
+				throw new ErpSyncWarningException("DEFAULT_LOCATION is not configured");
+
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("SalesPrice");
-			buildUpdatedAfterFilter(filter, "Modified_At")
-					.ifPresent(value -> builder.queryParam("$filter", value));
+
+			Optional<String> dateFilter = buildUpdatedAfterFilter(filter, "Modified_At");
+
+			if (dateFilter.isPresent()) {
+				builder.queryParam("$filter", dateFilter.get() + " and (Responsibility_Center eq '"
+						+ defLocations.get(0).getResponsibilityCenter() + "' or Responsibility_Center eq '')");
+			} else {
+				builder.queryParam("$filter", "Responsibility_Center eq '"
+						+ defLocations.get(0).getResponsibilityCenter() + "' or Responsibility_Center eq ''");
+			}
+
 			String url = builder.build(false).toUriString();
 			return fetchAllWithPagination(url,
 					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSalesPriceDTO>>() {
@@ -282,9 +299,22 @@ public class DynamicsNavRestClient {
 
 	public List<DynamicsNavSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
 		try {
+			List<Location> defLocations = locationService.findByField("isDefault", "=", true);
+			if (defLocations.size() == 0)
+				throw new ErpSyncWarningException("DEFAULT_LOCATION is not configured");
+
 			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("SalesDiscount");
-			buildUpdatedAfterFilter(filter, "Modified_At")
-					.ifPresent(value -> builder.queryParam("$filter", value));
+
+			Optional<String> dateFilter = buildUpdatedAfterFilter(filter, "Modified_At");
+
+			if (dateFilter.isPresent()) {
+				builder.queryParam("$filter", dateFilter.get() + " and (Responsibility_Center eq '"
+						+ defLocations.get(0).getResponsibilityCenter() + "' or Responsibility_Center eq '')");
+			} else {
+				builder.queryParam("$filter", "Responsibility_Center eq '"
+						+ defLocations.get(0).getResponsibilityCenter() + "' or Responsibility_Center eq ''");
+			}
+
 			String url = builder.build(false).toUriString();
 			return fetchAllWithPagination(url,
 					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavSalesDiscountDTO>>() {

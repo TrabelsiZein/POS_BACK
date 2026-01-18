@@ -11,8 +11,8 @@ import javax.persistence.MappedSuperclass;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
- * Base entity class providing common fields for all entities
- * All entities should extend this class to get audit fields
+ * Base entity class providing common fields for all entities All entities
+ * should extend this class to get audit fields
  */
 @MappedSuperclass
 public abstract class _BaseEntity {
@@ -33,7 +33,7 @@ public abstract class _BaseEntity {
 	protected String createdBy = "System";
 
 	protected String updatedBy;
-	
+
 	protected Boolean active = true;
 
 	public Long getId() {

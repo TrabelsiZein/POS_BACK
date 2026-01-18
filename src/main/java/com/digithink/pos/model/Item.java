@@ -56,6 +56,12 @@ public class Item extends _BaseEntity {
 
 	private String brand;
 
+	@Column(name = "item_disc_group")
+	private String itemDiscGroup;
+
+	@Column(name = "maximum_authorized_discount")
+	private Double maximumAuthorizedDiscount; // Maximum discount percentage allowed for this item
+
 	@ManyToOne
 	@JoinColumn(name = "item_family_id")
 	private ItemFamily itemFamily;

@@ -25,6 +25,9 @@ public class DynamicsNavSalesPriceDTO {
 	@JsonProperty("Unit_Price")
 	private Double unitPrice;
 
+	@JsonProperty("Price_Includes_VAT")
+	private Boolean priceIncludesVat;
+
 	@JsonProperty("Responsibility_Center")
 	private String responsibilityCenter;
 

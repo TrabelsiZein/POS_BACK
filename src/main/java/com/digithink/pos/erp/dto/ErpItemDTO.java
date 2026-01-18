@@ -13,6 +13,8 @@ public class ErpItemDTO implements ErpTimestamped {
 	private String subFamilyExternalId;
 	private BigDecimal unitPrice;
 	public Integer defaultVAT;
+	private String itemDiscGroup;
+	private Double maximumAuthorizedDiscount;
 	private Boolean active;
 	private OffsetDateTime lastModifiedAt;
 
@@ -78,6 +80,22 @@ public class ErpItemDTO implements ErpTimestamped {
 
 	public void setDefaultVAT(Integer defaultVAT) {
 		this.defaultVAT = defaultVAT;
+	}
+
+	public String getItemDiscGroup() {
+		return itemDiscGroup;
+	}
+
+	public void setItemDiscGroup(String itemDiscGroup) {
+		this.itemDiscGroup = itemDiscGroup;
+	}
+
+	public Double getMaximumAuthorizedDiscount() {
+		return maximumAuthorizedDiscount;
+	}
+
+	public void setMaximumAuthorizedDiscount(Double maximumAuthorizedDiscount) {
+		this.maximumAuthorizedDiscount = maximumAuthorizedDiscount;
 	}
 
 	public Boolean getActive() {

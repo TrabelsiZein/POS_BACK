@@ -1,7 +1,10 @@
 package com.digithink.pos.erp.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +34,9 @@ import com.digithink.pos.model.ItemSubFamily;
 import com.digithink.pos.model.Location;
 import com.digithink.pos.model.SalesDiscount;
 import com.digithink.pos.model.SalesPrice;
+import com.digithink.pos.model.enumeration.SalesDiscountSalesType;
+import com.digithink.pos.model.enumeration.SalesDiscountType;
+import com.digithink.pos.model.enumeration.SalesPriceType;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.ItemBarcodeRepository;
 import com.digithink.pos.repository.ItemFamilyRepository;
@@ -445,6 +451,8 @@ public class ErpItemBootstrapService {
 		entity.setDescription(defaultString(dto.getDescription()));
 		entity.setUnitPrice(toDouble(dto.getUnitPrice()));
 		entity.setDefaultVAT(dto.getDefaultVAT());
+		entity.setItemDiscGroup(defaultString(dto.getItemDiscGroup()));
+		entity.setMaximumAuthorizedDiscount(dto.getMaximumAuthorizedDiscount() != null ? dto.getMaximumAuthorizedDiscount() : null);
 		if (dto.getActive() != null) {
 			entity.setActive(dto.getActive());
 		}
@@ -481,6 +489,7 @@ public class ErpItemBootstrapService {
 		entity.setAddress(defaultString(dto.getAddress()));
 		entity.setCity(defaultString(dto.getCity()));
 		entity.setCountry(defaultString(dto.getCountry()));
+		entity.setResponsibilityCenter(dto.getResponsibilityCenter());
 		if (dto.getActive() != null) {
 			entity.setActive(dto.getActive());
 		}
@@ -550,18 +559,18 @@ public class ErpItemBootstrapService {
 				continue;
 			}
 
-			// Validate only the most critical required fields (itemNo, salesType,
-			// salesCode)
-			// Other composite key fields can be empty strings but will be set to defaults
-			// if null
-			if (!StringUtils.hasText(dto.getItemNo()) || !StringUtils.hasText(dto.getSalesType())
-					|| !StringUtils.hasText(dto.getSalesCode())) {
-				String message = "Skipping sales price import because required fields (itemNo, salesType, salesCode) are missing";
-				LOGGER.warn("{}: {}", message, dto);
-				recordWarning(ErpSyncOperation.IMPORT_SALES_PRICES, dto,
-						resolveIdentifier(dto.getExternalId(), dto.getItemNo()), message);
-				continue;
-			}
+//			// Validate only the most critical required fields (itemNo, salesType,
+//			// salesCode)
+//			// Other composite key fields can be empty strings but will be set to defaults
+//			// if null
+//			if (!StringUtils.hasText(dto.getItemNo()) || !StringUtils.hasText(dto.getSalesType())
+//					|| !StringUtils.hasText(dto.getSalesCode())) {
+//				String message = "Skipping sales price import because required fields (itemNo, salesType, salesCode) are missing";
+//				LOGGER.warn("{}: {}", message, dto);
+//				recordWarning(ErpSyncOperation.IMPORT_SALES_PRICES, dto,
+//						resolveIdentifier(dto.getExternalId(), dto.getItemNo()), message);
+//				continue;
+//			}
 
 			// Find existing record by externalId (which contains all 9 composite key
 			// fields)
@@ -571,7 +580,16 @@ public class ErpItemBootstrapService {
 
 			// Apply all values from DTO to entity (this will update existing or set values
 			// for new)
-			applySalesPriceValues(entity, dto);
+			// If enum conversion fails, skip saving this record
+			if (!applySalesPriceValues(entity, dto)) {
+				String message = String.format(
+						"Skipping sales price import because SalesPriceType conversion failed for value: %s",
+						dto.getSalesType());
+				LOGGER.warn("{}: ItemNo={}, ExternalId={}", message, dto.getItemNo(), dto.getExternalId());
+				recordWarning(ErpSyncOperation.IMPORT_SALES_PRICES, dto,
+						resolveIdentifier(dto.getExternalId(), dto.getItemNo()), message);
+				continue;
+			}
 
 			// Set audit fields
 			if (isNew) {
@@ -599,18 +617,18 @@ public class ErpItemBootstrapService {
 				continue;
 			}
 
-			// Validate only the most critical required fields (Type, Code, SalesType,
-			// SalesCode)
-			// Other composite key fields can be empty strings but will be set to defaults
-			// if null
-			if (!StringUtils.hasText(dto.getType()) || !StringUtils.hasText(dto.getCode())
-					|| !StringUtils.hasText(dto.getSalesType()) || !StringUtils.hasText(dto.getSalesCode())) {
-				String message = "Skipping sales discount import because required fields (type, code, salesType, salesCode) are missing";
-				LOGGER.warn("{}: {}", message, dto);
-				recordWarning(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, dto,
-						resolveIdentifier(dto.getExternalId(), dto.getCode()), message);
-				continue;
-			}
+//			// Validate only the most critical required fields (Type, Code, SalesType,
+//			// SalesCode)
+//			// Other composite key fields can be empty strings but will be set to defaults
+//			// if null
+//			if (!StringUtils.hasText(dto.getType()) || !StringUtils.hasText(dto.getCode())
+//					|| !StringUtils.hasText(dto.getSalesType()) || !StringUtils.hasText(dto.getSalesCode())) {
+//				String message = "Skipping sales discount import because required fields (type, code, salesType, salesCode) are missing";
+//				LOGGER.warn("{}: {}", message, dto);
+//				recordWarning(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, dto,
+//						resolveIdentifier(dto.getExternalId(), dto.getCode()), message);
+//				continue;
+//			}
 
 			// Find existing record by externalId (which contains all 10 composite key
 			// fields)
@@ -620,7 +638,16 @@ public class ErpItemBootstrapService {
 
 			// Apply all values from DTO to entity (this will update existing or set values
 			// for new)
-			applySalesDiscountValues(entity, dto);
+			// If enum conversion fails, skip saving this record
+			if (!applySalesDiscountValues(entity, dto)) {
+				String message = String.format(
+						"Skipping sales discount import because enum conversion failed. Type: %s, SalesType: %s",
+						dto.getType(), dto.getSalesType());
+				LOGGER.warn("{}: Code={}, ExternalId={}", message, dto.getCode(), dto.getExternalId());
+				recordWarning(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, dto,
+						resolveIdentifier(dto.getExternalId(), dto.getCode()), message);
+				continue;
+			}
 
 			// Set audit fields
 			if (isNew) {
@@ -672,16 +699,37 @@ public class ErpItemBootstrapService {
 		return new SalesDiscount();
 	}
 
-	private void applySalesPriceValues(SalesPrice entity, ErpSalesPriceDTO dto) {
+	/**
+	 * Apply values from DTO to SalesPrice entity
+	 * 
+	 * @param entity The SalesPrice entity to update
+	 * @param dto    The DTO containing the values
+	 * @return true if enum conversion was successful, false otherwise
+	 */
+	private boolean applySalesPriceValues(SalesPrice entity, ErpSalesPriceDTO dto) {
 		entity.setErpExternalId(defaultString(dto.getExternalId()));
 		entity.setItemNo(defaultString(dto.getItemNo()));
-		entity.setSalesType(defaultString(dto.getSalesType()));
+		// Convert string to enum - if conversion fails, return false to skip saving
+		SalesPriceType salesType = SalesPriceType.fromString(dto.getSalesType());
+		if (salesType == null) {
+			// Enum conversion failed - return false to skip saving
+			return false;
+		}
+		entity.setSalesType(salesType);
 		entity.setSalesCode(defaultString(dto.getSalesCode()));
 		entity.setUnitPrice(toDouble(dto.getUnitPrice()));
+		entity.setPriceIncludesVat(dto.getPriceIncludesVat());
 		entity.setResponsibilityCenter(defaultString(dto.getResponsibilityCenter()));
 		entity.setResponsibilityCenterType(defaultString(dto.getResponsibilityCenterType()));
-		entity.setStartingDate(defaultString(dto.getStartingDate()));
-		entity.setEndingDate(defaultString(dto.getEndingDate()));
+		// startingDate is required (nullable = false), use today's date if ERP returns
+		// null/empty
+		// This means "valid from today" which is always valid
+		LocalDate startingDate = parseLocalDate(dto.getStartingDate());
+		if (startingDate == null) {
+			startingDate = LocalDate.now();
+		}
+		entity.setStartingDate(startingDate);
+		entity.setEndingDate(parseLocalDate(dto.getEndingDate()));
 		entity.setCurrencyCode(defaultString(dto.getCurrencyCode()));
 		entity.setVariantCode(defaultString(dto.getVariantCode()));
 		entity.setUnitOfMeasureCode(defaultString(dto.getUnitOfMeasureCode()));
@@ -689,18 +737,47 @@ public class ErpItemBootstrapService {
 		// and nullable = false)
 		entity.setMinimumQuantity(dto.getMinimumQuantity() != null ? dto.getMinimumQuantity() : 0.0);
 		entity.setActive(Boolean.TRUE);
+		return true;
 	}
 
-	private void applySalesDiscountValues(SalesDiscount entity, ErpSalesDiscountDTO dto) {
+	/**
+	 * Apply values from DTO to SalesDiscount entity
+	 * 
+	 * @param entity The SalesDiscount entity to update
+	 * @param dto    The DTO containing the values
+	 * @return true if enum conversions were successful, false otherwise
+	 */
+	private boolean applySalesDiscountValues(SalesDiscount entity, ErpSalesDiscountDTO dto) {
 		entity.setErpExternalId(defaultString(dto.getExternalId()));
-		entity.setType(defaultString(dto.getType()));
+		// Convert string to enum for type - if conversion fails, return false to skip
+		// saving
+		SalesDiscountType type = SalesDiscountType.fromString(dto.getType());
+		if (type == null) {
+			// Enum conversion failed - return false to skip saving
+			return false;
+		}
+		entity.setType(type);
 		entity.setCode(defaultString(dto.getCode()));
-		entity.setSalesType(defaultString(dto.getSalesType()));
+		// Convert string to enum for salesType - if conversion fails, return false to
+		// skip saving
+		SalesDiscountSalesType salesType = SalesDiscountSalesType.fromString(dto.getSalesType());
+		if (salesType == null) {
+			// Enum conversion failed - return false to skip saving
+			return false;
+		}
+		entity.setSalesType(salesType);
 		entity.setSalesCode(defaultString(dto.getSalesCode()));
 		entity.setResponsibilityCenterType(defaultString(dto.getResponsibilityCenterType()));
 		entity.setResponsibilityCenter(defaultString(dto.getResponsibilityCenter()));
-		entity.setStartingDate(defaultString(dto.getStartingDate()));
-		entity.setEndingDate(defaultString(dto.getEndingDate()));
+		// startingDate is required (nullable = false), use today's date if ERP returns
+		// null/empty
+		// This means "valid from today" which is always valid
+		LocalDate startingDate = parseLocalDate(dto.getStartingDate());
+		if (startingDate == null) {
+			startingDate = LocalDate.now();
+		}
+		entity.setStartingDate(startingDate);
+		entity.setEndingDate(parseLocalDate(dto.getEndingDate()));
 		entity.setLineDiscount(toDouble(dto.getLineDiscount()));
 		// Set AuxiliaryIndex fields with defaults for null values (since they're part
 		// of composite key and nullable = false)
@@ -709,5 +786,28 @@ public class ErpItemBootstrapService {
 		entity.setAuxiliaryIndex3(defaultString(dto.getAuxiliaryIndex3()));
 		entity.setAuxiliaryIndex4(dto.getAuxiliaryIndex4() != null ? dto.getAuxiliaryIndex4() : 0);
 		entity.setActive(Boolean.TRUE);
+		return true;
+	}
+
+	/**
+	 * Parse string date to LocalDate. Handles "0001-01-01" as null (indefinite end
+	 * date). Returns null if date string is null, empty, or invalid.
+	 */
+	private LocalDate parseLocalDate(String dateString) {
+		if (!StringUtils.hasText(dateString)) {
+			return null;
+		}
+		String trimmed = dateString.trim();
+		// Handle "0001-01-01" as null (indefinite end date)
+		if ("0001-01-01".equals(trimmed)) {
+			return null;
+		}
+		try {
+			// Try ISO format first (YYYY-MM-DD)
+			return LocalDate.parse(trimmed, DateTimeFormatter.ISO_LOCAL_DATE);
+		} catch (DateTimeParseException e) {
+			LOGGER.warn("Failed to parse date string: {}, returning null", dateString);
+			return null;
+		}
 	}
 }

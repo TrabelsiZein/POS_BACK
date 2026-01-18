@@ -10,6 +10,7 @@ public class ErpSalesPriceDTO implements ErpTimestamped {
 	private String salesType;
 	private String salesCode;
 	private BigDecimal unitPrice;
+	private Boolean priceIncludesVat;
 	private String responsibilityCenter;
 	private String responsibilityCenterType;
 	private String startingDate;
@@ -58,6 +59,14 @@ public class ErpSalesPriceDTO implements ErpTimestamped {
 
 	public void setUnitPrice(BigDecimal unitPrice) {
 		this.unitPrice = unitPrice;
+	}
+
+	public Boolean getPriceIncludesVat() {
+		return priceIncludesVat;
+	}
+
+	public void setPriceIncludesVat(Boolean priceIncludesVat) {
+		this.priceIncludesVat = priceIncludesVat;
 	}
 
 	public String getResponsibilityCenter() {

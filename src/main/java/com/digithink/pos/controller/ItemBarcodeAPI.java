@@ -3,6 +3,7 @@ package com.digithink.pos.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,14 +48,17 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 
 	/**
 	 * Find item by barcode (for POS scanning)
+	 * Returns the item without price calculation - price calculation is handled in addToCart
 	 */
 	@GetMapping("/barcode/{barcode}")
 	public ResponseEntity<?> getItemByBarcode(@PathVariable String barcode) {
 		try {
 			log.info("ItemBarcodeAPI::getItemByBarcode: " + barcode);
-			java.util.Optional<Item> item = itemBarcodeService.getItemByBarcode(barcode);
-			if (item.isPresent()) {
-				return ResponseEntity.ok(item.get());
+			Optional<Item> itemOpt = itemBarcodeService.getItemByBarcode(barcode);
+			if (itemOpt.isPresent()) {
+				Item item = itemOpt.get();
+				// Return item as-is - price calculation will be done in addToCart
+				return ResponseEntity.ok(item);
 			} else {
 				return ResponseEntity.status(404).body(createErrorResponse("Item not found with barcode: " + barcode));
 			}

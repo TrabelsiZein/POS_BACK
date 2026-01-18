@@ -9,6 +9,15 @@ public class ErpLocationDTO {
 	private String city;
 	private String country;
 	private Boolean active;
+	private String responsibilityCenter;
+
+	public String getResponsibilityCenter() {
+		return responsibilityCenter;
+	}
+
+	public void setResponsibilityCenter(String responsibilityCenter) {
+		this.responsibilityCenter = responsibilityCenter;
+	}
 
 	public String getExternalId() {
 		return externalId;
@@ -66,4 +75,3 @@ public class ErpLocationDTO {
 		this.active = active;
 	}
 }
-

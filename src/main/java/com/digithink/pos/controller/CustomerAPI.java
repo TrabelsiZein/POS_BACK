@@ -1,8 +1,11 @@
 package com.digithink.pos.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,7 +34,7 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 	private GeneralSetupService generalSetupService;
 
 	/**
-	 * Search customers by name, code, phone, or email
+	 * Search customers by name, code, phone, or email (for autocomplete - returns limited results)
 	 */
 	@GetMapping("/search")
 	public ResponseEntity<?> searchCustomers(@RequestParam(required = false) String q) {
@@ -46,11 +49,97 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 			// Only return active customers
 			List<Customer> activeCustomers = customers.stream()
 				.filter(c -> c.getActive() != null && c.getActive())
+				.limit(50) // Limit results for autocomplete
 				.collect(java.util.stream.Collectors.toList());
 			
 			return ResponseEntity.ok(activeCustomers);
 		} catch (Exception e) {
 			log.error("CustomerAPI::searchCustomers:error: " + e.getMessage(), e);
+			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get paginated list of active customers with search
+	 * Used by POS CustomerList page
+	 */
+	@GetMapping("/paginated")
+	public ResponseEntity<?> getCustomersPaginated(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(required = false) String searchTerm,
+			@RequestParam(required = false) Long selectedCustomerId) {
+		try {
+			log.info("CustomerAPI::getCustomersPaginated: page={}, size={}, searchTerm={}, selectedCustomerId={}", 
+					page, size, searchTerm, selectedCustomerId);
+			
+			// Get paginated active customers
+			Page<Customer> customerPage = customerService.findActiveCustomersPaginated(page, size, searchTerm);
+			
+			// Build response
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", customerPage.getContent());
+			response.put("totalElements", customerPage.getTotalElements());
+			response.put("totalPages", customerPage.getTotalPages());
+			response.put("number", customerPage.getNumber());
+			response.put("size", customerPage.getSize());
+			response.put("numberOfElements", customerPage.getNumberOfElements());
+			response.put("first", customerPage.isFirst());
+			response.put("last", customerPage.isLast());
+			
+			// If selectedCustomerId is provided and not in current page, fetch it separately
+			if (selectedCustomerId != null) {
+				boolean isInCurrentPage = customerPage.getContent().stream()
+						.anyMatch(c -> c.getId().equals(selectedCustomerId));
+				
+				if (!isInCurrentPage) {
+					// Selected customer is not in current page, fetch it
+					java.util.Optional<Customer> selectedCustomer = customerService.findById(selectedCustomerId);
+					if (selectedCustomer.isPresent() && selectedCustomer.get().getActive() != null 
+							&& selectedCustomer.get().getActive()) {
+						response.put("selectedCustomer", selectedCustomer.get());
+					}
+				}
+			}
+			
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			log.error("CustomerAPI::getCustomersPaginated:error: " + e.getMessage(), e);
+			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get paginated list of customers with search and status filter
+	 * Used by Admin CustomerManagement page
+	 */
+	@GetMapping("/admin/paginated")
+	public ResponseEntity<?> getCustomersPaginatedForAdmin(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(required = false) String searchTerm,
+			@RequestParam(required = false, defaultValue = "all") String statusFilter) {
+		try {
+			log.info("CustomerAPI::getCustomersPaginatedForAdmin: page={}, size={}, searchTerm={}, statusFilter={}", 
+					page, size, searchTerm, statusFilter);
+			
+			// Get paginated customers with status filter
+			Page<Customer> customerPage = customerService.findCustomersPaginated(page, size, searchTerm, statusFilter);
+			
+			// Build response
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", customerPage.getContent());
+			response.put("totalElements", customerPage.getTotalElements());
+			response.put("totalPages", customerPage.getTotalPages());
+			response.put("number", customerPage.getNumber());
+			response.put("size", customerPage.getSize());
+			response.put("numberOfElements", customerPage.getNumberOfElements());
+			response.put("first", customerPage.isFirst());
+			response.put("last", customerPage.isLast());
+			
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			log.error("CustomerAPI::getCustomersPaginatedForAdmin:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
 		}
 	}
@@ -123,13 +212,28 @@ public class CustomerAPI extends _BaseController<Customer, Long, CustomerService
 
 	/**
 	 * Set customer as default
+	 * Prevents setting inactive customers as default
 	 */
 	@PutMapping("/{id}/set-default")
 	public ResponseEntity<?> setAsDefault(@PathVariable Long id) {
 		try {
 			log.info(this.getClass().getSimpleName() + "::setAsDefault::" + id);
-			Customer customer = customerService.setAsDefault(id);
-			return ResponseEntity.ok(customer);
+			
+			// Check if customer exists and is active
+			java.util.Optional<Customer> customerOpt = customerService.findById(id);
+			if (!customerOpt.isPresent()) {
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(createErrorResponse("Customer not found with id: " + id));
+			}
+			
+			Customer customer = customerOpt.get();
+			if (customer.getActive() == null || !customer.getActive()) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+						.body(createErrorResponse("Cannot set inactive customer as default. Please activate the customer first."));
+			}
+			
+			Customer updatedCustomer = customerService.setAsDefault(id);
+			return ResponseEntity.ok(updatedCustomer);
 		} catch (Exception e) {
 			String detailedMessage = getDetailedMessage(e);
 			log.error(this.getClass().getSimpleName() + "::setAsDefault:error: " + detailedMessage, e);

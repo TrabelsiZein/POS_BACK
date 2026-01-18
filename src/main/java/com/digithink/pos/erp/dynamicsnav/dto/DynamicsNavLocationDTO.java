@@ -17,6 +17,9 @@ public class DynamicsNavLocationDTO {
 	@JsonProperty("Name")
 	private String name;
 
+	@JsonProperty("Responsibility_Center")
+	private String responsibilityCenter;
+
 //	@JsonProperty("Address")
 //	private String address;
 //
@@ -29,4 +32,3 @@ public class DynamicsNavLocationDTO {
 //	@JsonProperty("Blocked")
 //	private Boolean blocked;
 }
-

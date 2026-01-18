@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository._BaseRepository;
-import com.digithink.pos.service.GeneralSetupService;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -22,6 +21,9 @@ public class CustomerService extends _BaseService<Customer, Long> {
 
 	@Autowired
 	private GeneralSetupService generalSetupService;
+
+	// Cached default customer (volatile for thread safety)
+	private volatile Customer cachedDefaultCustomer = null;
 
 	@Override
 	protected _BaseRepository<Customer, Long> getRepository() {
@@ -50,9 +52,11 @@ public class CustomerService extends _BaseService<Customer, Long> {
 		}
 
 		// Generate customer code if not provided or empty (only for new customers)
-		if (customer.getId() == null && (customer.getCustomerCode() == null || customer.getCustomerCode().trim().isEmpty())) {
+		if (customer.getId() == null
+				&& (customer.getCustomerCode() == null || customer.getCustomerCode().trim().isEmpty())) {
 			customer.setCustomerCode(generateCustomerCode());
-		} else if (customer.getId() == null && customer.getCustomerCode() != null && !customer.getCustomerCode().trim().isEmpty()) {
+		} else if (customer.getId() == null && customer.getCustomerCode() != null
+				&& !customer.getCustomerCode().trim().isEmpty()) {
 			// Check if code already exists
 			if (customerRepository.findByCustomerCode(customer.getCustomerCode()).isPresent()) {
 				throw new IllegalArgumentException("Customer code already exists: " + customer.getCustomerCode());
@@ -86,25 +90,117 @@ public class CustomerService extends _BaseService<Customer, Long> {
 		if (searchTerm == null || searchTerm.trim().isEmpty()) {
 			return java.util.Collections.emptyList();
 		}
-		
+
 		String searchPattern = "%" + searchTerm.toLowerCase() + "%";
-		
+
 		// Use JPA Specification to search across multiple fields
 		org.springframework.data.jpa.domain.Specification<Customer> spec = (root, query, criteriaBuilder) -> {
-			javax.persistence.criteria.Predicate namePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("name")), searchPattern);
-			javax.persistence.criteria.Predicate codePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("customerCode")), searchPattern);
-			javax.persistence.criteria.Predicate phonePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("phone")), searchPattern);
-			javax.persistence.criteria.Predicate emailPredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("email")), searchPattern);
-			
+			javax.persistence.criteria.Predicate namePredicate = criteriaBuilder
+					.like(criteriaBuilder.lower(root.get("name")), searchPattern);
+			javax.persistence.criteria.Predicate codePredicate = criteriaBuilder
+					.like(criteriaBuilder.lower(root.get("customerCode")), searchPattern);
+			javax.persistence.criteria.Predicate phonePredicate = criteriaBuilder
+					.like(criteriaBuilder.lower(root.get("phone")), searchPattern);
+			javax.persistence.criteria.Predicate emailPredicate = criteriaBuilder
+					.like(criteriaBuilder.lower(root.get("email")), searchPattern);
+
 			// Combine with OR
 			return criteriaBuilder.or(namePredicate, codePredicate, phonePredicate, emailPredicate);
 		};
-		
+
 		return customerRepository.findAll(spec);
+	}
+
+	/**
+	 * Find customers with pagination, search, and active filter
+	 * Only returns active customers for POS
+	 */
+	public org.springframework.data.domain.Page<Customer> findActiveCustomersPaginated(int page, int size, String searchTerm) {
+		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+				org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "name"));
+
+		org.springframework.data.jpa.domain.Specification<Customer> spec = (root, query, criteriaBuilder) -> {
+			java.util.List<javax.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+			// Always filter by active = true
+			predicates.add(criteriaBuilder.equal(root.get("active"), true));
+
+			// Add search criteria if provided
+			if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+				String searchPattern = "%" + searchTerm.toLowerCase() + "%";
+				javax.persistence.criteria.Predicate namePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("name")), searchPattern);
+				javax.persistence.criteria.Predicate codePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("customerCode")), searchPattern);
+				javax.persistence.criteria.Predicate phonePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("phone")), searchPattern);
+				javax.persistence.criteria.Predicate emailPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("email")), searchPattern);
+				javax.persistence.criteria.Predicate cityPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("city")), searchPattern);
+				javax.persistence.criteria.Predicate countryPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("country")), searchPattern);
+				javax.persistence.criteria.Predicate taxIdPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("taxId")), searchPattern);
+
+				// Combine search predicates with OR
+				predicates.add(criteriaBuilder.or(namePredicate, codePredicate, phonePredicate, emailPredicate,
+						cityPredicate, countryPredicate, taxIdPredicate));
+			}
+
+			return criteriaBuilder.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
+		};
+
+		return customerRepository.findAll(spec, pageable);
+	}
+
+	/**
+	 * Find customers with pagination, search, and status filter (for admin)
+	 * Supports filtering by active/inactive status
+	 */
+	public org.springframework.data.domain.Page<Customer> findCustomersPaginated(int page, int size, String searchTerm, String statusFilter) {
+		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+				org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "name"));
+
+		org.springframework.data.jpa.domain.Specification<Customer> spec = (root, query, criteriaBuilder) -> {
+			java.util.List<javax.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+			// Filter by status if provided (all, active, inactive)
+			if (statusFilter != null && !statusFilter.equals("all")) {
+				if (statusFilter.equals("active")) {
+					predicates.add(criteriaBuilder.equal(root.get("active"), true));
+				} else if (statusFilter.equals("inactive")) {
+					predicates.add(criteriaBuilder.equal(root.get("active"), false));
+				}
+			}
+
+			// Add search criteria if provided
+			if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+				String searchPattern = "%" + searchTerm.toLowerCase() + "%";
+				javax.persistence.criteria.Predicate namePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("name")), searchPattern);
+				javax.persistence.criteria.Predicate codePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("customerCode")), searchPattern);
+				javax.persistence.criteria.Predicate phonePredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("phone")), searchPattern);
+				javax.persistence.criteria.Predicate emailPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("email")), searchPattern);
+				javax.persistence.criteria.Predicate cityPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("city")), searchPattern);
+				javax.persistence.criteria.Predicate countryPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("country")), searchPattern);
+				javax.persistence.criteria.Predicate taxIdPredicate = criteriaBuilder
+						.like(criteriaBuilder.lower(root.get("taxId")), searchPattern);
+
+				// Combine search predicates with OR
+				predicates.add(criteriaBuilder.or(namePredicate, codePredicate, phonePredicate, emailPredicate,
+						cityPredicate, countryPredicate, taxIdPredicate));
+			}
+
+			return criteriaBuilder.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
+		};
+
+		return customerRepository.findAll(spec, pageable);
 	}
 
 	@Transactional
@@ -131,7 +227,46 @@ public class CustomerService extends _BaseService<Customer, Long> {
 		// Update GeneralSetup
 		generalSetupService.updateValue("PASSENGER_CUSTOMER", customer.getCustomerCode());
 
+		// Invalidate cache
+		cachedDefaultCustomer = null;
+
 		return savedCustomer;
 	}
-}
 
+	/**
+	 * Get the default customer (PASSENGER_CUSTOMER) from GeneralSetup Uses caching
+	 * for performance
+	 * 
+	 * @return The default customer, or null if not found
+	 */
+	public Customer getDefaultCustomer() {
+		// Double-check locking pattern for thread-safe lazy initialization
+		if (cachedDefaultCustomer == null) {
+			synchronized (this) {
+				if (cachedDefaultCustomer == null) {
+					String passengerCustomerCode = generalSetupService.findValueByCode("PASSENGER_CUSTOMER");
+					if (passengerCustomerCode != null && !passengerCustomerCode.trim().isEmpty()) {
+						cachedDefaultCustomer = customerRepository.findByCustomerCode(passengerCustomerCode)
+								.orElse(null);
+						if (cachedDefaultCustomer != null) {
+							log.info("Loaded default customer from cache: " + passengerCustomerCode);
+						} else {
+							log.warn("PASSENGER_CUSTOMER code found in GeneralSetup but customer not found: "
+									+ passengerCustomerCode);
+						}
+					} else {
+						log.warn("PASSENGER_CUSTOMER not found in GeneralSetup");
+					}
+				}
+			}
+		}
+		return cachedDefaultCustomer;
+	}
+
+	/**
+	 * Invalidate the default customer cache (call when GeneralSetup changes)
+	 */
+	public void invalidateDefaultCustomerCache() {
+		cachedDefaultCustomer = null;
+	}
+}

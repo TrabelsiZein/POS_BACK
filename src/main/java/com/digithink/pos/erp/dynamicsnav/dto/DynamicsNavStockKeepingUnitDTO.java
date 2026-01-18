@@ -36,4 +36,8 @@ public class DynamicsNavStockKeepingUnitDTO {
 	public String description;
 	@JsonProperty("AuxiliaryIndex1")
 	public String auxiliaryIndex1;
+	@JsonProperty("Item_Disc_Group")
+	public String itemDiscGroup;
+	@JsonProperty("Maximum_Authorized_Discount")
+	public Double maximumAuthorizedDiscount;
 }

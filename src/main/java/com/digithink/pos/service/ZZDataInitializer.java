@@ -771,6 +771,19 @@ public class ZZDataInitializer {
 			generalSetupRepository.save(chequeTitleLength);
 		}
 
+		// Auto Add Cash Payment on Payment Page Config
+		if (!generalSetupRepository.findByCode("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE").isPresent()) {
+			GeneralSetup autoAddCashPayment = new GeneralSetup();
+			autoAddCashPayment.setCode("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE");
+			autoAddCashPayment.setValeur("true");
+			autoAddCashPayment.setDescription("If true, automatically add empty \"Client Espèce\" payment method when opening payment page. If false, keep payment page empty with no selected payment method.");
+			autoAddCashPayment.setReadOnly(false);
+			autoAddCashPayment.setActive(true);
+			autoAddCashPayment.setCreatedBy("System");
+			autoAddCashPayment.setUpdatedBy("System");
+			generalSetupRepository.save(autoAddCashPayment);
+		}
+
 	}
 
 	private void ensureErpSyncCheckpointConfigs() {

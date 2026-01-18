@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.digithink.pos.dto.PricingResult;
 import com.digithink.pos.dto.ProcessSaleRequestDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
@@ -72,6 +73,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 
 	@Autowired
 	private com.digithink.pos.erp.service.SessionExportService sessionExportService;
+
+	@Autowired
+	private PricingService pricingService;
 
 	@Override
 	protected _BaseRepository<SalesHeader, Long> getRepository() {
@@ -369,39 +373,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setSalesHeader(salesHeader);
 			salesLine.setItem(item);
 			salesLine.setQuantity(lineDTO.getQuantity());
-			salesLine.setUnitPrice(lineDTO.getUnitPrice());
-			salesLine.setLineTotal(lineDTO.getLineTotal());
 
-			// Set discount fields
-			if (lineDTO.getDiscountPercentage() != null) {
-				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
-			}
-			if (lineDTO.getDiscountAmount() != null) {
-				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
-			}
-
-			// Set VAT fields - use values from DTO if provided, otherwise calculate
-			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
-			salesLine.setVatPercent(vatPercent);
-
-			if (lineDTO.getVatAmount() != null) {
-				salesLine.setVatAmount(lineDTO.getVatAmount());
-			} else {
-				salesLine.setVatAmount(calculateVat(lineDTO.getLineTotal(), vatPercent));
-			}
-
-			if (lineDTO.getUnitPriceIncludingVat() != null) {
-				salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
-			} else {
-				salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(lineDTO.getUnitPrice(), vatPercent));
-			}
-
-			if (lineDTO.getLineTotalIncludingVat() != null) {
-				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
-			} else {
-				salesLine.setLineTotalIncludingVat(
-						lineDTO.getLineTotal() + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
-			}
+			// Apply pricing from PricingService (SalesPrice/SalesDiscount)
+			applyPricingToSalesLine(salesLine, item, customer, lineDTO);
 
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
@@ -456,6 +430,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesLineRepository.deleteBySalesHeader(salesHeader);
 		log.info("Deleted all old sales lines for pending sale: " + salesHeader.getId());
 
+		// Get customer from existing sales header
+		Customer customer = salesHeader.getCustomer();
+
 		// Create new sales lines based on current cart (may have changed)
 		List<SalesLine> salesLines = new ArrayList<>();
 		for (ProcessSaleRequestDTO.SaleLineDTO lineDTO : request.getLines()) {
@@ -466,32 +443,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setSalesHeader(salesHeader);
 			salesLine.setItem(item);
 			salesLine.setQuantity(lineDTO.getQuantity());
-			salesLine.setUnitPrice(lineDTO.getUnitPrice());
-			salesLine.setLineTotal(lineDTO.getLineTotal());
 
-			// Set discount fields
-			if (lineDTO.getDiscountPercentage() != null) {
-				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
-			}
-			if (lineDTO.getDiscountAmount() != null) {
-				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
-			}
-
-			// Set VAT fields - use values from DTO if provided, otherwise calculate
-			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
-			salesLine.setVatPercent(vatPercent);
-
-			if (lineDTO.getVatAmount() != null) {
-				salesLine.setVatAmount(lineDTO.getVatAmount());
-			} else {
-				salesLine.setVatAmount(calculateVat(lineDTO.getLineTotal(), vatPercent));
-			}
-
-			if (lineDTO.getUnitPriceIncludingVat() != null) {
-				salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
-			} else {
-				salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(lineDTO.getUnitPrice(), vatPercent));
-			}
+			// Apply pricing from PricingService (SalesPrice/SalesDiscount)
+			applyPricingToSalesLine(salesLine, item, customer, lineDTO);
 
 			if (lineDTO.getLineTotalIncludingVat() != null) {
 				salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
@@ -886,5 +840,75 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		}
 		// Unit price including VAT: unitPrice * (1 + vatPercentage / 100)
 		return unitPrice * (1.0 + (vatPercentage / 100.0));
+	}
+
+	/**
+	 * Apply pricing from PricingService to a sales line
+	 * Calculates price and discount based on SalesPrice and SalesDiscount tables
+	 */
+	private void applyPricingToSalesLine(SalesLine salesLine, Item item, Customer customer,
+			ProcessSaleRequestDTO.SaleLineDTO lineDTO) {
+		// Calculate price using PricingService (if enabled, will use SalesPrice/SalesDiscount)
+		PricingResult pricingResult = pricingService.calculateItemPrice(item, customer, lineDTO.getQuantity(), null);
+		Double calculatedUnitPrice = pricingResult.getUnitPrice();
+		Boolean priceIncludesVat = pricingResult.getPriceIncludesVat();
+		Double discountPercentage = pricingResult.getDiscountPercentage();
+
+		// Convert price from TTC to HT if needed
+		Double unitPriceHT = calculatedUnitPrice;
+		if (Boolean.TRUE.equals(priceIncludesVat) && item.getDefaultVAT() != null && item.getDefaultVAT() > 0) {
+			// Price is TTC, convert to HT
+			unitPriceHT = calculatedUnitPrice / (1.0 + (item.getDefaultVAT() / 100.0));
+		}
+
+		// Calculate line total from calculated price
+		Double lineTotalHT = unitPriceHT * lineDTO.getQuantity();
+
+		// Set price and line total
+		salesLine.setUnitPrice(unitPriceHT);
+		salesLine.setLineTotal(lineTotalHT);
+
+		// Set discount fields - prioritize SalesDiscount, then use DTO discount
+		if (discountPercentage != null) {
+			salesLine.setDiscountPercentage(discountPercentage);
+			// Calculate discount amount from percentage
+			Double discountAmount = lineTotalHT * (discountPercentage / 100.0);
+			salesLine.setDiscountAmount(discountAmount);
+			lineTotalHT = lineTotalHT - discountAmount;
+			salesLine.setLineTotal(lineTotalHT);
+		} else {
+			// Use discount from DTO if no SalesDiscount found
+			if (lineDTO.getDiscountPercentage() != null) {
+				salesLine.setDiscountPercentage(lineDTO.getDiscountPercentage());
+			}
+			if (lineDTO.getDiscountAmount() != null) {
+				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
+				lineTotalHT = lineTotalHT - lineDTO.getDiscountAmount();
+				salesLine.setLineTotal(lineTotalHT);
+			}
+		}
+
+		// Set VAT fields - use values from DTO if provided, otherwise calculate
+		Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
+		salesLine.setVatPercent(vatPercent);
+
+		if (lineDTO.getVatAmount() != null) {
+			salesLine.setVatAmount(lineDTO.getVatAmount());
+		} else {
+			salesLine.setVatAmount(calculateVat(lineTotalHT, vatPercent));
+		}
+
+		if (lineDTO.getUnitPriceIncludingVat() != null) {
+			salesLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+		} else {
+			salesLine.setUnitPriceIncludingVat(calculateUnitPriceIncludingVat(unitPriceHT, vatPercent));
+		}
+
+		if (lineDTO.getLineTotalIncludingVat() != null) {
+			salesLine.setLineTotalIncludingVat(lineDTO.getLineTotalIncludingVat());
+		} else {
+			salesLine.setLineTotalIncludingVat(
+					lineTotalHT + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
+		}
 	}
 }

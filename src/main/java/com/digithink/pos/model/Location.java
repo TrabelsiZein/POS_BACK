@@ -25,6 +25,8 @@ public class Location extends _BaseEntity {
 	@Column(nullable = false)
 	private String name;
 
+	private String responsibilityCenter;
+
 	private String description;
 
 	private String address;
@@ -47,4 +49,3 @@ public class Location extends _BaseEntity {
 
 	private Boolean isDefault = false;
 }
-

@@ -81,6 +81,7 @@ public class DynamicsNavMapper {
 		dto.setExternalId(navLocation.getCode());
 		dto.setCode(navLocation.getCode());
 		dto.setName(navLocation.getName());
+		dto.setResponsibilityCenter(navLocation.getResponsibilityCenter());
 //		dto.setAddress(navLocation.getAddress());
 //		dto.setCity(navLocation.getCity());
 //		dto.setCountry(navLocation.getCountryRegionCode());
@@ -105,6 +106,8 @@ public class DynamicsNavMapper {
 		dto.setSubFamilyExternalId(navItem.getSubFamily());
 		dto.setUnitPrice(navItem.getUnitPrice());
 		dto.setDefaultVAT(navItem.getDefaultVAT());
+		dto.setItemDiscGroup(navItem.getItemDiscGroup());
+		dto.setMaximumAuthorizedDiscount(navItem.getMaximumAuthorizedDiscount());
 		dto.setActive(true);
 		dto.setLastModifiedAt(navItem.getModifiedAt());
 		return dto;
@@ -198,6 +201,7 @@ public class DynamicsNavMapper {
 		if (navSalesPrice.getUnitPrice() != null) {
 			dto.setUnitPrice(java.math.BigDecimal.valueOf(navSalesPrice.getUnitPrice()));
 		}
+		dto.setPriceIncludesVat(navSalesPrice.getPriceIncludesVat());
 		dto.setResponsibilityCenter(navSalesPrice.getResponsibilityCenter());
 		dto.setResponsibilityCenterType(navSalesPrice.getResponsibilityCenterType());
 		dto.setStartingDate(navSalesPrice.getStartingDate());

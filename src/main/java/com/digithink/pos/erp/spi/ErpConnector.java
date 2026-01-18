@@ -8,13 +8,13 @@ import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
 import com.digithink.pos.erp.dto.ErpItemSubFamilyDTO;
 import com.digithink.pos.erp.dto.ErpLocationDTO;
-import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
-import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
 import com.digithink.pos.erp.dto.ErpOperationResult;
 import com.digithink.pos.erp.dto.ErpPaymentHeaderDTO;
 import com.digithink.pos.erp.dto.ErpPaymentLineDTO;
 import com.digithink.pos.erp.dto.ErpReturnDTO;
 import com.digithink.pos.erp.dto.ErpReturnLineDTO;
+import com.digithink.pos.erp.dto.ErpSalesDiscountDTO;
+import com.digithink.pos.erp.dto.ErpSalesPriceDTO;
 import com.digithink.pos.erp.dto.ErpSessionDTO;
 import com.digithink.pos.erp.dto.ErpSyncFilter;
 import com.digithink.pos.erp.dto.ErpTicketDTO;
@@ -44,16 +44,18 @@ public interface ErpConnector {
 
 	/**
 	 * Get the result metadata from the last pull operation (for logging purposes).
-	 * This should be called immediately after a fetch operation within the same thread.
-	 * Returns null if no pull operation was performed or if metadata is not available.
+	 * This should be called immediately after a fetch operation within the same
+	 * thread. Returns null if no pull operation was performed or if metadata is not
+	 * available.
 	 */
 	default PullOperationResult<?> getLastPullOperationResult() {
 		return null;
 	}
 
 	/**
-	 * Clear the stored pull operation result metadata (should be called after logging).
-	 * Default implementation does nothing - connectors that store metadata should override this.
+	 * Clear the stored pull operation result metadata (should be called after
+	 * logging). Default implementation does nothing - connectors that store
+	 * metadata should override this.
 	 */
 	default void clearLastPullOperationResult() {
 		// Default: no-op

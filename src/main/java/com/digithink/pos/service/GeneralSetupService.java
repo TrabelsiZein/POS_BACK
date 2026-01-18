@@ -26,9 +26,7 @@ public class GeneralSetupService extends _BaseService<GeneralSetup, Long> {
 	}
 
 	public String findValueByCode(String code) {
-		return generalSetupRepository.findByCode(code)
-				.map(GeneralSetup::getValeur)
-				.orElse(null);
+		return generalSetupRepository.findByCode(code).map(GeneralSetup::getValeur).orElse(null);
 	}
 
 	@Transactional
