@@ -108,4 +108,3 @@ public class DynamicsNavReturnLineDTO {
 		this.lineDiscountPercent = lineDiscountPercent;
 	}
 }
-

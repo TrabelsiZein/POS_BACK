@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.digithink.pos.model.SalesDiscount;
+import com.digithink.pos.model.enumeration.SalesDiscountSalesType;
+import com.digithink.pos.model.enumeration.SalesDiscountType;
 import com.digithink.pos.repository.SalesDiscountRepository;
 import com.digithink.pos.repository._BaseRepository;
 
@@ -56,14 +58,25 @@ public class SalesDiscountService extends _BaseService<SalesDiscount, Long> {
 		return (root, query, criteriaBuilder) -> {
 			String searchPattern = "%" + searchTerm.toLowerCase() + "%";
 			
+			// String fields only: LIKE cannot be used on enums (type, salesType) - would cause parameter type mismatch
 			Predicate codePredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("code")), searchPattern);
 			Predicate salesCodePredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("salesCode")), searchPattern);
-			Predicate salesTypePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("salesType")), searchPattern);
-			Predicate typePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("type")), searchPattern);
+			Predicate responsibilityCenterPredicate = criteriaBuilder.like(
+				criteriaBuilder.lower(root.get("responsibilityCenter")), searchPattern);
+			
+			// type and salesType are enums: match only when search term equals an enum name or display name
+			Predicate typePredicate = null;
+			SalesDiscountType matchedType = SalesDiscountType.fromString(searchTerm.trim());
+			if (matchedType != null) {
+				typePredicate = criteriaBuilder.equal(root.get("type"), matchedType);
+			}
+			Predicate salesTypePredicate = null;
+			SalesDiscountSalesType matchedSalesType = SalesDiscountSalesType.fromString(searchTerm.trim());
+			if (matchedSalesType != null) {
+				salesTypePredicate = criteriaBuilder.equal(root.get("salesType"), matchedSalesType);
+			}
 			
 			// For numeric fields, try to parse and match
 			Predicate lineDiscountPredicate = null;
@@ -74,15 +87,18 @@ public class SalesDiscountService extends _BaseService<SalesDiscount, Long> {
 				// Ignore if not a number
 			}
 			
-			// Combine all predicates with OR
+			// Combine string predicates with OR
 			Predicate combinedPredicate = criteriaBuilder.or(
 				codePredicate,
 				salesCodePredicate,
-				salesTypePredicate,
-				typePredicate
+				responsibilityCenterPredicate
 			);
-			
-			// Add numeric predicate if it exists
+			if (typePredicate != null) {
+				combinedPredicate = criteriaBuilder.or(combinedPredicate, typePredicate);
+			}
+			if (salesTypePredicate != null) {
+				combinedPredicate = criteriaBuilder.or(combinedPredicate, salesTypePredicate);
+			}
 			if (lineDiscountPredicate != null) {
 				combinedPredicate = criteriaBuilder.or(combinedPredicate, lineDiscountPredicate);
 			}

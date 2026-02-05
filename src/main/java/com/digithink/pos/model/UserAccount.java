@@ -5,10 +5,10 @@ import java.util.Collection;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Enumerated;
 import javax.persistence.EnumType;
-import javax.persistence.ManyToOne;
+import javax.persistence.Enumerated;
 import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Transient;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -53,7 +53,7 @@ public class UserAccount extends _BaseEntity implements UserDetails {
 	private Role role;
 
 	// Badge fields
-	@Column(name = "badge_code", unique = true, nullable = true)
+	@Column(name = "badge_code", nullable = true)
 	private String badgeCode;
 
 	@Column(name = "badge_permissions", length = 500, nullable = true)

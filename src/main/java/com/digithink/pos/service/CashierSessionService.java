@@ -24,7 +24,11 @@ import com.digithink.pos.model.enumeration.ReturnType;
 import com.digithink.pos.model.enumeration.SessionStatus;
 import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
+import com.digithink.pos.model.enumeration.BadgePermission;
+import com.digithink.pos.model.GeneralSetup;
+import com.digithink.pos.exception.CashDiscrepancyException;
 import com.digithink.pos.repository.CashierSessionRepository;
+import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.PaymentRepository;
 import com.digithink.pos.repository.ReturnHeaderRepository;
@@ -70,6 +74,12 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 
 	@Autowired
 	private PaymentLineRepository paymentLineRepository;
+
+	@Autowired
+	private GeneralSetupRepository generalSetupRepository;
+
+	@Autowired
+	private BadgeService badgeService;
 
 	@Override
 	protected _BaseRepository<CashierSession, Long> getRepository() {
@@ -121,6 +131,19 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		request.setNotes(notes);
 		request.setCashCountLines(new ArrayList<>());
 		return closeSessionWithCashCount(sessionId, request);
+	}
+
+	/**
+	 * Get expected cash (real cash) for a session by ID
+	 * This is a public method that exposes the calculated expected cash amount.
+	 * 
+	 * @param sessionId The session ID
+	 * @return The calculated expected cash amount
+	 */
+	public Double getExpectedCash(Long sessionId) {
+		CashierSession session = findById(sessionId)
+				.orElseThrow(() -> new IllegalArgumentException("Session not found"));
+		return calculateRealCash(session);
 	}
 
 	/**
@@ -216,6 +239,44 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 
 		// Use provided actualCash or calculated from lines for POS user closure cash
 		Double posUserClosureCash = request.getActualCash() != null ? request.getActualCash() : calculatedPosUserCash;
+		
+		// Check if cash discrepancy check is enabled
+		Optional<GeneralSetup> discrepancyCheckSetup = generalSetupRepository.findByCode("ENABLE_CASH_DISCREPANCY_CHECK");
+		boolean discrepancyCheckEnabled = true; // Default to enabled
+		if (discrepancyCheckSetup.isPresent()) {
+			String valeur = discrepancyCheckSetup.get().getValeur();
+			discrepancyCheckEnabled = valeur != null && valeur.equalsIgnoreCase("true");
+		}
+		
+		// If discrepancy check is enabled, validate amounts
+		if (discrepancyCheckEnabled && posUserClosureCash != null && realCash != null) {
+			// Compare amounts with tolerance of 0.01 TND for floating point precision
+			double difference = Math.abs(realCash - posUserClosureCash);
+			if (difference > 0.01) {
+				// Discrepancy exists - check if badge was provided
+				if (request.getBadgeCode() != null && !request.getBadgeCode().trim().isEmpty() &&
+					request.getBadgePermission() != null && request.getBadgePermission().equals("CLOSE_SESSION_WITH_DISCREPANCY")) {
+					// Badge provided - validate it without logging (already logged by frontend scan)
+					// Use findUserByBadgeCode which checks revoked/expired, then check permission
+					java.util.Optional<UserAccount> badgeUserOpt = badgeService.findUserByBadgeCode(request.getBadgeCode().trim());
+					if (!badgeUserOpt.isPresent()) {
+						throw new IllegalStateException("Badge validation failed: BADGE_NOT_EXISTS");
+					}
+					
+					UserAccount badgeUser = badgeUserOpt.get();
+					boolean hasPermission = badgeService.hasPermission(badgeUser, BadgePermission.CLOSE_SESSION_WITH_DISCREPANCY);
+					if (!hasPermission) {
+						throw new IllegalStateException("Badge validation failed: BADGE_NO_ACCESS");
+					}
+					// Badge validated successfully - proceed with closure
+					log.info("Session closure with discrepancy authorized by badge: " + request.getBadgeCode());
+				} else {
+					// Badge NOT provided - throw structured exception for frontend
+					throw new CashDiscrepancyException(realCash, posUserClosureCash, difference);
+				}
+			}
+		}
+		
 		session.setPosUserClosureCash(posUserClosureCash);
 
 		session.setClosedAt(LocalDateTime.now());

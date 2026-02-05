@@ -10,6 +10,7 @@ public class ErpReturnLineDTO {
 	private BigDecimal unitPriceIncludingVat;
 	private BigDecimal lineTotal;
 	private BigDecimal lineTotalIncludingVat;
+	private BigDecimal discountPercentage; // Discount percentage from original sales line
 	private String originalSalesLineNumber; // Reference to original sales line
 
 	public String getItemExternalId() {
@@ -67,5 +68,12 @@ public class ErpReturnLineDTO {
 	public void setOriginalSalesLineNumber(String originalSalesLineNumber) {
 		this.originalSalesLineNumber = originalSalesLineNumber;
 	}
-}
 
+	public BigDecimal getDiscountPercentage() {
+		return discountPercentage;
+	}
+
+	public void setDiscountPercentage(BigDecimal discountPercentage) {
+		this.discountPercentage = discountPercentage;
+	}
+}

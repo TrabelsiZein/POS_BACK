@@ -13,6 +13,8 @@ public class CloseSessionRequestDTO {
 	private Double actualCash;
 	private String notes;
 	private List<CashCountLineDTO> cashCountLines;
+	private String badgeCode; // Badge code scanned for discrepancy validation
+	private String badgePermission; // Permission being validated (should be "CLOSE_SESSION_WITH_DISCREPANCY")
 
 	@Data
 	public static class CashCountLineDTO {

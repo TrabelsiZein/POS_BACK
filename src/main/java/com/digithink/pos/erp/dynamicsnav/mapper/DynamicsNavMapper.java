@@ -449,8 +449,10 @@ public class DynamicsNavMapper {
 			dto.setUnitPrice(line.getUnitPrice().doubleValue());
 		}
 
-		// Line_Discount_Percent is optional, set to null if not available
-		// (ReturnLine doesn't have discount percentage in the model)
+		// Set line discount percentage from original sales line
+		if (line.getDiscountPercentage() != null) {
+			dto.setLineDiscountPercent(line.getDiscountPercentage().doubleValue());
+		}
 
 		return dto;
 	}

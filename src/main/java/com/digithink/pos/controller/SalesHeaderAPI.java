@@ -83,6 +83,7 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			saleResponse.put("subtotal", salesHeader.getSubtotal());
 			saleResponse.put("taxAmount", salesHeader.getTaxAmount());
 			saleResponse.put("discountAmount", salesHeader.getDiscountAmount());
+			saleResponse.put("discountPercentage", salesHeader.getDiscountPercentage());
 			saleResponse.put("totalAmount", salesHeader.getTotalAmount());
 			saleResponse.put("paidAmount", salesHeader.getPaidAmount());
 			saleResponse.put("changeAmount", salesHeader.getChangeAmount());
@@ -136,6 +137,7 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			saleResponse.put("subtotal", salesHeader.getSubtotal());
 			saleResponse.put("taxAmount", salesHeader.getTaxAmount());
 			saleResponse.put("discountAmount", salesHeader.getDiscountAmount());
+			saleResponse.put("discountPercentage", salesHeader.getDiscountPercentage());
 			saleResponse.put("totalAmount", salesHeader.getTotalAmount());
 			saleResponse.put("status", salesHeader.getStatus());
 			saleResponse.put("notes", salesHeader.getNotes());
@@ -263,6 +265,7 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			saleResponse.put("subtotal", salesHeader.getSubtotal());
 			saleResponse.put("taxAmount", salesHeader.getTaxAmount());
 			saleResponse.put("discountAmount", salesHeader.getDiscountAmount());
+			saleResponse.put("discountPercentage", salesHeader.getDiscountPercentage());
 			saleResponse.put("totalAmount", salesHeader.getTotalAmount());
 			saleResponse.put("paidAmount", salesHeader.getPaidAmount());
 			saleResponse.put("changeAmount", salesHeader.getChangeAmount());

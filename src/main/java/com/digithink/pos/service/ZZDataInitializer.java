@@ -770,6 +770,42 @@ public class ZZDataInitializer {
 			chequeTitleLength.setUpdatedBy("System");
 			generalSetupRepository.save(chequeTitleLength);
 		}
+		// PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH
+		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH").isPresent()) {
+			GeneralSetup ticketRestaurantLength = new GeneralSetup();
+			ticketRestaurantLength.setCode("PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH");
+			ticketRestaurantLength.setValeur("7");
+			ticketRestaurantLength.setDescription("Required length for title number (N° Titre) for TICKET_RESTAURANT payment method. Must be exactly this number of characters.");
+			ticketRestaurantLength.setReadOnly(false);
+			ticketRestaurantLength.setActive(true);
+			ticketRestaurantLength.setCreatedBy("System");
+			ticketRestaurantLength.setUpdatedBy("System");
+			generalSetupRepository.save(ticketRestaurantLength);
+		}
+		// PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH
+		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH").isPresent()) {
+			GeneralSetup chequeCadeauLength = new GeneralSetup();
+			chequeCadeauLength.setCode("PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH");
+			chequeCadeauLength.setValeur("7");
+			chequeCadeauLength.setDescription("Required length for title number (N° Titre) for CHEQUE_CADEAU payment method. Must be exactly this number of characters.");
+			chequeCadeauLength.setReadOnly(false);
+			chequeCadeauLength.setActive(true);
+			chequeCadeauLength.setCreatedBy("System");
+			chequeCadeauLength.setUpdatedBy("System");
+			generalSetupRepository.save(chequeCadeauLength);
+		}
+		// PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH
+		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH").isPresent()) {
+			GeneralSetup clientTraiteLength = new GeneralSetup();
+			clientTraiteLength.setCode("PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH");
+			clientTraiteLength.setValeur("7");
+			clientTraiteLength.setDescription("Required length for title number (N° Titre) for CLIENT_TRAITE payment method. Must be exactly this number of characters.");
+			clientTraiteLength.setReadOnly(false);
+			clientTraiteLength.setActive(true);
+			clientTraiteLength.setCreatedBy("System");
+			clientTraiteLength.setUpdatedBy("System");
+			generalSetupRepository.save(clientTraiteLength);
+		}
 
 		// Auto Add Cash Payment on Payment Page Config
 		if (!generalSetupRepository.findByCode("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE").isPresent()) {
@@ -782,6 +818,19 @@ public class ZZDataInitializer {
 			autoAddCashPayment.setCreatedBy("System");
 			autoAddCashPayment.setUpdatedBy("System");
 			generalSetupRepository.save(autoAddCashPayment);
+		}
+
+		// Enable Cash Discrepancy Check
+		if (!generalSetupRepository.findByCode("ENABLE_CASH_DISCREPANCY_CHECK").isPresent()) {
+			GeneralSetup enableCashDiscrepancyCheck = new GeneralSetup();
+			enableCashDiscrepancyCheck.setCode("ENABLE_CASH_DISCREPANCY_CHECK");
+			enableCashDiscrepancyCheck.setValeur("true");
+			enableCashDiscrepancyCheck.setDescription("Enable cash discrepancy check when closing session. If true, system validates closing amount matches expected real cash.");
+			enableCashDiscrepancyCheck.setReadOnly(false);
+			enableCashDiscrepancyCheck.setActive(true);
+			enableCashDiscrepancyCheck.setCreatedBy("System");
+			enableCashDiscrepancyCheck.setUpdatedBy("System");
+			generalSetupRepository.save(enableCashDiscrepancyCheck);
 		}
 
 	}

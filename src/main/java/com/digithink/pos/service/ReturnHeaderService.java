@@ -215,8 +215,10 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			// Calculate proportional amounts based on return quantity
 			double unitPriceHT = originalSalesLine.getUnitPrice();
 			double unitPriceTTC = originalSalesLine.getUnitPriceIncludingVat();
-			double lineTotalHT = (originalSalesLine.getLineTotal() / originalSalesLine.getQuantity()) * returnLineDTO.getQuantity();
-			double lineTotalTTC = (originalSalesLine.getLineTotalIncludingVat() / originalSalesLine.getQuantity()) * returnLineDTO.getQuantity();
+			double lineTotalHT = (originalSalesLine.getLineTotal() / originalSalesLine.getQuantity())
+					* returnLineDTO.getQuantity();
+			double lineTotalTTC = (originalSalesLine.getLineTotalIncludingVat() / originalSalesLine.getQuantity())
+					* returnLineDTO.getQuantity();
 
 			// Create return line
 			ReturnLine returnLine = new ReturnLine();

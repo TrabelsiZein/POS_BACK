@@ -15,6 +15,7 @@ import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.security.CurrentUserProvider;
 import com.digithink.pos.service.CashierSessionService;
+import com.digithink.pos.exception.CashDiscrepancyException;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -108,6 +109,14 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 				String notes = (String) request.get("notes");
 				closeRequest.setNotes(notes);
 				
+				// Parse badge code and permission (optional, for discrepancy validation)
+				if (request.get("badgeCode") != null) {
+					closeRequest.setBadgeCode((String) request.get("badgeCode"));
+				}
+				if (request.get("badgePermission") != null) {
+					closeRequest.setBadgePermission((String) request.get("badgePermission"));
+				}
+				
 				// Parse cash count lines
 				@SuppressWarnings("unchecked")
 				java.util.List<Map<String, Object>> cashCountLinesData = 
@@ -179,6 +188,12 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 				CashierSession closedSession = service.closeSession(currentSession.get().getId(), actualCash, notes);
 				return ResponseEntity.ok(closedSession);
 			}
+		} catch (CashDiscrepancyException e) {
+			log.warn("CashierSessionAPI::closeSession:cash discrepancy detected: " + e.getMessage());
+			return ResponseEntity.badRequest().body(e.getErrorData());
+		} catch (IllegalStateException e) {
+			log.error("CashierSessionAPI::closeSession:error: " + e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
 		} catch (Exception e) {
 			log.error("CashierSessionAPI::closeSession:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));

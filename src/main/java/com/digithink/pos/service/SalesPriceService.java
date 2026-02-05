@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.digithink.pos.model.SalesPrice;
+import com.digithink.pos.model.enumeration.SalesPriceType;
 import com.digithink.pos.repository.SalesPriceRepository;
 import com.digithink.pos.repository._BaseRepository;
 
@@ -56,12 +57,11 @@ public class SalesPriceService extends _BaseService<SalesPrice, Long> {
 		return (root, query, criteriaBuilder) -> {
 			String searchPattern = "%" + searchTerm.toLowerCase() + "%";
 			
+			// String fields only: LIKE cannot be used on enum (salesType) - would cause parameter type mismatch
 			Predicate itemNoPredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("itemNo")), searchPattern);
 			Predicate salesCodePredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("salesCode")), searchPattern);
-			Predicate salesTypePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("salesType")), searchPattern);
 			Predicate responsibilityCenterPredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("responsibilityCenter")), searchPattern);
 			Predicate currencyCodePredicate = criteriaBuilder.like(
@@ -70,8 +70,14 @@ public class SalesPriceService extends _BaseService<SalesPrice, Long> {
 				criteriaBuilder.lower(root.get("variantCode")), searchPattern);
 			Predicate unitOfMeasureCodePredicate = criteriaBuilder.like(
 				criteriaBuilder.lower(root.get("unitOfMeasureCode")), searchPattern);
-			Predicate startingDatePredicate = criteriaBuilder.like(
-				criteriaBuilder.lower(root.get("startingDate")), searchPattern);
+			// startingDate is LocalDate - not used in text LIKE search to avoid type issues
+			
+			// salesType is an enum: match only when search term equals an enum name or display name
+			Predicate salesTypePredicate = null;
+			SalesPriceType matchedType = SalesPriceType.fromString(searchTerm.trim());
+			if (matchedType != null) {
+				salesTypePredicate = criteriaBuilder.equal(root.get("salesType"), matchedType);
+			}
 			
 			// For numeric fields, try to parse and match
 			Predicate minimumQuantityPredicate = null;
@@ -90,19 +96,18 @@ public class SalesPriceService extends _BaseService<SalesPrice, Long> {
 				// Ignore if not a number
 			}
 			
-			// Combine all predicates with OR
+			// Combine string/numeric predicates with OR
 			Predicate combinedPredicate = criteriaBuilder.or(
 				itemNoPredicate,
 				salesCodePredicate,
-				salesTypePredicate,
 				responsibilityCenterPredicate,
 				currencyCodePredicate,
 				variantCodePredicate,
-				unitOfMeasureCodePredicate,
-				startingDatePredicate
+				unitOfMeasureCodePredicate
 			);
-			
-			// Add numeric predicates if they exist
+			if (salesTypePredicate != null) {
+				combinedPredicate = criteriaBuilder.or(combinedPredicate, salesTypePredicate);
+			}
 			if (minimumQuantityPredicate != null) {
 				combinedPredicate = criteriaBuilder.or(combinedPredicate, minimumQuantityPredicate);
 			}

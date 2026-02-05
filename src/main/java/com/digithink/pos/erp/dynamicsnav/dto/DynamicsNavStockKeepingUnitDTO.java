@@ -38,6 +38,6 @@ public class DynamicsNavStockKeepingUnitDTO {
 	public String auxiliaryIndex1;
 	@JsonProperty("Item_Disc_Group")
 	public String itemDiscGroup;
-	@JsonProperty("Maximum_Authorized_Discount")
+	@JsonProperty("Remise_MAX")
 	public Double maximumAuthorizedDiscount;
 }

@@ -235,6 +235,11 @@ public class ReturnExportService {
 		dto.setLineTotal(BigDecimal.valueOf(line.getLineTotal()));
 		dto.setLineTotalIncludingVat(BigDecimal.valueOf(line.getLineTotalIncludingVat()));
 
+		// Set discount percentage from original sales line if available
+		if (line.getOriginalSalesLine() != null && line.getOriginalSalesLine().getDiscountPercentage() != null) {
+			dto.setDiscountPercentage(BigDecimal.valueOf(line.getOriginalSalesLine().getDiscountPercentage()));
+		}
+
 		// Set original sales line number if available
 		if (line.getOriginalSalesLine() != null && line.getOriginalSalesLine().getSalesHeader() != null) {
 			dto.setOriginalSalesLineNumber(line.getOriginalSalesLine().getSalesHeader().getSalesNumber());

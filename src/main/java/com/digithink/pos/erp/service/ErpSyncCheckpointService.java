@@ -52,8 +52,6 @@ public class ErpSyncCheckpointService {
 		descriptions.put("ERP_SYNC_LAST_ITEM_BARCODE", "Timestamp (Modified_At) of last synchronized item barcode");
 		descriptions.put("ERP_SYNC_LAST_LOCATION", "Timestamp (Modified_At) of last synchronized location");
 		descriptions.put("ERP_SYNC_LAST_CUSTOMER", "Timestamp (Modified_At) of last synchronized customer");
-		descriptions.put("ERP_SYNC_LAST_SALES_PRICE_AND_DISCOUNT",
-				"Timestamp (Modified_At) of last synchronized sales price and discount");
 		descriptions.put("ERP_SYNC_LAST_SALES_PRICE", "Timestamp (Modified_At) of last synchronized sales price");
 		descriptions.put("ERP_SYNC_LAST_SALES_DISCOUNT", "Timestamp (Modified_At) of last synchronized sales discount");
 		CODE_TO_DESCRIPTION = Collections.unmodifiableMap(descriptions);
