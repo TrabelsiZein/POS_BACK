@@ -1,6 +1,7 @@
 package com.digithink.pos.service;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,8 @@ import lombok.extern.log4j.Log4j2;
 
 /**
  * Service for calculating item prices using SalesPrice and SalesDiscount tables
- * Implements best-value selection: always chooses lowest price and highest discount
+ * Implements best-value selection: always chooses lowest price and highest
+ * discount
  */
 @Service
 @Log4j2
@@ -88,6 +90,11 @@ public class PricingService {
 							item.getItemCode(), item.getDefaultVAT());
 				}
 			}
+//			if (item.getUnitPrice() != null && unitPrice > item.getUnitPrice()) {
+//				unitPrice = item.getUnitPrice();
+//				priceIncludesVat = false; // Item price is always HT
+//				source = "ITEM";
+//			}
 		} else {
 			// Fallback to item price
 			unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : 0.0;
@@ -104,8 +111,9 @@ public class PricingService {
 	}
 
 	/**
-	 * Find SalesPrice using best-value selection: finds all matching records and returns lowest price
-	 * No priority - all matching types (Customer Price Group, Customer, All Customers) are considered equally
+	 * Find SalesPrice using best-value selection: finds all matching records and
+	 * returns lowest price No priority - all matching types (Customer Price Group,
+	 * Customer, All Customers) are considered equally
 	 * 
 	 * @param item                 The item
 	 * @param customer             The customer (can be null)
@@ -121,26 +129,25 @@ public class PricingService {
 		String itemNo = item.getItemCode();
 
 		// Get customer info (can be null) - normalize empty strings to null
-		String customerPriceGroup = (customer != null && StringUtils.hasText(customer.getCustomerPriceGroup())) 
-				? customer.getCustomerPriceGroup() : null;
-		String customerCode = (customer != null && StringUtils.hasText(customer.getCustomerCode())) 
-				? customer.getCustomerCode() : null;
+		String customerPriceGroup = (customer != null && StringUtils.hasText(customer.getCustomerPriceGroup()))
+				? customer.getCustomerPriceGroup()
+				: null;
+		String customerCode = (customer != null && StringUtils.hasText(customer.getCustomerCode()))
+				? customer.getCustomerCode()
+				: null;
 
 		// Find all matching SalesPrice records across all types
-		// Query returns results sorted by unitPrice ASC (lowest first), then startingDate DESC
-		List<SalesPrice> prices = salesPriceRepository.findAllMatchingSalesPrices(
-				itemNo,
-				SalesPriceType.CUSTOMER_PRICE_GROUP,
-				customerPriceGroup,
-				SalesPriceType.CUSTOMER,
-				customerCode,
-				SalesPriceType.ALL_CUSTOMERS,
-				currentDate);
+		List<SalesPrice> prices = salesPriceRepository.findAllMatchingSalesPrices(itemNo,
+				SalesPriceType.CUSTOMER_PRICE_GROUP, customerPriceGroup, SalesPriceType.CUSTOMER, customerCode,
+				SalesPriceType.ALL_CUSTOMERS, currentDate);
 
 		if (!prices.isEmpty()) {
-			SalesPrice bestPrice = prices.get(0); // First result is lowest price (sorted ASC)
-			log.debug("Found best SalesPrice for item {}: price={}, type={}, code={}", 
-					itemNo, bestPrice.getUnitPrice(), bestPrice.getSalesType(), bestPrice.getSalesCode());
+			// Sort by comparable price (price including VAT) so we compare apples to apples
+			prices.sort(Comparator.comparingDouble((SalesPrice sp) -> getComparablePriceIncludingVat(sp, item))
+					.thenComparing(SalesPrice::getStartingDate, Comparator.nullsLast(Comparator.reverseOrder())));
+			SalesPrice bestPrice = prices.get(0);
+			log.debug("Found best SalesPrice for item {}: price={}, type={}, code={}", itemNo, bestPrice.getUnitPrice(),
+					bestPrice.getSalesType(), bestPrice.getSalesCode());
 			return bestPrice;
 		}
 
@@ -149,8 +156,28 @@ public class PricingService {
 	}
 
 	/**
-	 * Find SalesDiscount using best-value selection: finds all matching records and returns highest discount
-	 * No priority - all matching types (ITEM_DISC_GROUP and ITEM) and sales types are considered equally
+	 * Returns the price including VAT for comparison (same basis for all rows). If
+	 * price is VAT-inclusive, returns unit_price; otherwise unit_price * (1 +
+	 * VAT%).
+	 */
+	private double getComparablePriceIncludingVat(SalesPrice sp, Item item) {
+		Double unitPrice = sp.getUnitPrice();
+		if (unitPrice == null) {
+			return Double.MAX_VALUE;
+		}
+		if (Boolean.TRUE.equals(sp.getPriceIncludesVat())) {
+			return unitPrice;
+		}
+		double vatRate = (item != null && item.getDefaultVAT() != null && item.getDefaultVAT() > 0)
+				? item.getDefaultVAT() / 100.0
+				: 0.0;
+		return unitPrice * (1.0 + vatRate);
+	}
+
+	/**
+	 * Find SalesDiscount using best-value selection: finds all matching records and
+	 * returns highest discount No priority - all matching types (ITEM_DISC_GROUP
+	 * and ITEM) and sales types are considered equally
 	 * 
 	 * @param item                 The item
 	 * @param customer             The customer (can be null)
@@ -165,47 +192,38 @@ public class PricingService {
 		LocalDate currentDate = LocalDate.now();
 
 		// Get customer info (can be null) - normalize empty strings to null
-		String customerDiscGroup = (customer != null && StringUtils.hasText(customer.getCustomerDiscGroup())) 
-				? customer.getCustomerDiscGroup() : null;
-		String customerCode = (customer != null && StringUtils.hasText(customer.getCustomerCode())) 
-				? customer.getCustomerCode() : null;
+		String customerDiscGroup = (customer != null && StringUtils.hasText(customer.getCustomerDiscGroup()))
+				? customer.getCustomerDiscGroup()
+				: null;
+		String customerCode = (customer != null && StringUtils.hasText(customer.getCustomerCode()))
+				? customer.getCustomerCode()
+				: null;
 
 		Double bestDiscount = null;
 
 		// Try ITEM_DISC_GROUP type
 		if (StringUtils.hasText(item.getItemDiscGroup())) {
 			List<SalesDiscount> discounts = salesDiscountRepository.findAllMatchingDiscounts(
-					SalesDiscountType.ITEM_DISC_GROUP,
-					item.getItemDiscGroup(),
-					SalesDiscountSalesType.CUSTOMER_DISC_GROUP,
-					customerDiscGroup,
-					SalesDiscountSalesType.CUSTOMER,
-					customerCode,
-					SalesDiscountSalesType.ALL_CUSTOMERS,
-					currentDate);
-			
+					SalesDiscountType.ITEM_DISC_GROUP, item.getItemDiscGroup(),
+					SalesDiscountSalesType.CUSTOMER_DISC_GROUP, customerDiscGroup, SalesDiscountSalesType.CUSTOMER,
+					customerCode, SalesDiscountSalesType.ALL_CUSTOMERS, currentDate);
+
 			if (!discounts.isEmpty()) {
 				Double discount = discounts.get(0).getLineDiscount(); // First result is highest (sorted DESC)
 				if (bestDiscount == null || (discount != null && discount > bestDiscount)) {
 					bestDiscount = discount;
-					log.debug("Found SalesDiscount for item {} with Item Disc. Group {}: {}%", 
-							item.getItemCode(), item.getItemDiscGroup(), discount);
+					log.debug("Found SalesDiscount for item {} with Item Disc. Group {}: {}%", item.getItemCode(),
+							item.getItemDiscGroup(), discount);
 				}
 			}
 		}
 
 		// Try ITEM type
 		if (StringUtils.hasText(item.getItemCode())) {
-			List<SalesDiscount> discounts = salesDiscountRepository.findAllMatchingDiscounts(
-					SalesDiscountType.ITEM,
-					item.getItemCode(),
-					SalesDiscountSalesType.CUSTOMER_DISC_GROUP,
-					customerDiscGroup,
-					SalesDiscountSalesType.CUSTOMER,
-					customerCode,
-					SalesDiscountSalesType.ALL_CUSTOMERS,
-					currentDate);
-			
+			List<SalesDiscount> discounts = salesDiscountRepository.findAllMatchingDiscounts(SalesDiscountType.ITEM,
+					item.getItemCode(), SalesDiscountSalesType.CUSTOMER_DISC_GROUP, customerDiscGroup,
+					SalesDiscountSalesType.CUSTOMER, customerCode, SalesDiscountSalesType.ALL_CUSTOMERS, currentDate);
+
 			if (!discounts.isEmpty()) {
 				Double discount = discounts.get(0).getLineDiscount(); // First result is highest (sorted DESC)
 				if (bestDiscount == null || (discount != null && discount > bestDiscount)) {
