@@ -79,11 +79,12 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 			@org.springframework.web.bind.annotation.RequestParam(name = "familyId", required = false) Long familyId,
 			@org.springframework.web.bind.annotation.RequestParam(name = "subFamilyId", required = false) Long subFamilyId,
 			@org.springframework.web.bind.annotation.RequestParam(name = "priceMin", required = false) Double priceMin,
-			@org.springframework.web.bind.annotation.RequestParam(name = "priceMax", required = false) Double priceMax) {
+			@org.springframework.web.bind.annotation.RequestParam(name = "priceMax", required = false) Double priceMax,
+			@org.springframework.web.bind.annotation.RequestParam(name = "withBarcodesOnly", required = false) Boolean withBarcodesOnly) {
 		try {
 			log.info(
-					"ItemBarcodeAPI::getAllItemsWithBarcodes page={}, size={}, search={}, familyId={}, subFamilyId={}, priceMin={}, priceMax={}",
-					page, size, search, familyId, subFamilyId, priceMin, priceMax);
+					"ItemBarcodeAPI::getAllItemsWithBarcodes page={}, size={}, search={}, familyId={}, subFamilyId={}, priceMin={}, priceMax={}, withBarcodesOnly={}",
+					page, size, search, familyId, subFamilyId, priceMin, priceMax, withBarcodesOnly);
 
 			int safePage = Math.max(page, 0);
 			int safeSize = Math.min(Math.max(size, 1), 200);
@@ -92,7 +93,7 @@ public class ItemBarcodeAPI extends _BaseController<ItemBarcode, Long, ItemBarco
 					safeSize, org.springframework.data.domain.Sort.by("itemCode").ascending());
 
 			org.springframework.data.domain.Page<Item> itemsPage = itemService.findActiveItems(search, familyId,
-					subFamilyId, priceMin, priceMax, pageable);
+					subFamilyId, priceMin, priceMax, withBarcodesOnly, pageable);
 
 			List<Long> itemIds = itemsPage.stream().map(Item::getId).collect(Collectors.toList());
 			Map<Long, List<ItemBarcode>> barcodesByItem = itemBarcodeService.getActiveBarcodesForItems(itemIds).stream()

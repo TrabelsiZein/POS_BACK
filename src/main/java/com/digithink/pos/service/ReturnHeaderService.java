@@ -236,6 +236,23 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			totalReturnAmount += lineTotalTTC;
 		}
 
+		// If original ticket had a header discount (e.g. 10%), apply same ratio to return amount
+		// so voucher and return total reflect what the customer actually paid (discounted).
+		// Use sum of lines TTC (not header subtotal which is HT) so ratio is totalAmount/ticketTtcBeforeDiscount.
+		double effectiveTotalReturnAmount = totalReturnAmount;
+		double ticketTtcBeforeDiscount = 0.0;
+		for (SalesLine line : originalSalesLines) {
+			if (line.getLineTotalIncludingVat() != null) {
+				ticketTtcBeforeDiscount += line.getLineTotalIncludingVat();
+			}
+		}
+		if (ticketTtcBeforeDiscount > 0 && originalSalesHeader.getTotalAmount() != null && originalSalesHeader.getTotalAmount() >= 0) {
+			double ratio = originalSalesHeader.getTotalAmount() / ticketTtcBeforeDiscount;
+			effectiveTotalReturnAmount = totalReturnAmount * ratio;
+			log.info("Applied original ticket discount to return amount: ticketTtcBeforeDiscount={}, ratio={}, totalReturnAmount={}, effectiveTotalReturnAmount={}",
+					ticketTtcBeforeDiscount, ratio, totalReturnAmount, effectiveTotalReturnAmount);
+		}
+
 		// Generate return number
 		String returnNumber = generateReturnNumber();
 
@@ -248,7 +265,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		returnHeader.setCashierSession(currentSession);
 		returnHeader.setReturnType(request.getReturnType());
 		returnHeader.setStatus(TransactionStatus.COMPLETED);
-		returnHeader.setTotalReturnAmount(totalReturnAmount);
+		returnHeader.setTotalReturnAmount(effectiveTotalReturnAmount);
 		returnHeader.setNotes(request.getNotes());
 
 		// Save return header
@@ -272,19 +289,22 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	}
 
 	/**
-	 * Create return voucher
+	 * Create return voucher. Return header total (and thus voucher amount) already has
+	 * the original ticket's header discount applied in processReturn.
 	 */
 	private ReturnVoucher createReturnVoucher(ReturnHeader returnHeader, Customer customer) throws Exception {
 		String voucherNumber = generateVoucherNumber();
 		int validityDays = getReturnVoucherValidityDays();
 		LocalDate expiryDate = LocalDate.now().plusDays(validityDays);
 
+		double voucherAmount = returnHeader.getTotalReturnAmount() != null ? returnHeader.getTotalReturnAmount() : 0.0;
+
 		ReturnVoucher voucher = new ReturnVoucher();
 		voucher.setVoucherNumber(voucherNumber);
 		voucher.setVoucherDate(LocalDateTime.now());
 		voucher.setReturnHeader(returnHeader);
 		voucher.setCustomer(customer);
-		voucher.setVoucherAmount(returnHeader.getTotalReturnAmount());
+		voucher.setVoucherAmount(voucherAmount);
 		voucher.setExpiryDate(expiryDate);
 		voucher.setStatus(TransactionStatus.PENDING);
 		voucher.setUsedAmount(0.0);

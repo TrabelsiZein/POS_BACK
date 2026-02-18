@@ -213,6 +213,8 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			throw new IllegalArgumentException("At least one payment method is required");
 		}
 
+		validateCashPlafond(request.getPayments());
+
 		for (ProcessSaleRequestDTO.PaymentDTO paymentDTO : request.getPayments()) {
 			if (paymentDTO.getPaymentMethodId() == null) {
 				throw new IllegalArgumentException("Payment method ID is required for all payments");
@@ -467,6 +469,8 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			throw new IllegalArgumentException("At least one payment method is required");
 		}
 
+		validateCashPlafond(request.getPayments());
+
 		for (ProcessSaleRequestDTO.PaymentDTO paymentDTO : request.getPayments()) {
 			if (paymentDTO.getPaymentMethodId() == null) {
 				throw new IllegalArgumentException("Payment method ID is required for all payments");
@@ -634,6 +638,43 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Validate total cash (espèce) amount against Plafond espèce from GeneralSetup.
+	 * When PLAFOND_ESPECE is empty or null, no limit is applied. When set (e.g. 1000), total cash per sale must not exceed that value (TND).
+	 */
+	private void validateCashPlafond(List<ProcessSaleRequestDTO.PaymentDTO> paymentDTOs) {
+		double totalCash = 0.0;
+		for (ProcessSaleRequestDTO.PaymentDTO dto : paymentDTOs) {
+			if (dto.getPaymentMethodId() == null || dto.getAmount() == null || dto.getAmount() <= 0) {
+				continue;
+			}
+			PaymentMethod pm = paymentMethodRepository.findById(dto.getPaymentMethodId()).orElse(null);
+			if (pm != null && pm.getType() == PaymentMethodType.CLIENT_ESPECES) {
+				totalCash += dto.getAmount();
+			}
+		}
+		java.util.Optional<GeneralSetup> plafondOpt = generalSetupRepository.findByCode("PLAFOND_ESPECE");
+		if (!plafondOpt.isPresent()) {
+			return;
+		}
+		String valeur = plafondOpt.get().getValeur();
+		if (valeur == null || valeur.trim().isEmpty()) {
+			return;
+		}
+		try {
+			double limit = Double.parseDouble(valeur.trim());
+			if (limit <= 0) {
+				return;
+			}
+			if (totalCash > limit) {
+				throw new IllegalArgumentException(
+						"Plafond espèce: le montant total en espèces (" + totalCash + " TND) dépasse la limite autorisée (" + limit + " TND).");
+			}
+		} catch (NumberFormatException e) {
+			log.warn("Invalid PLAFOND_ESPECE value in GeneralSetup: {}", valeur);
+		}
 	}
 
 	/**

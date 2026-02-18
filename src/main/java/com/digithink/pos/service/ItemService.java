@@ -40,7 +40,7 @@ public class ItemService extends _BaseService<Item, Long> {
 	}
 
 	public Page<Item> findActiveItems(String search, Long familyId, Long subFamilyId, Double priceMin, Double priceMax,
-			Pageable pageable) {
+			Boolean withBarcodesOnly, Pageable pageable) {
 		Specification<Item> specification = (root, query, cb) -> {
 			query.distinct(true);
 			Predicate predicate = cb.conjunction();
@@ -50,6 +50,19 @@ public class ItemService extends _BaseService<Item, Long> {
 			Predicate priceNotNull = cb.isNotNull(root.get("unitPrice"));
 			Predicate priceNotZero = cb.notEqual(root.get("unitPrice"), 0.0);
 			predicate = cb.and(predicate, priceNotNull, priceNotZero);
+
+			if (Boolean.TRUE.equals(withBarcodesOnly)) {
+				// Item has barcode in ItemBarcode table OR in legacy Item.barcode field
+				Subquery<Long> hasItemBarcode = query.subquery(Long.class);
+				var bcRoot = hasItemBarcode.from(com.digithink.pos.model.ItemBarcode.class);
+				hasItemBarcode.select(bcRoot.get("item").get("id"));
+				hasItemBarcode.where(
+					cb.equal(bcRoot.get("item").get("id"), root.get("id")),
+					cb.or(cb.isTrue(bcRoot.get("active")), cb.isNull(bcRoot.get("active")))
+				);
+				Predicate hasLegacyBarcode = cb.and(cb.isNotNull(root.get("barcode")), cb.notEqual(root.get("barcode"), ""));
+				predicate = cb.and(predicate, cb.or(cb.exists(hasItemBarcode), hasLegacyBarcode));
+			}
 
 			if (StringUtils.hasText(search)) {
 				String likeValue = "%" + search.toLowerCase() + "%";

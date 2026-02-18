@@ -833,6 +833,19 @@ public class ZZDataInitializer {
 			generalSetupRepository.save(enableCashDiscrepancyCheck);
 		}
 
+		// Plafond espèce (cash ceiling in TND) - empty = no limit
+		if (!generalSetupRepository.findByCode("PLAFOND_ESPECE").isPresent()) {
+			GeneralSetup plafondEspece = new GeneralSetup();
+			plafondEspece.setCode("PLAFOND_ESPECE");
+			plafondEspece.setValeur("");
+			plafondEspece.setDescription("Plafond espèce (TND). Empty = no limit. When set (e.g. 1000), maximum cash amount allowed per sale in TND.");
+			plafondEspece.setReadOnly(false);
+			plafondEspece.setActive(true);
+			plafondEspece.setCreatedBy("System");
+			plafondEspece.setUpdatedBy("System");
+			generalSetupRepository.save(plafondEspece);
+		}
+
 	}
 
 	private void ensureErpSyncCheckpointConfigs() {
