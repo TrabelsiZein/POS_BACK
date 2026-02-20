@@ -245,7 +245,13 @@ public class TicketExportService {
 		ErpTicketLineDTO dto = new ErpTicketLineDTO();
 
 		if (line.getItem() != null) {
-			dto.setItemExternalId(line.getItem().getItemCode());
+			// Tax stamp item: export using ERP code from GeneralSetup so ERP recognizes the line
+			if ("TAX_STAMP".equals(line.getItem().getItemCode())) {
+				String erpCode = generalSetupService.findValueByCode("TAX_STAMP_ERP_ITEM_CODE");
+				dto.setItemExternalId(erpCode != null && !erpCode.isEmpty() ? erpCode : "TAX_STAMP");
+			} else {
+				dto.setItemExternalId(line.getItem().getItemCode());
+			}
 		}
 
 		dto.setQuantity(BigDecimal.valueOf(line.getQuantity()));

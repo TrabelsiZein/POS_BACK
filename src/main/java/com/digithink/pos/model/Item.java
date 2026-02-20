@@ -69,4 +69,11 @@ public class Item extends _BaseEntity {
 	@ManyToOne
 	@JoinColumn(name = "item_sub_family_id")
 	private ItemSubFamily itemSubFamily;
+
+	/**
+	 * When false, item is hidden from POS (e.g. system items like Tax Stamp).
+	 * Default true for normal products.
+	 */
+	@Column(name = "show_in_pos", nullable = false)
+	private Boolean showInPos = true;
 }

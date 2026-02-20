@@ -45,6 +45,7 @@ import com.digithink.pos.repository.ItemSubFamilyRepository;
 import com.digithink.pos.repository.LocationRepository;
 import com.digithink.pos.repository.SalesDiscountRepository;
 import com.digithink.pos.repository.SalesPriceRepository;
+import com.digithink.pos.service.GeneralSetupService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -64,6 +65,7 @@ public class ErpItemBootstrapService {
 	private final SalesPriceRepository salesPriceRepository;
 	private final SalesDiscountRepository salesDiscountRepository;
 	private final ErpCommunicationService communicationService;
+	private final GeneralSetupService generalSetupService;
 
 	@Transactional
 	public List<ItemFamily> importItemFamilies(List<ErpItemFamilyDTO> families) {
@@ -147,8 +149,14 @@ public class ErpItemBootstrapService {
 		}
 
 		List<Item> persisted = new ArrayList<>();
+		String taxStampErpCode = generalSetupService.findValueByCode("TAX_STAMP_ERP_ITEM_CODE");
 		for (ErpItemDTO dto : items) {
 			if (dto == null) {
+				continue;
+			}
+			// Skip ERP item that is configured as tax stamp; we use the local TAX_STAMP item instead
+			if (StringUtils.hasText(taxStampErpCode) && taxStampErpCode.equals(dto.getCode())) {
+				LOGGER.debug("Skipping ERP item with code {} (tax stamp item - using local TAX_STAMP)", taxStampErpCode);
 				continue;
 			}
 			Item entity = resolveItem(dto);

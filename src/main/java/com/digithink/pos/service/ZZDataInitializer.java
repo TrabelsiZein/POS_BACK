@@ -96,6 +96,9 @@ public class ZZDataInitializer {
 		if (erpSyncJobRepository.count() == 0) {
 			initErpSyncJobs();
 		}
+
+		// Ensure tax stamp item exists (idempotent)
+		ensureTaxStampItem();
 	}
 
 	/**
@@ -846,6 +849,62 @@ public class ZZDataInitializer {
 			generalSetupRepository.save(plafondEspece);
 		}
 
+		// Tax stamp (timbre fiscal) - Tunisia: 100 millimes per receipt
+		if (!generalSetupRepository.findByCode("ENABLE_TAX_STAMP").isPresent()) {
+			GeneralSetup enableTaxStamp = new GeneralSetup();
+			enableTaxStamp.setCode("ENABLE_TAX_STAMP");
+			enableTaxStamp.setValeur("false");
+			enableTaxStamp.setDescription("Enable tax stamp (timbre fiscal) per receipt. When true, adds configured amount (e.g. 100 millimes in Tunisia) as a line per sale.");
+			enableTaxStamp.setReadOnly(false);
+			enableTaxStamp.setActive(true);
+			enableTaxStamp.setCreatedBy("System");
+			enableTaxStamp.setUpdatedBy("System");
+			generalSetupRepository.save(enableTaxStamp);
+		}
+		if (!generalSetupRepository.findByCode("TAX_STAMP_VALUE_MILLIMES").isPresent()) {
+			GeneralSetup taxStampValue = new GeneralSetup();
+			taxStampValue.setCode("TAX_STAMP_VALUE_MILLIMES");
+			taxStampValue.setValeur("100");
+			taxStampValue.setDescription("Tax stamp amount in millimes (e.g. 100 = 0.100 TND per receipt).");
+			taxStampValue.setReadOnly(false);
+			taxStampValue.setActive(true);
+			taxStampValue.setCreatedBy("System");
+			taxStampValue.setUpdatedBy("System");
+			generalSetupRepository.save(taxStampValue);
+		}
+		if (!generalSetupRepository.findByCode("TAX_STAMP_ERP_ITEM_CODE").isPresent()) {
+			GeneralSetup taxStampErpCode = new GeneralSetup();
+			taxStampErpCode.setCode("TAX_STAMP_ERP_ITEM_CODE");
+			taxStampErpCode.setValeur("");
+			taxStampErpCode.setDescription("ERP item code for tax stamp. Used when exporting ticket lines to ERP. Leave empty if not using ERP or not configured.");
+			taxStampErpCode.setReadOnly(false);
+			taxStampErpCode.setActive(true);
+			taxStampErpCode.setCreatedBy("System");
+			taxStampErpCode.setUpdatedBy("System");
+			generalSetupRepository.save(taxStampErpCode);
+		}
+	}
+
+	/**
+	 * Ensures the system Tax Stamp item exists (hidden in POS, used for timbre fiscal line).
+	 * Run on every startup so new deployments get the item even if migration already ran.
+	 */
+	private void ensureTaxStampItem() {
+		if (itemRepository.findByItemCode("TAX_STAMP").isPresent()) {
+			return;
+		}
+		com.digithink.pos.model.Item taxStamp = new com.digithink.pos.model.Item();
+		taxStamp.setItemCode("TAX_STAMP");
+		taxStamp.setName("Tax Stamp");
+		taxStamp.setDescription("Tax stamp (timbre fiscal) - not shown in POS");
+		taxStamp.setUnitPrice(0.1); // 100 millimes = 0.1 TND default
+		taxStamp.setShowInPos(false);
+		taxStamp.setActive(true);
+		taxStamp.setCreatedBy("System");
+		taxStamp.setUpdatedBy("System");
+		taxStamp.setCreatedAt(LocalDateTime.now());
+		taxStamp.setUpdatedAt(LocalDateTime.now());
+		itemRepository.save(taxStamp);
 	}
 
 	private void ensureErpSyncCheckpointConfigs() {

@@ -205,6 +205,42 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			log.info("Sales line created: " + salesLine.getId());
 		}
 
+		// Tax stamp (timbre fiscal) - add one line per receipt when enabled (e.g. Tunisia 100 millimes)
+		Optional<GeneralSetup> enableTaxStampOpt = generalSetupRepository.findByCode("ENABLE_TAX_STAMP");
+		if (enableTaxStampOpt.isPresent() && "true".equalsIgnoreCase(enableTaxStampOpt.get().getValeur())) {
+			Optional<Item> taxStampItemOpt = itemRepository.findByItemCode("TAX_STAMP");
+			if (taxStampItemOpt.isPresent()) {
+				String valueStr = generalSetupRepository.findByCode("TAX_STAMP_VALUE_MILLIMES")
+						.map(GeneralSetup::getValeur).orElse("100");
+				int millimes = 100;
+				try {
+					if (valueStr != null && !valueStr.trim().isEmpty()) {
+						millimes = Integer.parseInt(valueStr.trim());
+					}
+				} catch (NumberFormatException e) {
+					log.warn("Invalid TAX_STAMP_VALUE_MILLIMES: {}, using 100", valueStr);
+				}
+				double stampAmount = millimes / 1000.0; // millimes to TND
+				Item taxStampItem = taxStampItemOpt.get();
+				SalesLine taxStampLine = new SalesLine();
+				taxStampLine.setSalesHeader(salesHeader);
+				taxStampLine.setItem(taxStampItem);
+				taxStampLine.setQuantity(1);
+				taxStampLine.setUnitPrice(stampAmount);
+				taxStampLine.setLineTotal(stampAmount);
+				taxStampLine.setVatPercent(0);
+				taxStampLine.setVatAmount(0.0);
+				taxStampLine.setUnitPriceIncludingVat(stampAmount);
+				taxStampLine.setLineTotalIncludingVat(stampAmount);
+				taxStampLine = salesLineService.save(taxStampLine);
+				salesLines.add(taxStampLine);
+				// Header totals are set from request; frontend includes tax stamp when enabled
+				log.info("Tax stamp line added: {} TND", stampAmount);
+			} else {
+				log.warn("Tax stamp enabled but TAX_STAMP item not found");
+			}
+		}
+
 		// Create payments (multiple payment methods support)
 		List<Payment> payments = new ArrayList<>();
 		Double totalPaid = 0.0;
