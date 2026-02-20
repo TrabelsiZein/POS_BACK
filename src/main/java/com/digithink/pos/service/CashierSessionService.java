@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.digithink.pos.dto.CloseSessionRequestDTO;
+import com.digithink.pos.dto.SessionCloseTicketDTO;
 import com.digithink.pos.dto.SessionDashboardDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Payment;
@@ -41,6 +42,7 @@ import com.digithink.pos.erp.repository.PaymentLineRepository;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -480,5 +482,79 @@ public class CashierSessionService extends _BaseService<CashierSession, Long> {
 		response.put("paymentLines", paymentLines);
 
 		return response;
+	}
+
+	/**
+	 * Build session close ticket DTO for printing (declared amounts only).
+	 * Used after closing a session to print the close ticket.
+	 */
+	public SessionCloseTicketDTO getSessionCloseTicketData(Long sessionId) {
+		CashierSession session = findById(sessionId)
+				.orElseThrow(() -> new IllegalArgumentException("Session not found"));
+		if (session.getStatus() != SessionStatus.CLOSED) {
+			throw new IllegalStateException("Session is not closed");
+		}
+
+		// Sales count (completed tickets only)
+		List<SalesHeader> sales = salesHeaderRepository.findByCashierSession(session).stream()
+				.filter(sale -> sale.getStatus() != TransactionStatus.PENDING &&
+						sale.getStatus() != TransactionStatus.CANCELLED)
+				.collect(Collectors.toList());
+		Long ticketsCount = (long) sales.size();
+
+		// Returns count
+		List<ReturnHeader> returns = returnHeaderRepository.findByCashierSession(session);
+		Long returnsCount = (long) returns.size();
+
+		// Declared amounts: from POS_USER cash count lines, grouped by payment method
+		List<SessionCashCount> cashCountLines = sessionCashCountRepository
+				.findByCashierSessionAndCounterType(session, CounterType.POS_USER);
+
+		Double totalDeclared = session.getPosUserClosureCash();
+		if (totalDeclared == null && cashCountLines != null && !cashCountLines.isEmpty()) {
+			totalDeclared = cashCountLines.stream()
+					.mapToDouble(line -> line.getLineTotal() != null ? line.getLineTotal() : 0.0)
+					.sum();
+		}
+		if (totalDeclared == null) {
+			totalDeclared = 0.0;
+		}
+
+		// Group by payment method: key = payment method name (or "Cash"), value = sum of lineTotal
+		Map<String, Double> methodToAmount = new HashMap<>();
+		if (cashCountLines != null) {
+			for (SessionCashCount line : cashCountLines) {
+				String name = (line.getPaymentMethod() != null && line.getPaymentMethod().getName() != null)
+						? line.getPaymentMethod().getName()
+						: "Cash";
+				Double amount = line.getLineTotal() != null ? line.getLineTotal() : 0.0;
+				methodToAmount.merge(name, amount, Double::sum);
+			}
+		}
+		// If no lines but we have posUserClosureCash (legacy close), show as single "Total" or "Cash"
+		if (methodToAmount.isEmpty() && session.getPosUserClosureCash() != null && session.getPosUserClosureCash() > 0) {
+			methodToAmount.put("Cash", session.getPosUserClosureCash());
+		}
+
+		List<SessionCloseTicketDTO.PaymentMethodAmount> paymentMethodAmounts = methodToAmount.entrySet().stream()
+				.sorted(Comparator.comparing(Map.Entry::getKey))
+				.map(e -> new SessionCloseTicketDTO.PaymentMethodAmount(e.getKey(), e.getValue()))
+				.collect(Collectors.toList());
+
+		String cashierName = session.getCashier() != null
+				? (session.getCashier().getFullName() != null ? session.getCashier().getFullName() : session.getCashier().getUsername())
+				: "N/A";
+
+		return SessionCloseTicketDTO.builder()
+				.sessionNumber(session.getSessionNumber())
+				.cashierName(cashierName)
+				.openedAt(session.getOpenedAt())
+				.closedAt(session.getClosedAt())
+				.openingCash(session.getOpeningCash())
+				.totalDeclared(totalDeclared)
+				.paymentMethodAmounts(paymentMethodAmounts)
+				.ticketsCount(ticketsCount)
+				.returnsCount(returnsCount)
+				.build();
 	}
 }

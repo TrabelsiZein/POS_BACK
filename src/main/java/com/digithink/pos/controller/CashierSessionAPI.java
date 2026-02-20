@@ -173,7 +173,8 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 				
 				CashierSession closedSession = service.closeSessionWithCashCount(
 					currentSession.get().getId(), closeRequest);
-				return ResponseEntity.ok(closedSession);
+				com.digithink.pos.dto.SessionCloseTicketDTO ticketData = service.getSessionCloseTicketData(closedSession.getId());
+				return ResponseEntity.ok(java.util.Map.of("session", closedSession, "sessionCloseTicket", ticketData));
 			} else {
 				// Legacy format (backward compatibility)
 				Double actualCash = null;
@@ -186,7 +187,8 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 				String notes = (String) request.get("notes");
 
 				CashierSession closedSession = service.closeSession(currentSession.get().getId(), actualCash, notes);
-				return ResponseEntity.ok(closedSession);
+				com.digithink.pos.dto.SessionCloseTicketDTO ticketData = service.getSessionCloseTicketData(closedSession.getId());
+				return ResponseEntity.ok(java.util.Map.of("session", closedSession, "sessionCloseTicket", ticketData));
 			}
 		} catch (CashDiscrepancyException e) {
 			log.warn("CashierSessionAPI::closeSession:cash discrepancy detected: " + e.getMessage());
@@ -292,7 +294,8 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 			}
 			
 			CashierSession closedSession = service.closeSessionWithCashCount(id, closeRequest);
-			return ResponseEntity.ok(closedSession);
+			com.digithink.pos.dto.SessionCloseTicketDTO ticketData = service.getSessionCloseTicketData(closedSession.getId());
+			return ResponseEntity.ok(java.util.Map.of("session", closedSession, "sessionCloseTicket", ticketData));
 		} catch (Exception e) {
 			log.error("CashierSessionAPI::closeSessionById:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
