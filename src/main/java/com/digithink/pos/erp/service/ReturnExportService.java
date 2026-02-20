@@ -81,14 +81,36 @@ public class ReturnExportService {
 		// Export lines that are not synched
 		exportReturnLines(returnHeader);
 
-		// Check if all lines are synched, then update header status
+		// Check if all lines are synched, then update header POS_Order in ERP and status
 		List<ReturnLine> allLines = returnLineRepository.findByReturnHeader(returnHeader);
 		boolean allLinesSynched = allLines.stream().allMatch(line -> Boolean.TRUE.equals(line.getSynched()));
 
 		if (allLinesSynched && !allLines.isEmpty()) {
-			returnHeader.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
-			returnHeaderRepository.save(returnHeader);
-			LOGGER.info("Return {} fully synchronized", returnHeader.getReturnNumber());
+			// Update POS_Order to true in ERP (like updateTicketStatus for tickets)
+			if (returnHeader.getErpNo() != null) {
+				try {
+					ErpOperationResult result = synchronizationManager.updateReturnStatus(returnHeader.getErpNo(), true);
+					if (result.isSuccess()) {
+						returnHeader.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
+						returnHeaderRepository.save(returnHeader);
+						LOGGER.info("Return {} fully synchronized", returnHeader.getReturnNumber());
+					} else {
+						LOGGER.error("Failed to update POS_Order for return {}: {}", returnHeader.getReturnNumber(),
+								result.getMessage());
+						returnHeader.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
+						returnHeaderRepository.save(returnHeader);
+					}
+				} catch (Exception ex) {
+					LOGGER.error("Failed to update POS_Order for return {}: {}", returnHeader.getReturnNumber(),
+							ex.getMessage(), ex);
+					returnHeader.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
+					returnHeaderRepository.save(returnHeader);
+				}
+			} else {
+				returnHeader.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
+				returnHeaderRepository.save(returnHeader);
+				LOGGER.info("Return {} fully synchronized (no ERP document number)", returnHeader.getReturnNumber());
+			}
 		} else if (!allLines.isEmpty()) {
 			returnHeader.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
 			returnHeaderRepository.save(returnHeader);
@@ -243,6 +265,11 @@ public class ReturnExportService {
 		// Set original sales line number if available
 		if (line.getOriginalSalesLine() != null && line.getOriginalSalesLine().getSalesHeader() != null) {
 			dto.setOriginalSalesLineNumber(line.getOriginalSalesLine().getSalesHeader().getSalesNumber());
+		}
+
+		String locationCode = generalSetupService.findValueByCode("DEFAULT_LOCATION");
+		if (locationCode != null) {
+			dto.setLocationCode(locationCode);
 		}
 
 		return dto;

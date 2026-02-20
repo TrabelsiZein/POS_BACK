@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.digithink.pos.dto.PrepareInvoiceRequestDTO;
 import com.digithink.pos.dto.ProcessSaleRequestDTO;
 import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.SalesHeader;
@@ -361,6 +362,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 				ticketMap.put("paymentsCount", payments.size());
 				ticketMap.put("synchronizationStatus", ticket.getSynchronizationStatus());
 				ticketMap.put("erpNo", ticket.getErpNo());
+				ticketMap.put("invoiced", ticket.getInvoiced());
+				ticketMap.put("fiscalRegistration", ticket.getFiscalRegistration());
 
 				result.add(ticketMap);
 			}
@@ -368,6 +371,35 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			return ResponseEntity.ok(result);
 		} catch (Exception e) {
 			log.error("SalesHeaderAPI::getTicketsHistory:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Prepare invoice for a completed ticket (set invoiced=true and fiscal registration).
+	 * Sync to ERP happens via existing sync tasks when ERP is available.
+	 */
+	@PostMapping("/{id}/prepare-invoice")
+	public ResponseEntity<?> prepareInvoice(@PathVariable Long id, @RequestBody PrepareInvoiceRequestDTO request) {
+		try {
+			log.info("SalesHeaderAPI::prepareInvoice: " + id);
+			if (request == null || request.getFiscalRegistration() == null
+					|| request.getFiscalRegistration().trim().isEmpty()) {
+				return ResponseEntity.badRequest().body(createErrorResponse("Fiscal Registration is mandatory"));
+			}
+			SalesHeader updated = service.prepareInvoice(id, request.getFiscalRegistration().trim());
+			Map<String, Object> response = new HashMap<>();
+			response.put("id", updated.getId());
+			response.put("invoiced", updated.getInvoiced());
+			response.put("fiscalRegistration", updated.getFiscalRegistration());
+			response.put("synchronizationStatus", updated.getSynchronizationStatus());
+			return ResponseEntity.ok(response);
+		} catch (IllegalArgumentException e) {
+			log.error("SalesHeaderAPI::prepareInvoice: " + e.getMessage(), e);
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::prepareInvoice:error: " + getDetailedMessage(e), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(createErrorResponse(getDetailedMessage(e)));
 		}
@@ -408,6 +440,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			ticketMap.put("customer", ticket.getCustomer());
 			ticketMap.put("synchronizationStatus", ticket.getSynchronizationStatus());
 			ticketMap.put("erpNo", ticket.getErpNo());
+			ticketMap.put("invoiced", ticket.getInvoiced());
+			ticketMap.put("fiscalRegistration", ticket.getFiscalRegistration());
 			ticketMap.put("salesLines", salesLines);
 			ticketMap.put("payments", payments);
 

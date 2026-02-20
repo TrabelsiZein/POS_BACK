@@ -22,6 +22,7 @@ import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
+import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.CashierSessionRepository;
 import com.digithink.pos.repository.CustomerRepository;
@@ -987,5 +988,31 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine.setLineTotalIncludingVat(
 					lineTotalHT + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
 		}
+	}
+
+	/**
+	 * Prepare invoice for a completed ticket: set invoiced=true and fiscal registration.
+	 * If the ticket was TOTALLY_SYNCHED, set status to PARTIALLY_SYNCHED so the sync job
+	 * will push POS_Invoice and Fiscal_Registration to ERP when available (offline-safe).
+	 */
+	@Transactional
+	public SalesHeader prepareInvoice(Long ticketId, String fiscalRegistration) {
+		if (fiscalRegistration == null || fiscalRegistration.trim().isEmpty()) {
+			throw new IllegalArgumentException("Fiscal Registration is mandatory for preparing an invoice");
+		}
+		SalesHeader ticket = salesHeaderRepository.findById(ticketId)
+				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+		if (ticket.getStatus() != TransactionStatus.COMPLETED) {
+			throw new IllegalArgumentException("Only completed tickets can be prepared for invoice");
+		}
+		if (Boolean.TRUE.equals(ticket.getInvoiced())) {
+			throw new IllegalArgumentException("Ticket is already marked as invoiced");
+		}
+		ticket.setInvoiced(true);
+		ticket.setFiscalRegistration(fiscalRegistration.trim());
+		if (ticket.getSynchronizationStatus() == SynchronizationStatus.TOTALLY_SYNCHED) {
+			ticket.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
+		}
+		return salesHeaderRepository.save(ticket);
 	}
 }

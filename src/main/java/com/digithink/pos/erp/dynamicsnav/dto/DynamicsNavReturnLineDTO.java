@@ -35,6 +35,9 @@ public class DynamicsNavReturnLineDTO {
 	@JsonProperty("Line_Discount_Percent")
 	private Double lineDiscountPercent;
 
+	@JsonProperty("Location_Code")
+	private String locationCode;
+
 	// Getters and setters
 	public String getDocumentType() {
 		return documentType;
@@ -107,4 +110,13 @@ public class DynamicsNavReturnLineDTO {
 	public void setLineDiscountPercent(Double lineDiscountPercent) {
 		this.lineDiscountPercent = lineDiscountPercent;
 	}
+
+	public String getLocationCode() {
+		return locationCode;
+	}
+
+	public void setLocationCode(String locationCode) {
+		this.locationCode = locationCode;
+	}
+
 }

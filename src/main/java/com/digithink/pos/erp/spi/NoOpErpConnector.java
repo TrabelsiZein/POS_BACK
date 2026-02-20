@@ -91,7 +91,7 @@ public class NoOpErpConnector implements ErpConnector {
 	}
 
 	@Override
-	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
 		return ErpOperationResult.failure("ERP connector not configured");
 	}
 
@@ -114,6 +114,11 @@ public class NoOpErpConnector implements ErpConnector {
 	public ErpOperationResult pushReturnLine(ErpReturnDTO returnDTO, String externalReference,
 			ErpReturnLineDTO lineDTO) {
 		return ErpOperationResult.failure("Return line export not yet implemented");
+	}
+
+	@Override
+	public ErpOperationResult updateReturnStatus(String externalReference, boolean posOrder) {
+		return ErpOperationResult.failure("ERP connector not configured");
 	}
 }
 

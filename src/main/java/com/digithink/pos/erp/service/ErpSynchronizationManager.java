@@ -117,7 +117,10 @@ public class ErpSynchronizationManager {
 	}
 
 	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
-		// Create a payload object for logging
+		return updateTicketStatus(externalReference, posOrder, null, null);
+	}
+
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
 		Object payload = new Object() {
 			public String getExternalReference() {
 				return externalReference;
@@ -126,10 +129,17 @@ public class ErpSynchronizationManager {
 			public boolean getPosOrder() {
 				return posOrder;
 			}
-		};
 
+			public Boolean getPosInvoice() {
+				return posInvoice;
+			}
+
+			public String getFiscalRegistration() {
+				return fiscalRegistration;
+			}
+		};
 		return executePushOperation(ErpSyncOperation.UPDATE_TICKET, payload,
-				() -> erpConnector.updateTicketStatus(externalReference, posOrder));
+				() -> erpConnector.updateTicketStatus(externalReference, posOrder, posInvoice, fiscalRegistration));
 	}
 
 	public ErpOperationResult pushPaymentHeader(ErpPaymentHeaderDTO headerDTO) {
@@ -178,6 +188,20 @@ public class ErpSynchronizationManager {
 
 		return executePushOperation(ErpSyncOperation.EXPORT_RETURN_LINE, payload,
 				() -> erpConnector.pushReturnLine(returnDTO, externalReference, lineDTO));
+	}
+
+	public ErpOperationResult updateReturnStatus(String externalReference, boolean posOrder) {
+		Object payload = new Object() {
+			public String getExternalReference() {
+				return externalReference;
+			}
+
+			public boolean getPosOrder() {
+				return posOrder;
+			}
+		};
+		return executePushOperation(ErpSyncOperation.UPDATE_RETURN, payload,
+				() -> erpConnector.updateReturnStatus(externalReference, posOrder));
 	}
 
 	public ErpOperationResult pushSession(ErpSessionDTO sessionDTO) {

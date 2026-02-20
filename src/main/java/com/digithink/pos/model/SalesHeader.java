@@ -83,4 +83,10 @@ public class SalesHeader extends _BaseEntity {
 	private SynchronizationStatus synchronizationStatus = SynchronizationStatus.NOT_SYNCHED;
 
 	private String erpNo; // Document_No from Dynamics NAV
+
+	/** True when customer requested an invoice (Prepare Invoice) and fiscal registration was set */
+	private Boolean invoiced = false;
+
+	/** Fiscal registration number set when preparing invoice (mandatory for invoice) */
+	private String fiscalRegistration;
 }

@@ -441,15 +441,30 @@ public class DynamicsNavRestClient {
 	 * method to update only the POS_Order field
 	 */
 	public DynamicsNavSalesOrderHeaderDTO updateSalesOrderHeaderPosOrder(String documentNo, boolean posOrder) {
+		return updateSalesOrderHeaderStatus(documentNo, posOrder, null, null);
+	}
+
+	/**
+	 * Update ticket header fields in Dynamics NAV (POS_Order, POS_Invoice,
+	 * Fiscal_Registration). Only non-null invoice fields are included in the PATCH.
+	 */
+	public DynamicsNavSalesOrderHeaderDTO updateSalesOrderHeaderStatus(String documentNo, boolean posOrder,
+			Boolean posInvoice, String fiscalRegistration) {
 		try {
 			// Build URL for specific document - escape the document number for URL
 			String escapedDocNo = documentNo.replace("'", "''");
 			String url = buildCompanyEndpointUrl("SalesOrdersPos") + "(No='" + escapedDocNo
 					+ "',Document_Type='Order')";
 
-			// Create a minimal JSON object with only POS_Order field
-			JsonNode updatePayload = objectMapper.createObjectNode().put("POS_Order", posOrder);
-			String jsonPayload = objectMapper.writeValueAsString(updatePayload);
+			com.fasterxml.jackson.databind.node.ObjectNode node = objectMapper.createObjectNode();
+			node.put("POS_Order", posOrder);
+			if (posInvoice != null) {
+				node.put("POS_Invoice", posInvoice);
+			}
+			if (fiscalRegistration != null) {
+				node.put("Fiscal_Registration", fiscalRegistration);
+			}
+			String jsonPayload = objectMapper.writeValueAsString(node);
 
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
@@ -648,6 +663,43 @@ public class DynamicsNavRestClient {
 		} catch (RestClientException ex) {
 			LOGGER.error("Failed to create return line in Dynamics NAV: {}", ex.getMessage(), ex);
 			throw ex;
+		}
+	}
+
+	/**
+	 * Update POS_Order field on return header in Dynamics NAV (PATCH).
+	 * Call after all return lines are synched.
+	 */
+	public DynamicsNavReturnHeaderDTO updateReturnHeaderPosOrder(String documentNo, boolean posOrder) {
+		try {
+			String escapedDocNo = documentNo.replace("'", "''");
+			String url = buildCompanyEndpointUrl("SalesReturnPOS") + "(No='" + escapedDocNo
+					+ "',Document_Type='Return Order')";
+
+			com.fasterxml.jackson.databind.node.ObjectNode node = objectMapper.createObjectNode();
+			node.put("POS_Order", posOrder);
+			String jsonPayload = objectMapper.writeValueAsString(node);
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setIfMatch("*");
+			HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
+
+			ResponseEntity<DynamicsNavReturnHeaderDTO> responseDto = dynamicsNavRestTemplate.exchange(url,
+					HttpMethod.PATCH, request, DynamicsNavReturnHeaderDTO.class);
+			LOGGER.info("Updated POS_Order to {} for return document {}", posOrder, documentNo);
+			return responseDto.getBody();
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String errorMessage = extractErrorMessage(ex);
+			LOGGER.error("Failed to update POS_Order for return document {}: {} - {}", documentNo, ex.getStatusCode(),
+					errorMessage, ex);
+			throw new RuntimeException("Failed to update return POS_Order: " + ex.getStatusCode() + " " + errorMessage, ex);
+		} catch (RestClientException ex) {
+			LOGGER.error("Failed to update POS_Order for return document {}: {}", documentNo, ex.getMessage(), ex);
+			throw new RuntimeException("Failed to update return POS_Order: " + ex.getMessage(), ex);
+		} catch (Exception ex) {
+			LOGGER.error("Failed to update POS_Order for return document {}: {}", documentNo, ex.getMessage(), ex);
+			throw new RuntimeException("Failed to update return POS_Order: " + ex.getMessage(), ex);
 		}
 	}
 

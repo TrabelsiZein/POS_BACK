@@ -86,10 +86,13 @@ public class TicketExportService {
 		boolean allLinesSynched = allLines.stream().allMatch(SalesLine::getSynched);
 
 		if (allLinesSynched && !allLines.isEmpty()) {
-			// Update POS_Order to true in ERP
+			// Update POS_Order (and POS_Invoice, Fiscal_Registration when invoiced) in ERP
 			if (ticket.getErpNo() != null) {
 				try {
-					ErpOperationResult result = synchronizationManager.updateTicketStatus(ticket.getErpNo(), true);
+					Boolean posInvoice = Boolean.TRUE.equals(ticket.getInvoiced()) ? true : null;
+					String fiscalRegistration = (ticket.getFiscalRegistration() != null && !ticket.getFiscalRegistration().trim().isEmpty())
+							? ticket.getFiscalRegistration().trim() : null;
+					ErpOperationResult result = synchronizationManager.updateTicketStatus(ticket.getErpNo(), true, posInvoice, fiscalRegistration);
 					if (result.isSuccess()) {
 						// After POS_Order update succeeds, mark ticket as totally synchronized
 						ticket.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
@@ -227,6 +230,12 @@ public class TicketExportService {
 		// Set total amount
 		if (ticket.getTotalAmount() != null) {
 			dto.setTotalAmount(BigDecimal.valueOf(ticket.getTotalAmount()));
+		}
+
+		// Invoice fields for NAV (POS_Invoice, Fiscal_Registration)
+		dto.setPosInvoice(Boolean.TRUE.equals(ticket.getInvoiced()));
+		if (ticket.getFiscalRegistration() != null && !ticket.getFiscalRegistration().trim().isEmpty()) {
+			dto.setFiscalRegistration(ticket.getFiscalRegistration().trim());
 		}
 
 		// Convert lines

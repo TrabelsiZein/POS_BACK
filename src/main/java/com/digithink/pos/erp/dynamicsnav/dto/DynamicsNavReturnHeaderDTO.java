@@ -34,6 +34,9 @@ public class DynamicsNavReturnHeaderDTO {
 	@JsonProperty("Ticket_Amount")
 	private Double ticketAmount;
 
+	@JsonProperty("POS_Order")
+	private Boolean posOrder;
+
 	// Getters and setters
 	public String getDocumentType() {
 		return documentType;
@@ -99,6 +102,14 @@ public class DynamicsNavReturnHeaderDTO {
 
 	public void setTicketAmount(Double ticketAmount) {
 		this.ticketAmount = ticketAmount;
+	}
+
+	public Boolean getPosOrder() {
+		return posOrder;
+	}
+
+	public void setPosOrder(Boolean posOrder) {
+		this.posOrder = posOrder;
 	}
 }
 

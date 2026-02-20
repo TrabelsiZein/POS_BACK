@@ -96,6 +96,9 @@ public class ErpJobStatisticsService {
 			// EXPORT_TICKETS job generates multiple operations
 			return Arrays.asList(ErpSyncOperation.EXPORT_TICKET, ErpSyncOperation.EXPORT_TICKET_LINE,
 					ErpSyncOperation.UPDATE_TICKET);
+		case EXPORT_RETURNS:
+			return Arrays.asList(ErpSyncOperation.EXPORT_RETURN, ErpSyncOperation.EXPORT_RETURN_LINE,
+					ErpSyncOperation.UPDATE_RETURN);
 		default:
 			return new ArrayList<>();
 		}

@@ -76,9 +76,14 @@ public interface ErpConnector {
 	ErpOperationResult pushTicketLine(ErpTicketDTO ticket, String externalReference, ErpTicketLineDTO line);
 
 	/**
-	 * Update ticket status in ERP (e.g., POS_Order flag)
+	 * Update ticket status in ERP (e.g., POS_Order flag). Optional POS_Invoice and Fiscal_Registration when preparing invoice.
 	 */
-	ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder);
+	ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration);
+
+	/** Delegates to {@link #updateTicketStatus(String, boolean, Boolean, String)} with null invoice fields */
+	default ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
+		return updateTicketStatus(externalReference, posOrder, null, null);
+	}
 
 	/**
 	 * Push payment header to ERP and return external reference (document number)
@@ -107,6 +112,11 @@ public interface ErpConnector {
 		// Stub implementation - to be implemented with NAV later
 		return ErpOperationResult.failure("Return line export not yet implemented");
 	}
+
+	/**
+	 * Update return header status in ERP (e.g. POS_Order = true after all lines are synched).
+	 */
+	ErpOperationResult updateReturnStatus(String externalReference, boolean posOrder);
 
 	/**
 	 * Push cashier session to ERP and return external reference (document number)

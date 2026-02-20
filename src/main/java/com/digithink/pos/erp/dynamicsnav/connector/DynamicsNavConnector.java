@@ -281,42 +281,37 @@ public class DynamicsNavConnector implements ErpConnector {
 	}
 
 	@Override
-	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
-		// Create minimal update payload (only POS_Order field as JSON)
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
 		ObjectMapper objectMapper = new ObjectMapper();
 		ObjectNode updatePayload = objectMapper.createObjectNode();
 		updatePayload.put("POS_Order", posOrder);
+		if (posInvoice != null) {
+			updatePayload.put("POS_Invoice", posInvoice);
+		}
+		if (fiscalRegistration != null) {
+			updatePayload.put("Fiscal_Registration", fiscalRegistration);
+		}
 
-		// Build URL for logging (escape document number for URL)
 		String escapedDocNo = externalReference != null ? externalReference.replace("'", "''") : "";
 		String url = buildSalesOrdersPosUrl() + "(No='" + escapedDocNo + "',Document_Type='Order')";
 
 		try {
-			// Update POS_Order flag in NAV
-			DynamicsNavSalesOrderHeaderDTO responseDto = restClient.updateSalesOrderHeaderPosOrder(externalReference,
-					posOrder);
-
+			DynamicsNavSalesOrderHeaderDTO responseDto = restClient.updateSalesOrderHeaderStatus(externalReference,
+					posOrder, posInvoice, fiscalRegistration);
 			return ErpOperationResult.success(externalReference, updatePayload, responseDto, url);
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
-			// Extract clean error message and response body
 			String cleanErrorMessage = extractCleanErrorMessage(ex);
 			String responseBody = ex.getResponseBodyAsString();
-
 			return ErpOperationResult.failure(cleanErrorMessage, updatePayload, responseBody, url);
 		} catch (Exception ex) {
-			// Check if exception or its cause is an HTTP exception
 			HttpStatusCodeException httpEx = extractHttpException(ex);
 			if (httpEx != null) {
-				// Extract clean error message and response body from HTTP exception
 				String cleanErrorMessage = extractCleanErrorMessage(httpEx);
 				String responseBody = httpEx.getResponseBodyAsString();
 				return ErpOperationResult.failure(cleanErrorMessage, updatePayload, responseBody, url);
 			}
-
-			// For non-HTTP exceptions, extract response body if available
 			String responseBody = extractResponseBodyFromException(ex);
 			String errorMessage = ex.getMessage();
-
 			return ErpOperationResult.failure("Failed to update ticket status: " + errorMessage, updatePayload,
 					responseBody, url);
 		}
@@ -634,6 +629,36 @@ public class DynamicsNavConnector implements ErpConnector {
 
 			return ErpOperationResult.failure("Failed to create return line: " + errorMessage, navLineDTO, responseBody,
 					url);
+		}
+	}
+
+	@Override
+	public ErpOperationResult updateReturnStatus(String externalReference, boolean posOrder) {
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode updatePayload = objectMapper.createObjectNode();
+		updatePayload.put("POS_Order", posOrder);
+
+		String escapedDocNo = externalReference != null ? externalReference.replace("'", "''") : "";
+		String url = buildSalesReturnPosUrl() + "(No='" + escapedDocNo + "',Document_Type='Return Order')";
+
+		try {
+			DynamicsNavReturnHeaderDTO responseDto = restClient.updateReturnHeaderPosOrder(externalReference, posOrder);
+			return ErpOperationResult.success(externalReference, updatePayload, responseDto, url);
+		} catch (HttpClientErrorException | HttpServerErrorException ex) {
+			String cleanErrorMessage = extractCleanErrorMessage(ex);
+			String responseBody = ex.getResponseBodyAsString();
+			return ErpOperationResult.failure(cleanErrorMessage, updatePayload, responseBody, url);
+		} catch (Exception ex) {
+			HttpStatusCodeException httpEx = extractHttpException(ex);
+			if (httpEx != null) {
+				String cleanErrorMessage = extractCleanErrorMessage(httpEx);
+				String responseBody = httpEx.getResponseBodyAsString();
+				return ErpOperationResult.failure(cleanErrorMessage, updatePayload, responseBody, url);
+			}
+			String responseBody = extractResponseBodyFromException(ex);
+			String errorMessage = ex.getMessage();
+			return ErpOperationResult.failure("Failed to update return status: " + errorMessage, updatePayload,
+					responseBody, url);
 		}
 	}
 

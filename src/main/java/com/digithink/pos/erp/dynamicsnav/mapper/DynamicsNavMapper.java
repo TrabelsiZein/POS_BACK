@@ -319,8 +319,17 @@ public class DynamicsNavMapper {
 			dto.setTicketAmount(ticket.getTotalAmount().doubleValue());
 		}
 
-		// Set POS_Order to false initially
+		// Set POS_Order to false initially (sync task sets to true when all lines
+		// synched)
 		dto.setPosOrder(false);
+
+		// POS_Invoice and Fiscal_Registration (from Prepare Invoice)
+		if (ticket.getPosInvoice() != null) {
+			dto.setPosInvoice(ticket.getPosInvoice());
+		}
+		if (ticket.getFiscalRegistration() != null) {
+			dto.setFiscalRegistration(ticket.getFiscalRegistration());
+		}
 
 		return dto;
 	}
@@ -452,6 +461,10 @@ public class DynamicsNavMapper {
 		// Set line discount percentage from original sales line
 		if (line.getDiscountPercentage() != null) {
 			dto.setLineDiscountPercent(line.getDiscountPercentage().doubleValue());
+		}
+
+		if (line.getLocationCode() != null) {
+			dto.setLocationCode(line.getLocationCode());
 		}
 
 		return dto;

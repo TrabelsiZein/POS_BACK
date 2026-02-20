@@ -21,6 +21,8 @@ public class ErpTicketDTO {
 	private String responsibilityCenter;
 	private String cashierSessionId;
 	private Double discountPercentage;
+	private Boolean posInvoice;
+	private String fiscalRegistration;
 
 	public String getExternalId() {
 		return externalId;
@@ -116,6 +118,22 @@ public class ErpTicketDTO {
 
 	public void setDiscountPercentage(Double discountPercentage) {
 		this.discountPercentage = discountPercentage;
+	}
+
+	public Boolean getPosInvoice() {
+		return posInvoice;
+	}
+
+	public void setPosInvoice(Boolean posInvoice) {
+		this.posInvoice = posInvoice;
+	}
+
+	public String getFiscalRegistration() {
+		return fiscalRegistration;
+	}
+
+	public void setFiscalRegistration(String fiscalRegistration) {
+		this.fiscalRegistration = fiscalRegistration;
 	}
 }
 
