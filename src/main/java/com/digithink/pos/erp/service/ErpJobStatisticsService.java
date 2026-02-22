@@ -90,6 +90,8 @@ public class ErpJobStatisticsService {
 			return Arrays.asList(ErpSyncOperation.IMPORT_CUSTOMERS);
 		case IMPORT_SALES_PRICES_AND_DISCOUNTS:
 			return Arrays.asList(ErpSyncOperation.IMPORT_SALES_PRICES, ErpSyncOperation.IMPORT_SALES_DISCOUNTS);
+		case SYNC_ERP_DELETIONS:
+			return Arrays.asList(ErpSyncOperation.SYNC_ERP_DELETIONS);
 		case EXPORT_CUSTOMERS:
 			return Arrays.asList(ErpSyncOperation.EXPORT_CUSTOMER);
 		case EXPORT_TICKETS:

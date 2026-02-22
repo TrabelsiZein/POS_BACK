@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.stereotype.Component;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
@@ -67,6 +68,11 @@ public class NoOpErpConnector implements ErpConnector {
 
 	@Override
 	public List<ErpSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<ErpDeletionLogEntryDTO> fetchDeletionLog(ErpSyncFilter filter) {
 		return Collections.emptyList();
 	}
 

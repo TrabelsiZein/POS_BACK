@@ -36,6 +36,7 @@ import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnLineDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLogEntryDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesDiscountDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavSalesOrderLineDTO;
@@ -321,6 +322,27 @@ public class DynamicsNavRestClient {
 					});
 		} catch (RuntimeException ex) {
 			LOGGER.error("Failed to fetch sales discounts from Dynamics NAV", ex);
+			throw ex;
+		}
+	}
+
+	/**
+	 * Fetches deletion log entries from Business Central Log API (company/Log).
+	 * Supports optional filter by Modified_At for incremental sync.
+	 */
+	public List<DynamicsNavLogEntryDTO> fetchDeletionLog(ErpSyncFilter filter) {
+		try {
+			UriComponentsBuilder builder = buildCompanyEndpointUriBuilder("Log");
+			Optional<String> dateFilter = buildUpdatedAfterFilter(filter, "Modified_At");
+			if (dateFilter.isPresent()) {
+				builder.queryParam("$filter", dateFilter.get());
+			}
+			String url = builder.build(false).toUriString();
+			return fetchAllWithPagination(url,
+					new ParameterizedTypeReference<DynamicsNavCollectionResponse<DynamicsNavLogEntryDTO>>() {
+					});
+		} catch (RuntimeException ex) {
+			LOGGER.error("Failed to fetch deletion log from Dynamics NAV", ex);
 			throw ex;
 		}
 	}

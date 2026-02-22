@@ -9,6 +9,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
@@ -28,6 +29,7 @@ import com.digithink.pos.erp.dto.ErpTicketLineDTO;
 import com.digithink.pos.erp.dto.PullOperationResult;
 import com.digithink.pos.erp.dynamicsnav.client.DynamicsNavRestClient;
 import com.digithink.pos.erp.dynamicsnav.config.DynamicsNavProperties;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLogEntryDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavPaymentLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
@@ -154,6 +156,19 @@ public class DynamicsNavConnector implements ErpConnector {
 	public List<ErpSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter) {
 		try {
 			List<ErpSalesDiscountDTO> result = mapper.toSalesDiscountDTOs(restClient.fetchSalesDiscounts(filter));
+			storePullOperationMetadata(result);
+			return result;
+		} catch (Exception ex) {
+			storePullOperationMetadata(null);
+			throw ex;
+		}
+	}
+
+	@Override
+	public List<ErpDeletionLogEntryDTO> fetchDeletionLog(ErpSyncFilter filter) {
+		try {
+			List<DynamicsNavLogEntryDTO> navList = restClient.fetchDeletionLog(filter);
+			List<ErpDeletionLogEntryDTO> result = mapper.toErpDeletionLogEntryDTOs(navList);
 			storePullOperationMetadata(result);
 			return result;
 		} catch (Exception ex) {

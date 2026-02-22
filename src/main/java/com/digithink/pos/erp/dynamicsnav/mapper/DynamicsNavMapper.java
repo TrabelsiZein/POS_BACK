@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
@@ -20,6 +21,7 @@ import com.digithink.pos.erp.dto.ErpTicketLineDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavBarcodeDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavCustomerDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavFamilyDTO;
+import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLogEntryDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavLocationDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnHeaderDTO;
 import com.digithink.pos.erp.dynamicsnav.dto.DynamicsNavReturnLineDTO;
@@ -271,6 +273,98 @@ public class DynamicsNavMapper {
 				+ "|" + (auxiliaryIndex2 != null ? auxiliaryIndex2 : "") + "|"
 				+ (auxiliaryIndex3 != null ? auxiliaryIndex3 : "") + "|"
 				+ (auxiliaryIndex4 != null ? auxiliaryIndex4.toString() : "");
+	}
+
+	/**
+	 * Build Sales Price external ID from a Log entry. Returns null if entry is not
+	 * for Source_Table "Sales Price".
+	 */
+	public String buildSalesPriceExternalIdFromLogEntry(DynamicsNavLogEntryDTO entry) {
+		if (entry == null || !"Sales Price".equals(entry.getSourceTable())) {
+			return null;
+		}
+		return buildSalesPriceExternalId(entry.getItemNo(), entry.getSalesType(), entry.getSalesCode(),
+				entry.getResponsibilityCenter(), entry.getStartingDate(), entry.getCurrencyCode(),
+				entry.getVariantCode(), entry.getUnitOfMeasureCode(), entry.getMinimumQuantity());
+	}
+
+	/**
+	 * Build Sales Discount external ID from a Log entry. Returns null if entry is
+	 * not for Source_Table "Sales Discount".
+	 */
+	public String buildSalesDiscountExternalIdFromLogEntry(DynamicsNavLogEntryDTO entry) {
+		if (entry == null || !"Sales Discount".equals(entry.getSourceTable())) {
+			return null;
+		}
+		return buildSalesDiscountExternalId(entry.getType(), entry.getCode(), entry.getSalesType(),
+				entry.getSalesCode(), entry.getResponsibilityCenter(), entry.getStartingDate(),
+				entry.getAuxiliaryIndex1(), entry.getAuxiliaryIndex2(), entry.getAuxiliaryIndex3(),
+				entry.getAuxiliaryIndex4());
+	}
+
+	/**
+	 * Map a NAV log entry to the neutral ERP DTO.
+	 */
+	public ErpDeletionLogEntryDTO toErpDeletionLogEntryDTO(DynamicsNavLogEntryDTO nav) {
+		if (nav == null) {
+			return null;
+		}
+		ErpDeletionLogEntryDTO dto = new ErpDeletionLogEntryDTO();
+		dto.setSourceTable(nav.getSourceTable());
+		dto.setItemNo(nav.getItemNo());
+		dto.setLocationCode(nav.getLocationCode());
+		dto.setVariantCode(nav.getVariantCode());
+		dto.setSalesType(nav.getSalesType());
+		dto.setSalesCode(nav.getSalesCode());
+		dto.setStartingDate(nav.getStartingDate());
+		dto.setEndingDate(nav.getEndingDate());
+		dto.setResponsibilityCenter(nav.getResponsibilityCenter());
+		dto.setType(nav.getType());
+		dto.setCode(nav.getCode());
+		dto.setCurrencyCode(nav.getCurrencyCode());
+		dto.setUnitOfMeasureCode(nav.getUnitOfMeasureCode());
+		dto.setMinimumQuantity(nav.getMinimumQuantity());
+		dto.setAuxiliaryIndex1(nav.getAuxiliaryIndex1());
+		dto.setAuxiliaryIndex2(nav.getAuxiliaryIndex2());
+		dto.setAuxiliaryIndex3(nav.getAuxiliaryIndex3());
+		dto.setAuxiliaryIndex4(nav.getAuxiliaryIndex4());
+		dto.setModifiedAt(nav.getModifiedAt());
+		dto.setDeletedBy(nav.getDeletedBy());
+		return dto;
+	}
+
+	public List<ErpDeletionLogEntryDTO> toErpDeletionLogEntryDTOs(List<DynamicsNavLogEntryDTO> navList) {
+		if (navList == null) {
+			return List.of();
+		}
+		return navList.stream().map(this::toErpDeletionLogEntryDTO).toList();
+	}
+
+	/**
+	 * Build Sales Price external ID from an ERP log entry DTO. Returns null if entry
+	 * is not for Source_Table "Sales Price".
+	 */
+	public String buildSalesPriceExternalIdFromLogEntry(ErpDeletionLogEntryDTO entry) {
+		if (entry == null || !"Sales Price".equals(entry.getSourceTable())) {
+			return null;
+		}
+		return buildSalesPriceExternalId(entry.getItemNo(), entry.getSalesType(), entry.getSalesCode(),
+				entry.getResponsibilityCenter(), entry.getStartingDate(), entry.getCurrencyCode(),
+				entry.getVariantCode(), entry.getUnitOfMeasureCode(), entry.getMinimumQuantity());
+	}
+
+	/**
+	 * Build Sales Discount external ID from an ERP log entry DTO. Returns null if
+	 * entry is not for Source_Table "Sales Discount".
+	 */
+	public String buildSalesDiscountExternalIdFromLogEntry(ErpDeletionLogEntryDTO entry) {
+		if (entry == null || !"Sales Discount".equals(entry.getSourceTable())) {
+			return null;
+		}
+		return buildSalesDiscountExternalId(entry.getType(), entry.getCode(), entry.getSalesType(),
+				entry.getSalesCode(), entry.getResponsibilityCenter(), entry.getStartingDate(),
+				entry.getAuxiliaryIndex1(), entry.getAuxiliaryIndex2(), entry.getAuxiliaryIndex3(),
+				entry.getAuxiliaryIndex4());
 	}
 
 	/**

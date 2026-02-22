@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
@@ -32,6 +33,7 @@ public class ErpSyncJobRunner {
 	private final TicketExportService ticketExportService;
 	private final ReturnExportService returnExportService;
 	private final SessionExportService sessionExportService;
+	private final ErpDeletionSyncService erpDeletionSyncService;
 
 	public void run(ErpSyncJob job) {
 		ErpSyncJobType jobType = job.getJobType();
@@ -102,6 +104,10 @@ public class ErpSyncJobRunner {
 				break;
 			case EXPORT_SESSIONS:
 				sessionExportService.exportSessions();
+				break;
+			case SYNC_ERP_DELETIONS:
+				List<ErpDeletionLogEntryDTO> deletionEntries = erpDeletionSyncService.applyDeletionsFromLog(filter);
+				checkpointService.updateLastSync(jobType, deletionEntries);
 				break;
 			default:
 				LOGGER.warn("Unhandled ERP sync job type {} for job {}", jobType, job.getJobType());

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
@@ -78,6 +79,11 @@ public class ErpSynchronizationManager {
 	public List<ErpSalesDiscountDTO> pullSalesDiscounts(ErpSyncFilter filter) {
 		return executePullOperation(ErpSyncOperation.IMPORT_SALES_DISCOUNTS, filter,
 				() -> erpConnector.fetchSalesDiscounts(filter));
+	}
+
+	public List<ErpDeletionLogEntryDTO> pullDeletionLog(ErpSyncFilter filter) {
+		return executePullOperation(ErpSyncOperation.SYNC_ERP_DELETIONS, filter,
+				() -> erpConnector.fetchDeletionLog(filter));
 	}
 
 	public ErpOperationResult pushCustomer(ErpCustomerDTO customerDTO) {

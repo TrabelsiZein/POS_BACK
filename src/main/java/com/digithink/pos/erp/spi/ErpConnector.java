@@ -3,6 +3,7 @@ package com.digithink.pos.erp.spi;
 import java.util.List;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
+import com.digithink.pos.erp.dto.ErpDeletionLogEntryDTO;
 import com.digithink.pos.erp.dto.ErpItemBarcodeDTO;
 import com.digithink.pos.erp.dto.ErpItemDTO;
 import com.digithink.pos.erp.dto.ErpItemFamilyDTO;
@@ -41,6 +42,12 @@ public interface ErpConnector {
 	List<ErpSalesPriceDTO> fetchSalesPrices(ErpSyncFilter filter);
 
 	List<ErpSalesDiscountDTO> fetchSalesDiscounts(ErpSyncFilter filter);
+
+	/**
+	 * Fetch deletion log entries from ERP (e.g. Business Central Log API). Used to
+	 * remove from POS the records that were deleted in ERP.
+	 */
+	List<ErpDeletionLogEntryDTO> fetchDeletionLog(ErpSyncFilter filter);
 
 	/**
 	 * Get the result metadata from the last pull operation (for logging purposes).

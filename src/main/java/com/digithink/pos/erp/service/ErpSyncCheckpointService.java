@@ -43,6 +43,7 @@ public class ErpSyncCheckpointService {
 		jobToCode.put(ErpSyncJobType.IMPORT_LOCATIONS, "ERP_SYNC_LAST_LOCATION");
 		jobToCode.put(ErpSyncJobType.IMPORT_CUSTOMERS, "ERP_SYNC_LAST_CUSTOMER");
 		jobToCode.put(ErpSyncJobType.IMPORT_SALES_PRICES_AND_DISCOUNTS, "a");
+		jobToCode.put(ErpSyncJobType.SYNC_ERP_DELETIONS, "ERP_SYNC_LAST_DELETION_LOG");
 		JOB_TYPE_TO_CODE = Collections.unmodifiableMap(jobToCode);
 
 		Map<String, String> descriptions = new HashMap<>();
@@ -54,6 +55,7 @@ public class ErpSyncCheckpointService {
 		descriptions.put("ERP_SYNC_LAST_CUSTOMER", "Timestamp (Modified_At) of last synchronized customer");
 		descriptions.put("ERP_SYNC_LAST_SALES_PRICE", "Timestamp (Modified_At) of last synchronized sales price");
 		descriptions.put("ERP_SYNC_LAST_SALES_DISCOUNT", "Timestamp (Modified_At) of last synchronized sales discount");
+		descriptions.put("ERP_SYNC_LAST_DELETION_LOG", "Timestamp (Modified_At) of last processed deletion log entry");
 		CODE_TO_DESCRIPTION = Collections.unmodifiableMap(descriptions);
 	}
 
