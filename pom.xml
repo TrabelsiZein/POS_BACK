@@ -240,7 +240,7 @@
 				</configuration>
 			</plugin>
 		</plugins>
-		<finalName>pos</finalName>
+		<finalName>posws</finalName>
 	</build>
 
 </project>

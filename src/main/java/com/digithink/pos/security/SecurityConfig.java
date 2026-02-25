@@ -39,7 +39,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 		http.csrf().disable().headers().frameOptions().sameOrigin().and().sessionManagement()
 				.sessionCreationPolicy(SessionCreationPolicy.STATELESS).and().authorizeRequests()
-				.antMatchers("/sse-endpoint/**", "/login/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+				.antMatchers("/sse-endpoint/**", "/login/**", "/config", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
 						"/thymeleaf/**")
 				.permitAll().anyRequest().authenticated().and()
 				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean()))

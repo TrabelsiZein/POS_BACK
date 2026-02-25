@@ -1,5 +1,7 @@
 package com.digithink.pos.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,6 +19,7 @@ import org.springframework.util.StringUtils;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
+import com.digithink.pos.model.enumeration.ItemType;
 import com.digithink.pos.repository.ItemFamilyRepository;
 import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.ItemSubFamilyRepository;
@@ -153,6 +156,57 @@ public class ItemService extends _BaseService<Item, Long> {
 				.filter(item -> item.getShowInPos() == null || Boolean.TRUE.equals(item.getShowInPos()))
 				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0)
 				.collect(Collectors.toList());
+	}
+
+	/**
+	 * For standalone mode only: ensure a default family and subfamily exist, then create
+	 * an item. Caller is responsible for creating ItemBarcode. Returns the created item.
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public Item createStandaloneQuickProduct(String name, String itemCode, Double unitPrice) throws Exception {
+		if (name == null || name.trim().isEmpty()) {
+			throw new IllegalArgumentException("Product name is required");
+		}
+		if (unitPrice == null || unitPrice < 0) {
+			throw new IllegalArgumentException("Unit price is required and must be >= 0");
+		}
+		ItemFamily family = itemFamilyRepository.findByCode("STANDALONE_DEFAULT").orElseGet(() -> {
+			ItemFamily f = new ItemFamily();
+			f.setCode("STANDALONE_DEFAULT");
+			f.setName("Default");
+			f.setDisplayOrder(0);
+			f.setActive(true);
+			return itemFamilyRepository.save(f);
+		});
+		ItemSubFamily subFamily = itemSubFamilyRepository.findByCode("STANDALONE_DEFAULT").orElseGet(() -> {
+			ItemSubFamily sf = new ItemSubFamily();
+			sf.setCode("STANDALONE_DEFAULT");
+			sf.setName("Default");
+			sf.setItemFamily(family);
+			sf.setDisplayOrder(0);
+			sf.setActive(true);
+			return itemSubFamilyRepository.save(sf);
+		});
+		String code = StringUtils.hasText(itemCode) ? itemCode.trim() : generateStandaloneItemCode();
+		if (itemRepository.findByItemCode(code).isPresent()) {
+			throw new IllegalArgumentException("Item code already exists: " + code);
+		}
+		Item item = new Item();
+		item.setItemCode(code);
+		item.setName(name.trim());
+		item.setUnitPrice(unitPrice);
+		item.setItemFamily(family);
+		item.setItemSubFamily(subFamily);
+		item.setType(ItemType.PRODUCT);
+		item.setShowInPos(true);
+		item.setActive(true);
+		return super.save(item);
+	}
+
+	private String generateStandaloneItemCode() {
+		String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+		long count = itemRepository.count();
+		return "ITEM-" + dateStr + "-" + String.format("%03d", (count % 1000) + 1);
 	}
 }
 

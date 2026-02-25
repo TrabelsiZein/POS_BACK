@@ -126,7 +126,8 @@ public class ErpSynchronizationManager {
 		return updateTicketStatus(externalReference, posOrder, null, null);
 	}
 
-	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice,
+			String fiscalRegistration) {
 		Object payload = new Object() {
 			public String getExternalReference() {
 				return externalReference;

@@ -1,0 +1,190 @@
+package com.digithink.pos.service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+
+import javax.persistence.criteria.Predicate;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.digithink.pos.dto.ProcessPurchaseRequestDTO;
+import com.digithink.pos.model.Item;
+import com.digithink.pos.model.PurchaseHeader;
+import com.digithink.pos.model.PurchaseLine;
+import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.model.Vendor;
+import com.digithink.pos.model.enumeration.TransactionStatus;
+import com.digithink.pos.repository.ItemRepository;
+import com.digithink.pos.repository.PurchaseHeaderRepository;
+import com.digithink.pos.repository.PurchaseLineRepository;
+import com.digithink.pos.repository.VendorRepository;
+import com.digithink.pos.repository._BaseRepository;
+
+import lombok.extern.log4j.Log4j2;
+
+@Service
+@Log4j2
+public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
+
+	@Autowired
+	private PurchaseHeaderRepository purchaseHeaderRepository;
+
+	@Autowired
+	private PurchaseLineRepository purchaseLineRepository;
+
+	@Autowired
+	private VendorRepository vendorRepository;
+
+	@Autowired
+	private ItemRepository itemRepository;
+
+	@Override
+	protected _BaseRepository<PurchaseHeader, Long> getRepository() {
+		return purchaseHeaderRepository;
+	}
+
+	/**
+	 * Create a purchase from the request (standalone only).
+	 */
+	@Transactional
+	public PurchaseHeader processPurchase(ProcessPurchaseRequestDTO request, UserAccount currentUser) {
+		if (request.getVendorId() == null) {
+			throw new IllegalArgumentException("Vendor is required.");
+		}
+		Vendor vendor = vendorRepository.findById(request.getVendorId())
+				.orElseThrow(() -> new IllegalArgumentException("Vendor not found: " + request.getVendorId()));
+
+		if (request.getLines() == null || request.getLines().isEmpty()) {
+			throw new IllegalArgumentException("At least one line is required.");
+		}
+
+		String purchaseNumber = generatePurchaseNumber();
+
+		PurchaseHeader header = new PurchaseHeader();
+		header.setPurchaseNumber(purchaseNumber);
+		header.setPurchaseDate(LocalDateTime.now());
+		header.setVendor(vendor);
+		header.setCreatedByUser(currentUser);
+		header.setStatus(TransactionStatus.COMPLETED);
+		header.setNotes(request.getNotes());
+
+		double subtotal = 0;
+		for (ProcessPurchaseRequestDTO.PurchaseLineDTO lineDto : request.getLines()) {
+			if (lineDto.getItemId() == null || lineDto.getQuantity() == null || lineDto.getQuantity() <= 0
+					|| lineDto.getUnitPrice() == null || lineDto.getUnitPrice() < 0) {
+				continue;
+			}
+			itemRepository.findById(lineDto.getItemId())
+					.orElseThrow(() -> new IllegalArgumentException("Item not found: " + lineDto.getItemId()));
+			double lineTotal = lineDto.getQuantity() * lineDto.getUnitPrice();
+			subtotal += lineTotal;
+		}
+
+		header.setSubtotal(subtotal);
+		header.setTaxAmount(null);
+		header.setDiscountAmount(null);
+		header.setTotalAmount(subtotal);
+
+		header = purchaseHeaderRepository.save(header);
+
+		for (ProcessPurchaseRequestDTO.PurchaseLineDTO lineDto : request.getLines()) {
+			if (lineDto.getItemId() == null || lineDto.getQuantity() == null || lineDto.getQuantity() <= 0
+					|| lineDto.getUnitPrice() == null || lineDto.getUnitPrice() < 0) {
+				continue;
+			}
+			Item item = itemRepository.findById(lineDto.getItemId()).orElse(null);
+			if (item == null) continue;
+
+			double lineTotal = lineDto.getQuantity() * lineDto.getUnitPrice();
+			PurchaseLine line = new PurchaseLine();
+			line.setPurchaseHeader(header);
+			line.setItem(item);
+			line.setQuantity(lineDto.getQuantity());
+			line.setUnitPrice(lineDto.getUnitPrice());
+			line.setLineTotal(lineTotal);
+			line.setLineTotalIncludingVat(null);
+			purchaseLineRepository.save(line);
+		}
+
+		log.info("Purchase created: {} id={}", purchaseNumber, header.getId());
+		return header;
+	}
+
+	private String generatePurchaseNumber() {
+		LocalDateTime now = LocalDateTime.now();
+		String prefix = "PUR-" + now.getYear() + String.format("%02d", now.getMonthValue());
+		long count = purchaseHeaderRepository.count() + 1;
+		return prefix + "-" + String.format("%06d", count);
+	}
+
+	/**
+	 * Paginated history with optional filters.
+	 */
+	public Page<PurchaseHeader> getHistory(int page, int size, String search, String dateFrom, String dateTo,
+			String status, Long vendorId) {
+		Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "purchaseDate"));
+
+		Specification<PurchaseHeader> spec = (root, query, cb) -> {
+			query.distinct(true);
+			List<Predicate> predicates = new java.util.ArrayList<>();
+
+			if (search != null && !search.trim().isEmpty()) {
+				String pattern = "%" + search.trim().toLowerCase() + "%";
+				predicates.add(cb.or(
+						cb.like(cb.lower(root.get("purchaseNumber")), pattern),
+						cb.like(cb.lower(root.get("vendor").get("name")), pattern),
+						cb.like(cb.lower(root.get("vendor").get("vendorCode")), pattern)));
+			}
+
+			if (dateFrom != null && !dateFrom.trim().isEmpty()) {
+				try {
+					LocalDate from = LocalDate.parse(dateFrom.trim());
+					predicates.add(cb.greaterThanOrEqualTo(root.get("purchaseDate"), from.atStartOfDay()));
+				} catch (Exception ignored) { }
+			}
+
+			if (dateTo != null && !dateTo.trim().isEmpty()) {
+				try {
+					LocalDate to = LocalDate.parse(dateTo.trim());
+					predicates.add(cb.lessThanOrEqualTo(root.get("purchaseDate"), to.atTime(LocalTime.MAX)));
+				} catch (Exception ignored) { }
+			}
+
+			if (status != null && !status.equals("all")) {
+				try {
+					TransactionStatus s = TransactionStatus.valueOf(status);
+					predicates.add(cb.equal(root.get("status"), s));
+				} catch (Exception ignored) { }
+			}
+
+			if (vendorId != null && vendorId > 0) {
+				predicates.add(cb.equal(root.get("vendor").get("id"), vendorId));
+			}
+
+			return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
+		};
+
+		return purchaseHeaderRepository.findAll(spec, pageable);
+	}
+
+	/**
+	 * Get purchase with lines for details modal.
+	 */
+	public PurchaseHeader getDetails(Long id) {
+		PurchaseHeader header = purchaseHeaderRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Purchase not found: " + id));
+		// Lazy load lines
+		List<PurchaseLine> lines = purchaseLineRepository.findByPurchaseHeader(header);
+		header.setPurchaseLines(lines);
+		return header;
+	}
+}

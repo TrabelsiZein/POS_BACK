@@ -7,6 +7,7 @@ import javax.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.erp.enumeration.ErpSyncJobType;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.repository.ErpSyncJobRepository;
@@ -43,6 +44,7 @@ public class ZZDataInitializer {
 	private LocationRepository locationRepository;
 	private GeneralSetupRepository generalSetupRepository;
 	private ErpSyncJobRepository erpSyncJobRepository;
+	private ApplicationModeService applicationModeService;
 
 	@PostConstruct
 	public void init() {
@@ -91,10 +93,12 @@ public class ZZDataInitializer {
 			// Create general setup records
 			initGeneralSetup();
 		}
-		ensureErpSyncCheckpointConfigs();
-
-		if (erpSyncJobRepository.count() == 0) {
-			initErpSyncJobs();
+		// ERP-related config and sync jobs only when not in standalone mode
+		if (!applicationModeService.isStandalone()) {
+			ensureErpSyncCheckpointConfigs();
+			if (erpSyncJobRepository.count() == 0) {
+				initErpSyncJobs();
+			}
 		}
 
 		// Ensure tax stamp item exists (idempotent)
@@ -109,7 +113,7 @@ public class ZZDataInitializer {
 		UserAccount admin = new UserAccount();
 		admin.setUsername("admin");
 		admin.setFullName("System Administrator");
-		admin.setPassword(passwordEncoder.encode("Admin@123"));
+		admin.setPassword(passwordEncoder.encode("P@ssw0rd"));
 		admin.setEmail("admin@hammai-group.tn");
 		admin.setActive(true);
 		admin.setRole(Role.ADMIN);
@@ -121,7 +125,7 @@ public class ZZDataInitializer {
 		UserAccount responsible = new UserAccount();
 		responsible.setUsername("responsible");
 		responsible.setFullName("Responsible Manager");
-		responsible.setPassword(passwordEncoder.encode("Resp@123"));
+		responsible.setPassword(passwordEncoder.encode("admin@123.0"));
 		responsible.setEmail("responsible@hammai-group.tn");
 		responsible.setActive(true);
 		responsible.setRole(Role.RESPONSIBLE);
@@ -138,7 +142,7 @@ public class ZZDataInitializer {
 		UserAccount posUser = new UserAccount();
 		posUser.setUsername("cashier");
 		posUser.setFullName("Cashier User");
-		posUser.setPassword(passwordEncoder.encode("Cashier@123"));
+		posUser.setPassword(passwordEncoder.encode("cashier"));
 		posUser.setEmail("cashier@hammai-group.tn");
 		posUser.setActive(true);
 		posUser.setRole(Role.POS_USER);

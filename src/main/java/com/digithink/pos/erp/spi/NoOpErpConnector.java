@@ -3,7 +3,7 @@ package com.digithink.pos.erp.spi;
 import java.util.Collections;
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.digithink.pos.erp.dto.ErpCustomerDTO;
@@ -25,10 +25,12 @@ import com.digithink.pos.erp.dto.ErpTicketDTO;
 import com.digithink.pos.erp.dto.ErpTicketLineDTO;
 
 /**
- * Default connector used when no ERP implementation is configured.
+ * Connector used when Dynamics NAV is disabled (erp.dynamicsnav.enabled=false or
+ * standalone profile). When enabled=true, only DynamicsNavConnector is created.
+ * Relies solely on property so one of the two connectors is always present.
  */
 @Component
-@ConditionalOnMissingBean(ErpConnector.class)
+@ConditionalOnProperty(prefix = "erp.dynamicsnav", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class NoOpErpConnector implements ErpConnector {
 
 	@Override
