@@ -101,6 +101,9 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 		} catch (IllegalArgumentException e) {
 			log.error("SalesHeaderAPI::processSale:validation error: " + e.getMessage(), e);
 			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (com.digithink.pos.exception.InsufficientStockException e) {
+			log.warn("SalesHeaderAPI::processSale:insufficient stock: itemId={}", e.getItemId());
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
 		} catch (IllegalStateException e) {
 			log.error("SalesHeaderAPI::processSale:state error: " + e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse(e.getMessage()));
@@ -283,6 +286,9 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 		} catch (IllegalArgumentException e) {
 			log.error("SalesHeaderAPI::completePendingSale:validation error: " + e.getMessage(), e);
 			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (com.digithink.pos.exception.InsufficientStockException e) {
+			log.warn("SalesHeaderAPI::completePendingSale:insufficient stock: itemId={}", e.getItemId());
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
 		} catch (IllegalStateException e) {
 			log.error("SalesHeaderAPI::completePendingSale:state error: " + e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse(e.getMessage()));
@@ -388,11 +394,16 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 					|| request.getFiscalRegistration().trim().isEmpty()) {
 				return ResponseEntity.badRequest().body(createErrorResponse("Fiscal Registration is mandatory"));
 			}
-			SalesHeader updated = service.prepareInvoice(id, request.getFiscalRegistration().trim());
+			SalesHeader updated = service.prepareInvoice(
+					id,
+					request.getFiscalRegistration().trim(),
+					request.getInvoiceCustomerName() != null ? request.getInvoiceCustomerName().trim() : null
+			);
 			Map<String, Object> response = new HashMap<>();
 			response.put("id", updated.getId());
 			response.put("invoiced", updated.getInvoiced());
 			response.put("fiscalRegistration", updated.getFiscalRegistration());
+			response.put("invoiceCustomerName", updated.getInvoiceCustomerName());
 			response.put("synchronizationStatus", updated.getSynchronizationStatus());
 			return ResponseEntity.ok(response);
 		} catch (IllegalArgumentException e) {

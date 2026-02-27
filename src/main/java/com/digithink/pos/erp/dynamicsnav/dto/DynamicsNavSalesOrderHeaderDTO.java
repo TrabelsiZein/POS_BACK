@@ -25,6 +25,9 @@ public class DynamicsNavSalesOrderHeaderDTO {
 	@JsonProperty("Sell_to_Customer_Name")
 	private String sellToCustomerName;
 
+	@JsonProperty("Bill_to_Name_2")
+	private String billToName2;
+
 	@JsonProperty("Responsibility_Center")
 	private String responsibilityCenter;
 

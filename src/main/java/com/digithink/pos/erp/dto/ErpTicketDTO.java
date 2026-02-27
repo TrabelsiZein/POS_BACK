@@ -23,6 +23,7 @@ public class ErpTicketDTO {
 	private Double discountPercentage;
 	private Boolean posInvoice;
 	private String fiscalRegistration;
+	private String invoiceCustomerName;
 
 	public String getExternalId() {
 		return externalId;
@@ -134,6 +135,14 @@ public class ErpTicketDTO {
 
 	public void setFiscalRegistration(String fiscalRegistration) {
 		this.fiscalRegistration = fiscalRegistration;
+	}
+
+	public String getInvoiceCustomerName() {
+		return invoiceCustomerName;
+	}
+
+	public void setInvoiceCustomerName(String invoiceCustomerName) {
+		this.invoiceCustomerName = invoiceCustomerName;
 	}
 }
 

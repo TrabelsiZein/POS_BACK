@@ -56,6 +56,12 @@ public class PurchaseHeader extends _BaseEntity {
 	@Column(name = "total_amount")
 	private Double totalAmount;
 
+	/** Amount paid to vendor (standalone). Null = unpaid. */
+	private Double paidAmount;
+
+	/** Date when (partial or full) payment was recorded (standalone). */
+	private LocalDateTime paidDate;
+
 	private String notes;
 
 	@OneToMany(mappedBy = "purchaseHeader", fetch = FetchType.LAZY)

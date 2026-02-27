@@ -7,7 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.dto.ProcessPurchaseRequestDTO;
+import com.digithink.pos.dto.SetPurchasePaidRequestDTO;
+import com.digithink.pos.dto.VendorBalanceSummaryDTO;
 import com.digithink.pos.model.PurchaseHeader;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.security.CurrentUserProvider;
@@ -34,6 +42,26 @@ public class PurchaseHeaderAPI extends _BaseController<PurchaseHeader, Long, Pur
 
 	@Autowired
 	private ApplicationModeService applicationModeService;
+
+	/**
+	 * Vendor balance / AP summary: per vendor total purchased, total paid, unpaid. Optional date range. Standalone only.
+	 */
+	@GetMapping("/vendor-balance")
+	public ResponseEntity<?> getVendorBalance(
+			@RequestParam(required = false) String dateFrom,
+			@RequestParam(required = false) String dateTo) {
+		if (!applicationModeService.isStandalone()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Vendor balance report is only available in standalone mode."));
+		}
+		try {
+			java.util.List<VendorBalanceSummaryDTO> list = service.getVendorBalanceSummary(dateFrom, dateTo);
+			return ResponseEntity.ok(list);
+		} catch (Exception e) {
+			log.error("PurchaseHeaderAPI::getVendorBalance:error: " + e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
 
 	/**
 	 * Paginated purchase history with optional filters. Standalone only.
@@ -113,6 +141,41 @@ public class PurchaseHeaderAPI extends _BaseController<PurchaseHeader, Long, Pur
 			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
 		} catch (Exception e) {
 			log.error("PurchaseHeaderAPI::processPurchase:error: " + e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Set paid amount and/or date on a purchase. Standalone only.
+	 * Body: { "paidAmount": number or null, "paidDate": "yyyy-MM-ddTHH:mm:ss" or null }. Use null paidAmount to clear.
+	 */
+	@PatchMapping("/{id}/set-paid")
+	public ResponseEntity<?> setPaid(@PathVariable Long id, @RequestBody SetPurchasePaidRequestDTO request) {
+		if (!applicationModeService.isStandalone()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Purchase paid status is only available in standalone mode."));
+		}
+		try {
+			Double paidAmount = request.getPaidAmount();
+			LocalDateTime paidDate = null;
+			if (request.getPaidDate() != null && !request.getPaidDate().trim().isEmpty()) {
+				try {
+					paidDate = LocalDateTime.parse(request.getPaidDate().trim(),
+							DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+				} catch (DateTimeParseException e) {
+					paidDate = LocalDate.parse(request.getPaidDate().trim(),
+							DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+				}
+			}
+			if (paidAmount != null && paidDate == null) {
+				paidDate = LocalDateTime.now();
+			}
+			PurchaseHeader updated = service.setPaidStatus(id, paidAmount, paidDate);
+			return ResponseEntity.ok(updated);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
+		} catch (Exception e) {
+			log.error("PurchaseHeaderAPI::setPaid:error: " + e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
 		}
 	}

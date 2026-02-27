@@ -89,4 +89,7 @@ public class SalesHeader extends _BaseEntity {
 
 	/** Fiscal registration number set when preparing invoice (mandatory for invoice) */
 	private String fiscalRegistration;
+
+	/** Optional customer name to use on the invoice (sent to NAV Bill_to_Name_2) */
+	private String invoiceCustomerName;
 }

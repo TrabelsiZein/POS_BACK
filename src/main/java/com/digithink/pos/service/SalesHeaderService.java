@@ -78,6 +78,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	@Autowired
 	private PricingService pricingService;
 
+	@Autowired
+	private StockService stockService;
+
 	@Override
 	protected _BaseRepository<SalesHeader, Long> getRepository() {
 		return salesHeaderRepository;
@@ -242,90 +245,14 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			}
 		}
 
-		// Create payments (multiple payment methods support)
-		List<Payment> payments = new ArrayList<>();
-		Double totalPaid = 0.0;
-
-		if (request.getPayments() == null || request.getPayments().isEmpty()) {
-			throw new IllegalArgumentException("At least one payment method is required");
-		}
-
-		validateCashPlafond(request.getPayments());
-
-		for (ProcessSaleRequestDTO.PaymentDTO paymentDTO : request.getPayments()) {
-			if (paymentDTO.getPaymentMethodId() == null) {
-				throw new IllegalArgumentException("Payment method ID is required for all payments");
-			}
-			if (paymentDTO.getAmount() == null || paymentDTO.getAmount() <= 0) {
-				throw new IllegalArgumentException("Payment amount must be greater than 0");
-			}
-
-			PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentDTO.getPaymentMethodId()).orElseThrow(
-					() -> new IllegalArgumentException("Payment method not found: " + paymentDTO.getPaymentMethodId()));
-
-			// Handle return voucher payment
-			if (paymentMethod.getType() == com.digithink.pos.model.enumeration.PaymentMethodType.RETURN_VOUCHER) {
-				// For return voucher, reference must contain voucher number
-				if (paymentDTO.getReference() == null || paymentDTO.getReference().trim().isEmpty()) {
-					throw new IllegalArgumentException("Voucher number is required for return voucher payment");
-				}
-
-				// Validate and use voucher
-				ReturnVoucher voucher = returnVoucherService.findByVoucherNumber(paymentDTO.getReference()).orElseThrow(
-						() -> new IllegalArgumentException("Return voucher not found: " + paymentDTO.getReference()));
-
-				if (!returnVoucherService.isVoucherValid(voucher)) {
-					throw new IllegalStateException("Return voucher is not valid (expired or fully used)");
-				}
-
-				double remainingAmount = returnVoucherService.getRemainingAmount(voucher);
-				if (paymentDTO.getAmount() > remainingAmount) {
-					throw new IllegalArgumentException("Payment amount (" + paymentDTO.getAmount()
-							+ ") exceeds remaining voucher amount (" + remainingAmount + ")");
-				}
-
-				// Use the voucher amount
-				returnVoucherService.useVoucherAmount(paymentDTO.getReference(), paymentDTO.getAmount());
-
-				// Set payment reference to voucher number
-				paymentDTO.setReference(paymentDTO.getReference());
-			}
-
-			validateAdditionalPaymentFields(paymentMethod, paymentDTO);
-
-			Payment payment = new Payment();
-			payment.setSalesHeader(salesHeader);
-			payment.setPaymentMethod(paymentMethod);
-			payment.setCreatedByUser(currentUser);
-			payment.setStatus(TransactionStatus.COMPLETED);
-			payment.setTotalAmount(paymentDTO.getAmount());
-			payment.setPaymentDate(LocalDateTime.now());
-			payment.setPaymentReference(paymentDTO.getReference());
-			payment.setNotes(paymentDTO.getNotes());
-			populateAdditionalPaymentFields(payment, paymentDTO);
-
-			payment = paymentService.save(payment);
-			payments.add(payment);
-			totalPaid += paymentDTO.getAmount();
-			log.info("Payment created: " + payment.getId() + " - Method: " + paymentMethod.getName() + ", Amount: "
-					+ paymentDTO.getAmount());
-		}
-
-		// Update sales header with actual paid amounts
-		salesHeader.setPaidAmount(totalPaid);
-		double change = totalPaid - request.getTotalAmount();
-		salesHeader.setChangeAmount(change > 0 ? change : 0.0);
+		// Create payments and update header paid/change (shared with completePendingSale)
+		List<Payment> payments = createAndSavePaymentsForSale(salesHeader, request, currentUser);
 		salesHeader = save(salesHeader);
 
-		// Asynchronously create PaymentHeader and PaymentLine records for new payments
-		// This stores payments immediately instead of grouping them during session sync
-		try {
-			sessionExportService.createPaymentHeadersAndLinesAsync(payments, salesHeader);
-			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
-		} catch (Exception ex) {
-			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);
-			// Don't fail the transaction if async call fails
-		}
+		// Update stock (standalone only; shared helper)
+		decrementStockForSalesLines(salesLines);
+
+		triggerSessionExportForPayments(payments, salesHeader);
 
 		// Note: Printing is now handled by the frontend (each POS terminal)
 		// This allows multiple POS terminals to print independently
@@ -498,15 +425,44 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			log.info("Created new sales line: " + salesLine.getId() + " for pending sale completion");
 		}
 
-		// Create payments (multiple payment methods support)
-		List<Payment> payments = new ArrayList<>();
-		Double totalPaid = 0.0;
+		// Create payments and update header paid/change (shared with processCompleteSale)
+		List<Payment> payments = createAndSavePaymentsForSale(salesHeader, request, currentUser);
 
+		// Update stock (standalone only; shared helper)
+		decrementStockForSalesLines(salesLines);
+
+		// Mark header completed and persist
+		salesHeader.setStatus(TransactionStatus.COMPLETED);
+		salesHeader.setCompletedDate(LocalDateTime.now());
+		salesHeader = save(salesHeader);
+
+		log.info("Pending sale completed successfully: " + salesHeader.getSalesNumber());
+
+		triggerSessionExportForPayments(payments, salesHeader);
+
+		return salesHeader;
+	}
+
+	/**
+	 * Get all pending sales for current session
+	 */
+	public List<SalesHeader> getPendingSalesForSession(CashierSession session) {
+		return salesHeaderRepository.findByCashierSessionAndStatus(session, TransactionStatus.PENDING);
+	}
+
+	/**
+	 * Single place for creating and saving payments for a sale. Updates the header's paidAmount and changeAmount.
+	 * Used by both processCompleteSale and completePendingSale.
+	 */
+	private List<Payment> createAndSavePaymentsForSale(SalesHeader salesHeader, ProcessSaleRequestDTO request,
+			UserAccount currentUser) throws Exception {
 		if (request.getPayments() == null || request.getPayments().isEmpty()) {
 			throw new IllegalArgumentException("At least one payment method is required");
 		}
-
 		validateCashPlafond(request.getPayments());
+
+		List<Payment> payments = new ArrayList<>();
+		Double totalPaid = 0.0;
 
 		for (ProcessSaleRequestDTO.PaymentDTO paymentDTO : request.getPayments()) {
 			if (paymentDTO.getPaymentMethodId() == null) {
@@ -519,32 +475,21 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentDTO.getPaymentMethodId()).orElseThrow(
 					() -> new IllegalArgumentException("Payment method not found: " + paymentDTO.getPaymentMethodId()));
 
-			// Handle return voucher payment
-			if (paymentMethod.getType() == com.digithink.pos.model.enumeration.PaymentMethodType.RETURN_VOUCHER) {
-				// For return voucher, reference must contain voucher number
+			if (paymentMethod.getType() == PaymentMethodType.RETURN_VOUCHER) {
 				if (paymentDTO.getReference() == null || paymentDTO.getReference().trim().isEmpty()) {
 					throw new IllegalArgumentException("Voucher number is required for return voucher payment");
 				}
-
-				// Validate and use voucher
-				com.digithink.pos.model.ReturnVoucher voucher = returnVoucherService
-						.findByVoucherNumber(paymentDTO.getReference()).orElseThrow(() -> new IllegalArgumentException(
-								"Return voucher not found: " + paymentDTO.getReference()));
-
+				ReturnVoucher voucher = returnVoucherService.findByVoucherNumber(paymentDTO.getReference()).orElseThrow(
+						() -> new IllegalArgumentException("Return voucher not found: " + paymentDTO.getReference()));
 				if (!returnVoucherService.isVoucherValid(voucher)) {
 					throw new IllegalStateException("Return voucher is not valid (expired or fully used)");
 				}
-
 				double remainingAmount = returnVoucherService.getRemainingAmount(voucher);
 				if (paymentDTO.getAmount() > remainingAmount) {
 					throw new IllegalArgumentException("Payment amount (" + paymentDTO.getAmount()
 							+ ") exceeds remaining voucher amount (" + remainingAmount + ")");
 				}
-
-				// Use the voucher amount
 				returnVoucherService.useVoucherAmount(paymentDTO.getReference(), paymentDTO.getAmount());
-
-				// Set payment reference to voucher number
 				paymentDTO.setReference(paymentDTO.getReference());
 			}
 
@@ -564,38 +509,37 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			payment = paymentService.save(payment);
 			payments.add(payment);
 			totalPaid += paymentDTO.getAmount();
-			log.info("Payment created for pending sale: " + payment.getId() + " - Method: " + paymentMethod.getName()
-					+ ", Amount: " + paymentDTO.getAmount());
+			log.info("Payment created: {} - Method: {}, Amount: {}", payment.getId(), paymentMethod.getName(),
+					paymentDTO.getAmount());
 		}
 
-		// Update sales header with payment info and mark as completed
 		salesHeader.setPaidAmount(totalPaid);
 		double change = totalPaid - request.getTotalAmount();
 		salesHeader.setChangeAmount(change > 0 ? change : 0.0);
-		salesHeader.setStatus(TransactionStatus.COMPLETED);
-		salesHeader.setCompletedDate(LocalDateTime.now());
-		salesHeader = save(salesHeader);
+		return payments;
+	}
 
-		log.info("Pending sale completed successfully: " + salesHeader.getSalesNumber());
+	/**
+	 * Decrement stock for all sale lines (standalone only). Single place used by processCompleteSale and completePendingSale.
+	 */
+	private void decrementStockForSalesLines(List<SalesLine> salesLines) {
+		for (SalesLine line : salesLines) {
+			if (line.getItem() != null && line.getQuantity() != null && line.getQuantity() > 0) {
+				stockService.decrementForSale(line.getItem().getId(), line.getQuantity());
+			}
+		}
+	}
 
-		// Asynchronously create PaymentHeader and PaymentLine records for new payments
-		// This stores payments immediately instead of grouping them during session sync
+	/**
+	 * Trigger async creation of payment headers/lines for session export. Non-fatal on failure.
+	 */
+	private void triggerSessionExportForPayments(List<Payment> payments, SalesHeader salesHeader) {
 		try {
 			sessionExportService.createPaymentHeadersAndLinesAsync(payments, salesHeader);
 			log.info("Triggered async creation of payment headers/lines for {} payments", payments.size());
 		} catch (Exception ex) {
-			log.error("Failed to trigger async creation of payment headers/lines: " + ex.getMessage(), ex);
-			// Don't fail the transaction if async call fails
+			log.error("Failed to trigger async creation of payment headers/lines: {}", ex.getMessage(), ex);
 		}
-
-		return salesHeader;
-	}
-
-	/**
-	 * Get all pending sales for current session
-	 */
-	public List<SalesHeader> getPendingSalesForSession(CashierSession session) {
-		return salesHeaderRepository.findByCashierSessionAndStatus(session, TransactionStatus.PENDING);
 	}
 
 	private void validateAdditionalPaymentFields(PaymentMethod paymentMethod,
@@ -991,12 +935,14 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	}
 
 	/**
-	 * Prepare invoice for a completed ticket: set invoiced=true and fiscal registration.
+	 * Prepare invoice for a completed ticket: set invoiced=true, fiscal registration,
+	 * and optional invoice customer name.
 	 * If the ticket was TOTALLY_SYNCHED, set status to PARTIALLY_SYNCHED so the sync job
-	 * will push POS_Invoice and Fiscal_Registration to ERP when available (offline-safe).
+	 * will push POS_Invoice, Fiscal_Registration and invoice customer name to ERP when
+	 * available (offline-safe).
 	 */
 	@Transactional
-	public SalesHeader prepareInvoice(Long ticketId, String fiscalRegistration) {
+	public SalesHeader prepareInvoice(Long ticketId, String fiscalRegistration, String invoiceCustomerName) {
 		if (fiscalRegistration == null || fiscalRegistration.trim().isEmpty()) {
 			throw new IllegalArgumentException("Fiscal Registration is mandatory for preparing an invoice");
 		}
@@ -1010,6 +956,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		}
 		ticket.setInvoiced(true);
 		ticket.setFiscalRegistration(fiscalRegistration.trim());
+		if (invoiceCustomerName != null && !invoiceCustomerName.trim().isEmpty()) {
+			ticket.setInvoiceCustomerName(invoiceCustomerName.trim());
+		}
 		if (ticket.getSynchronizationStatus() == SynchronizationStatus.TOTALLY_SYNCHED) {
 			ticket.setSynchronizationStatus(SynchronizationStatus.PARTIALLY_SYNCHED);
 		}

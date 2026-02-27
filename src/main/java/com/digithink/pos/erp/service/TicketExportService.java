@@ -238,6 +238,11 @@ public class TicketExportService {
 			dto.setFiscalRegistration(ticket.getFiscalRegistration().trim());
 		}
 
+		// Optional invoice customer name (sent to NAV Bill_to_Name_2)
+		if (ticket.getInvoiceCustomerName() != null && !ticket.getInvoiceCustomerName().trim().isEmpty()) {
+			dto.setInvoiceCustomerName(ticket.getInvoiceCustomerName().trim());
+		}
+
 		// Convert lines
 		List<SalesLine> salesLines = salesLineRepository.findBySalesHeader(ticket);
 		for (SalesLine salesLine : salesLines) {

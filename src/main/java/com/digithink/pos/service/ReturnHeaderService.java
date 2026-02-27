@@ -63,6 +63,9 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	@Autowired
 	private CashierSessionService cashierSessionService;
 
+	@Autowired
+	private StockService stockService;
+
 	@Override
 	protected _BaseRepository<ReturnHeader, Long> getRepository() {
 		return returnHeaderRepository;
@@ -276,6 +279,15 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		for (ReturnLine returnLine : returnLines) {
 			returnLine.setReturnHeader(returnHeader);
 			returnLineRepository.save(returnLine);
+		}
+
+		// Update stock only for SIMPLE_RETURN (customer gets product back). Voucher return does not put stock back.
+		if (request.getReturnType() == ReturnType.SIMPLE_RETURN) {
+			for (ReturnLine returnLine : returnLines) {
+				if (returnLine.getItem() != null && returnLine.getQuantity() != null && returnLine.getQuantity() > 0) {
+					stockService.incrementForReturn(returnLine.getItem().getId(), returnLine.getQuantity());
+				}
+			}
 		}
 
 		// If return type is RETURN_VOUCHER, create voucher

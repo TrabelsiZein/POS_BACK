@@ -378,6 +378,11 @@ public class DynamicsNavMapper {
 			dto.setSellToCustomerNo(ticket.getCustomerExternalId());
 		}
 
+		// Optional invoice customer name (Bill_to_Name_2)
+		if (ticket.getInvoiceCustomerName() != null) {
+			dto.setBillToName2(ticket.getInvoiceCustomerName());
+		}
+
 		// Set responsibility center
 		if (ticket.getResponsibilityCenter() != null) {
 			dto.setResponsibilityCenter(ticket.getResponsibilityCenter());

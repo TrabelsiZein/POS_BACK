@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.config.ApplicationModeService;
+import com.digithink.pos.dto.AdjustStockRequestDTO;
 import com.digithink.pos.dto.PricingResult;
 import com.digithink.pos.dto.StandaloneQuickProductRequestDTO;
 import com.digithink.pos.model.Customer;
@@ -30,6 +31,7 @@ import com.digithink.pos.service.CustomerService;
 import com.digithink.pos.service.ItemBarcodeService;
 import com.digithink.pos.service.ItemService;
 import com.digithink.pos.service.PricingService;
+import com.digithink.pos.service.StockService;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -52,6 +54,9 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 
 	@Autowired
 	private ItemBarcodeService itemBarcodeService;
+
+	@Autowired
+	private StockService stockService;
 
 	@Value("${pos.pricing.enable-sales-price-group:false}")
 	private boolean priceGroupEnabled;
@@ -241,6 +246,44 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 		} catch (Exception e) {
 			log.error("ItemAPI::calculateItemPrice:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Adjust stock for an item (standalone only). Delta can be positive or negative.
+	 * Body: { "delta": number, "reason": "COUNT" | "CORRECTION" | "DAMAGE" }.
+	 */
+	@PostMapping("/{id}/adjust-stock")
+	public ResponseEntity<?> adjustStock(@PathVariable Long id, @RequestBody AdjustStockRequestDTO request) {
+		if (!applicationModeService.isStandalone()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Stock adjustment is only available in standalone mode."));
+		}
+		try {
+			if (request.getDelta() == null) {
+				return ResponseEntity.badRequest().body(createErrorResponse("delta is required"));
+			}
+			int delta = request.getDelta().intValue();
+			if (delta == 0) {
+				return ResponseEntity.badRequest().body(createErrorResponse("delta must not be zero"));
+			}
+			String reason = request.getReason() != null ? request.getReason().trim().toUpperCase() : "CORRECTION";
+			if (reason.isEmpty()) {
+				reason = "CORRECTION";
+			}
+			if (!reason.matches("COUNT|CORRECTION|DAMAGE")) {
+				reason = "CORRECTION";
+			}
+			Item item = service.findById(id)
+					.orElseThrow(() -> new IllegalArgumentException("Item not found: " + id));
+			stockService.adjustStock(id, delta, reason);
+			Item updated = service.findById(id).orElse(item);
+			return ResponseEntity.ok(updated);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("ItemAPI::adjustStock:error: " + e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
 		}
 	}
 }

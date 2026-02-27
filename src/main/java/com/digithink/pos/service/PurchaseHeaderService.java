@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.persistence.criteria.Predicate;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.digithink.pos.dto.ProcessPurchaseRequestDTO;
+import com.digithink.pos.dto.VendorBalanceSummaryDTO;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.PurchaseHeader;
 import com.digithink.pos.model.PurchaseLine;
@@ -46,6 +48,9 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 
 	@Autowired
 	private ItemRepository itemRepository;
+
+	@Autowired
+	private StockService stockService;
 
 	@Override
 	protected _BaseRepository<PurchaseHeader, Long> getRepository() {
@@ -113,6 +118,9 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 			line.setLineTotal(lineTotal);
 			line.setLineTotalIncludingVat(null);
 			purchaseLineRepository.save(line);
+
+			// Update stock (standalone only; single service, atomic updates, concurrency-safe)
+			stockService.incrementForPurchase(item.getId(), lineDto.getQuantity());
 		}
 
 		log.info("Purchase created: {} id={}", purchaseNumber, header.getId());
@@ -186,5 +194,45 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 		List<PurchaseLine> lines = purchaseLineRepository.findByPurchaseHeader(header);
 		header.setPurchaseLines(lines);
 		return header;
+	}
+
+	/**
+	 * Set paid amount and/or date on a purchase (standalone). Use null paidAmount to clear paid status.
+	 */
+	@Transactional
+	public PurchaseHeader setPaidStatus(Long id, Double paidAmount, LocalDateTime paidDate) {
+		PurchaseHeader header = purchaseHeaderRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Purchase not found: " + id));
+		header.setPaidAmount(paidAmount);
+		header.setPaidDate(paidDate);
+		return purchaseHeaderRepository.save(header);
+	}
+
+	/**
+	 * Vendor balance / AP summary: per vendor, total purchased, total paid, unpaid. Optional date filter.
+	 */
+	public List<VendorBalanceSummaryDTO> getVendorBalanceSummary(String dateFrom, String dateTo) {
+		LocalDateTime from = null;
+		LocalDateTime to = null;
+		if (dateFrom != null && !dateFrom.trim().isEmpty()) {
+			try {
+				from = LocalDate.parse(dateFrom.trim()).atStartOfDay();
+			} catch (Exception ignored) { }
+		}
+		if (dateTo != null && !dateTo.trim().isEmpty()) {
+			try {
+				to = LocalDate.parse(dateTo.trim()).atTime(LocalTime.MAX);
+			} catch (Exception ignored) { }
+		}
+		List<Object[]> rows = purchaseHeaderRepository.getVendorBalanceSummary(from, to);
+		return rows.stream().map(row -> {
+			Long vendorId = (Long) row[0];
+			String vendorCode = (String) row[1];
+			String vendorName = (String) row[2];
+			Double totalPurchased = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+			Double totalPaid = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+			Double unpaid = totalPurchased - totalPaid;
+			return new VendorBalanceSummaryDTO(vendorId, vendorCode, vendorName, totalPurchased, totalPaid, unpaid);
+		}).collect(Collectors.toList());
 	}
 }
