@@ -9,11 +9,23 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.digithink.pos.model.PurchaseHeader;
+import com.digithink.pos.model.PurchaseInvoiceHeader;
+import com.digithink.pos.model.Vendor;
+import com.digithink.pos.model.enumeration.TransactionStatus;
 
 @Repository
 public interface PurchaseHeaderRepository extends _BaseRepository<PurchaseHeader, Long> {
 
 	Optional<PurchaseHeader> findByPurchaseNumber(String purchaseNumber);
+
+	/**
+	 * Find completed purchases for a vendor in a date range (for eligible-purchases).
+	 * Service filters by purchaseInvoice == null and !invoiced.
+	 */
+	List<PurchaseHeader> findByVendorAndPurchaseDateBetweenAndStatus(
+			Vendor vendor, LocalDateTime from, LocalDateTime to, TransactionStatus status);
+
+	List<PurchaseHeader> findByPurchaseInvoiceOrderByPurchaseDateAsc(PurchaseInvoiceHeader purchaseInvoice);
 
 	/**
 	 * Aggregate by vendor for AP summary: total purchased, total paid. Unpaid = totalPurchased - totalPaid in service.

@@ -1,6 +1,8 @@
 package com.digithink.pos.controller;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,67 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 
 	@Autowired
 	private ReturnHeaderRepository returnHeaderRepository;
+
+	/**
+	 * List all return headers as summary maps to avoid Jackson circular reference
+	 * when serializing entity graph (ReturnHeader -> SalesHeader -> ...).
+	 */
+	@Override
+	@GetMapping
+	public ResponseEntity<?> getAll() {
+		try {
+			log.info("ReturnHeaderAPI::getAll");
+			List<ReturnHeader> headers = returnHeaderRepository.findAll();
+			List<Map<String, Object>> list = new ArrayList<>();
+			for (ReturnHeader h : headers) {
+				list.add(toListMap(h));
+			}
+			return ResponseEntity.ok(list);
+		} catch (Exception e) {
+			String detailedMessage = getDetailedMessage(e);
+			log.error("ReturnHeaderAPI::getAll:error: " + detailedMessage, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(detailedMessage));
+		}
+	}
+
+	private Map<String, Object> toListMap(ReturnHeader h) {
+		Map<String, Object> map = new HashMap<>();
+		map.put("id", h.getId());
+		map.put("returnNumber", h.getReturnNumber());
+		map.put("returnDate", h.getReturnDate());
+		map.put("returnType", h.getReturnType());
+		map.put("totalReturnAmount", h.getTotalReturnAmount());
+		map.put("notes", h.getNotes());
+		map.put("status", h.getStatus());
+		map.put("synchronizationStatus", h.getSynchronizationStatus());
+		map.put("erpNo", h.getErpNo());
+		if (h.getOriginalSalesHeader() != null) {
+			SalesHeader sh = h.getOriginalSalesHeader();
+			Map<String, Object> sales = new HashMap<>();
+			sales.put("id", sh.getId());
+			sales.put("salesNumber", sh.getSalesNumber());
+			sales.put("salesDate", sh.getSalesDate());
+			sales.put("totalAmount", sh.getTotalAmount());
+			map.put("originalSalesHeader", sales);
+		}
+		if (h.getReturnVoucher() != null) {
+			Map<String, Object> v = new HashMap<>();
+			v.put("id", h.getReturnVoucher().getId());
+			v.put("voucherNumber", h.getReturnVoucher().getVoucherNumber());
+			v.put("voucherDate", h.getReturnVoucher().getVoucherDate());
+			v.put("voucherAmount", h.getReturnVoucher().getVoucherAmount());
+			v.put("expiryDate", h.getReturnVoucher().getExpiryDate());
+			v.put("status", h.getReturnVoucher().getStatus());
+			v.put("usedAmount", h.getReturnVoucher().getUsedAmount());
+			v.put("notes", h.getReturnVoucher().getNotes());
+			if (h.getReturnVoucher().getCustomer() != null) {
+				v.put("customerId", h.getReturnVoucher().getCustomer().getId());
+				v.put("customerName", h.getReturnVoucher().getCustomer().getName());
+			}
+			map.put("returnVoucher", v);
+		}
+		return map;
+	}
 
 	/**
 	 * Get ticket details by ticket number (for return processing)
@@ -102,7 +165,15 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				if (remainingQuantity > 0) {
 					Map<String, Object> lineData = new HashMap<>();
 					lineData.put("id", salesLine.getId());
-					lineData.put("item", salesLine.getItem());
+					if (salesLine.getItem() != null) {
+						Map<String, Object> itemData = new HashMap<>();
+						itemData.put("id", salesLine.getItem().getId());
+						itemData.put("name", salesLine.getItem().getName());
+						itemData.put("itemCode", salesLine.getItem().getItemCode());
+						lineData.put("item", itemData);
+					} else {
+						lineData.put("item", null);
+					}
 					lineData.put("quantity", originalQuantity); // Original purchased quantity
 					lineData.put("unitPrice", salesLine.getUnitPrice());
 					lineData.put("lineTotal", salesLine.getLineTotal());
@@ -119,9 +190,20 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 				}
 			}
 
-			// Create response
+			// Create response (ticket as summary map to avoid Jackson circular reference)
+			Map<String, Object> ticketSummary = new HashMap<>();
+			ticketSummary.put("id", salesHeader.getId());
+			ticketSummary.put("salesNumber", salesHeader.getSalesNumber());
+			ticketSummary.put("salesDate", salesHeader.getSalesDate());
+			ticketSummary.put("totalAmount", salesHeader.getTotalAmount());
+			ticketSummary.put("status", salesHeader.getStatus());
+			if (salesHeader.getCustomer() != null) {
+				ticketSummary.put("customerId", salesHeader.getCustomer().getId());
+				ticketSummary.put("customerName", salesHeader.getCustomer().getName());
+				ticketSummary.put("customerCode", salesHeader.getCustomer().getCustomerCode());
+			}
 			Map<String, Object> response = new HashMap<>();
-			response.put("ticket", salesHeader);
+			response.put("ticket", ticketSummary);
 			response.put("salesLines", salesLinesWithRemaining);
 			response.put("canReturn", canReturn);
 			response.put("isSimpleReturnEnabled", service.isSimpleReturnEnabled());

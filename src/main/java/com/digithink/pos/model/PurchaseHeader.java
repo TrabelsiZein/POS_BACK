@@ -15,6 +15,7 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 
 import com.digithink.pos.model.enumeration.TransactionStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import lombok.Data;
@@ -63,6 +64,15 @@ public class PurchaseHeader extends _BaseEntity {
 	private LocalDateTime paidDate;
 
 	private String notes;
+
+	/** Link to purchase invoice when this purchase is included in a supplier invoice. Null if not yet invoiced. */
+	@ManyToOne
+	@JoinColumn(name = "purchase_invoice_id")
+	@JsonIgnore
+	private PurchaseInvoiceHeader purchaseInvoice;
+
+	/** True when this purchase has been included in a purchase invoice. */
+	private Boolean invoiced = false;
 
 	@OneToMany(mappedBy = "purchaseHeader", fetch = FetchType.LAZY)
 	@JsonManagedReference

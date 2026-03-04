@@ -44,6 +44,16 @@ public class SalesHeader extends _BaseEntity {
 	@JoinColumn(name = "cashier_session_id")
 	private CashierSession cashierSession;
 
+	@ManyToOne
+	@JoinColumn(name = "invoice_id")
+	private InvoiceHeader invoice;
+
+	/**
+	 * Optional denormalized invoice number for reporting and quick access.
+	 * Kept in sync with {@link InvoiceHeader#invoiceNumber}.
+	 */
+	private String invoiceNumber;
+
 	@Enumerated(EnumType.STRING)
 	private TransactionStatus status = TransactionStatus.PENDING;
 
