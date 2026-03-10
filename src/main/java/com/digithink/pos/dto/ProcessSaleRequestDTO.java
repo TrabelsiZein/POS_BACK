@@ -22,6 +22,12 @@ public class ProcessSaleRequestDTO {
 	private Double changeAmount;
 	private Long customerId;
 	private String notes;
+
+	/** Loyalty member card holder attached to this sale (independent from customerId) */
+	private Long loyaltyMemberId;
+
+	/** Points the loyalty member wants to redeem on this sale (0 = no redemption) */
+	private Integer loyaltyPointsToRedeem = 0;
 	
 	private List<SaleLineDTO> lines;
 	private List<PaymentDTO> payments;

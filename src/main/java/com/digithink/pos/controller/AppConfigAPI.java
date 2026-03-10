@@ -1,5 +1,6 @@
 package com.digithink.pos.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.dto.AppConfigDTO;
+import com.digithink.pos.service.LoyaltyService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,12 +27,16 @@ public class AppConfigAPI {
 	@Value("${pos.pricing.enable-sales-price-group:false}")
 	private boolean enableSalesPriceGroup;
 
+	@Autowired
+	private LoyaltyService loyaltyService;
+
 	/**
-	 * GET /config - returns public app config (standalone, enableSalesPriceGroup, etc.).
+	 * GET /config - returns public app config (standalone, enableSalesPriceGroup, loyaltyEnabled, etc.).
 	 * Allowed without authentication so the frontend can load it on app init.
 	 */
 	@GetMapping
 	public ResponseEntity<AppConfigDTO> getConfig() {
-		return ResponseEntity.ok(new AppConfigDTO(applicationModeService.isStandalone(), enableSalesPriceGroup));
+		boolean loyaltyEnabled = loyaltyService.isLoyaltyEnabled();
+		return ResponseEntity.ok(new AppConfigDTO(applicationModeService.isStandalone(), enableSalesPriceGroup, loyaltyEnabled));
 	}
 }

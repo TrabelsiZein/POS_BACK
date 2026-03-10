@@ -45,6 +45,7 @@ public class ZZDataInitializer {
 	private GeneralSetupRepository generalSetupRepository;
 	private ErpSyncJobRepository erpSyncJobRepository;
 	private ApplicationModeService applicationModeService;
+	private CompanyInformationService companyInformationService;
 
 	@PostConstruct
 	public void init() {
@@ -103,6 +104,9 @@ public class ZZDataInitializer {
 
 		// Ensure tax stamp item exists (idempotent)
 		ensureTaxStampItem();
+
+		// Ensure singleton company information record exists (idempotent)
+		companyInformationService.ensureExists();
 	}
 
 	/**
@@ -886,6 +890,19 @@ public class ZZDataInitializer {
 			taxStampErpCode.setCreatedBy("System");
 			taxStampErpCode.setUpdatedBy("System");
 			generalSetupRepository.save(taxStampErpCode);
+		}
+
+		// LOYALTY_ENABLED — master switch for the loyalty/fidélité program
+		if (!generalSetupRepository.findByCode("LOYALTY_ENABLED").isPresent()) {
+			GeneralSetup loyaltyEnabled = new GeneralSetup();
+			loyaltyEnabled.setCode("LOYALTY_ENABLED");
+			loyaltyEnabled.setValeur("false");
+			loyaltyEnabled.setDescription("Enable the loyalty (fidélité) program. When true, cashiers can attach loyalty cards to sales and customers earn/redeem points. Configure rates in Loyalty Programs admin page.");
+			loyaltyEnabled.setReadOnly(false);
+			loyaltyEnabled.setActive(true);
+			loyaltyEnabled.setCreatedBy("System");
+			loyaltyEnabled.setUpdatedBy("System");
+			generalSetupRepository.save(loyaltyEnabled);
 		}
 	}
 

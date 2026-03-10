@@ -66,6 +66,9 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	@Autowired
 	private StockService stockService;
 
+	@Autowired
+	private LoyaltyService loyaltyService;
+
 	@Override
 	protected _BaseRepository<ReturnHeader, Long> getRepository() {
 		return returnHeaderRepository;
@@ -295,6 +298,19 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			ReturnVoucher voucher = createReturnVoucher(returnHeader, originalSalesHeader.getCustomer());
 			returnHeader.setReturnVoucher(voucher);
 			returnHeader = save(returnHeader);
+		}
+
+		// Reverse loyalty points earned from the original sale (if any)
+		if (originalSalesHeader.getLoyaltyMember() != null) {
+			try {
+				loyaltyService.reversePoints(
+						originalSalesHeader.getLoyaltyMember().getId(),
+						originalSalesHeader,
+						returnHeader);
+			} catch (Exception e) {
+				log.error("Error reversing loyalty points for return {}: {}", returnHeader.getReturnNumber(), e.getMessage(), e);
+				// Do not fail the return if loyalty reversal fails
+			}
 		}
 
 		return returnHeader;

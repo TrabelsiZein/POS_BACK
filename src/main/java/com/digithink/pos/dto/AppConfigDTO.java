@@ -21,4 +21,9 @@ public class AppConfigDTO {
 	 * True when sales price group and sales discount features are enabled (admin views and pricing logic).
 	 */
 	private boolean enableSalesPriceGroup;
+
+	/**
+	 * True when the loyalty (fidélité) program is enabled. Controlled by GeneralSetup LOYALTY_ENABLED.
+	 */
+	private boolean loyaltyEnabled;
 }

@@ -11,6 +11,7 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Transient;
 
 import com.digithink.pos.model.enumeration.SynchronizationStatus;
+import com.digithink.pos.model.LoyaltyMember;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 
 import lombok.Data;
@@ -102,4 +103,21 @@ public class SalesHeader extends _BaseEntity {
 
 	/** Optional customer name to use on the invoice (sent to NAV Bill_to_Name_2) */
 	private String invoiceCustomerName;
+
+	/** Loyalty cardholder attached to this sale (independent from Customer) */
+	@ManyToOne
+	@JoinColumn(name = "loyalty_member_id")
+	private LoyaltyMember loyaltyMember;
+
+	/** Points earned by the loyalty member from this sale */
+	@Column(name = "loyalty_points_earned")
+	private Integer loyaltyPointsEarned;
+
+	/** Points redeemed by the loyalty member on this sale */
+	@Column(name = "loyalty_points_redeemed")
+	private Integer loyaltyPointsRedeemed;
+
+	/** TND value of the loyalty points redeemed (deducted from total) */
+	@Column(name = "loyalty_deduction_amount")
+	private Double loyaltyDeductionAmount;
 }

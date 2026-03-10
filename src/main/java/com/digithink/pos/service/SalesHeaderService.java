@@ -15,6 +15,7 @@ import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
 import com.digithink.pos.model.Item;
+import com.digithink.pos.model.LoyaltyMember;
 import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.ReturnVoucher;
@@ -28,6 +29,7 @@ import com.digithink.pos.repository.CashierSessionRepository;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.ItemRepository;
+import com.digithink.pos.repository.LoyaltyMemberRepository;
 import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SalesLineRepository;
@@ -80,6 +82,12 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 
 	@Autowired
 	private StockService stockService;
+
+	@Autowired
+	private LoyaltyService loyaltyService;
+
+	@Autowired
+	private LoyaltyMemberRepository loyaltyMemberRepository;
 
 	@Override
 	protected _BaseRepository<SalesHeader, Long> getRepository() {
@@ -245,9 +253,41 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			}
 		}
 
+		// Attach loyalty member if provided
+		LoyaltyMember loyaltyMember = null;
+		if (request.getLoyaltyMemberId() != null) {
+			loyaltyMember = loyaltyMemberRepository.findById(request.getLoyaltyMemberId()).orElse(null);
+			if (loyaltyMember != null) {
+				salesHeader.setLoyaltyMember(loyaltyMember);
+			}
+		}
+
 		// Create payments and update header paid/change (shared with completePendingSale)
 		List<Payment> payments = createAndSavePaymentsForSale(salesHeader, request, currentUser);
 		salesHeader = save(salesHeader);
+
+		// Process loyalty points (earn and/or redeem) after sale is committed
+		if (loyaltyMember != null) {
+			try {
+				// Redeem points first (if requested)
+				int pointsToRedeem = request.getLoyaltyPointsToRedeem() != null ? request.getLoyaltyPointsToRedeem() : 0;
+				if (pointsToRedeem > 0) {
+					loyaltyService.redeemPoints(loyaltyMember.getId(), pointsToRedeem, salesHeader, currentSession);
+					salesHeader.setLoyaltyPointsRedeemed(pointsToRedeem);
+				}
+
+				// Earn points on the sale total (always, after redemption)
+				int earned = loyaltyService.earnPoints(loyaltyMember.getId(), salesHeader, currentSession);
+				if (earned > 0) {
+					salesHeader.setLoyaltyPointsEarned(earned);
+				}
+
+				salesHeader = save(salesHeader);
+			} catch (Exception e) {
+				log.error("Error processing loyalty points for sale {}: {}", salesNumber, e.getMessage(), e);
+				// Do not fail the sale if loyalty points processing fails
+			}
+		}
 
 		// Update stock (standalone only; shared helper)
 		decrementStockForSalesLines(salesLines);
