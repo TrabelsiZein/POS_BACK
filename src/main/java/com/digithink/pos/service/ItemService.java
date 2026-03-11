@@ -136,6 +136,38 @@ public class ItemService extends _BaseService<Item, Long> {
 		return super.save(item);
 	}
 
+	/**
+	 * Lightweight search for purchase forms.
+	 * Returns all active items matching the search term (code, name, or barcode).
+	 * No POS-specific filters (showInPos, unitPrice > 0) applied.
+	 */
+	public Page<Item> searchItemsForPurchase(String search, Pageable pageable) {
+		Specification<Item> spec = (root, query, cb) -> {
+			query.distinct(true);
+			Predicate predicate = cb.isTrue(root.get("active"));
+
+			if (StringUtils.hasText(search)) {
+				String likeValue = "%" + search.toLowerCase() + "%";
+				Predicate codeNameMatch = cb.or(
+						cb.like(cb.lower(root.get("itemCode")), likeValue),
+						cb.like(cb.lower(root.get("name")), likeValue));
+
+				Subquery<Long> barcodeSubquery = query.subquery(Long.class);
+				var barcodeRoot = barcodeSubquery.from(com.digithink.pos.model.ItemBarcode.class);
+				barcodeSubquery.select(barcodeRoot.get("item").get("id"));
+				barcodeSubquery.where(
+						cb.equal(barcodeRoot.get("item").get("id"), root.get("id")),
+						cb.or(cb.isTrue(barcodeRoot.get("active")), cb.isNull(barcodeRoot.get("active"))),
+						cb.like(cb.lower(barcodeRoot.get("barcode")), likeValue));
+
+				predicate = cb.and(predicate, cb.or(codeNameMatch, cb.exists(barcodeSubquery)));
+			}
+
+			return predicate;
+		};
+		return itemRepository.findAll(spec, pageable);
+	}
+
 	public List<Item> findActiveByFamilyId(Long familyId) {
 		ItemFamily family = itemFamilyRepository.findById(familyId)
 				.orElseThrow(() -> new IllegalArgumentException("Item family not found: " + familyId));

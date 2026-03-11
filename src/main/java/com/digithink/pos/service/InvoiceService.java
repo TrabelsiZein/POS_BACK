@@ -37,6 +37,7 @@ import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SalesLineRepository;
 import com.digithink.pos.repository._BaseRepository;
 
+import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 
 @Service
@@ -57,6 +58,15 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 
 	@Autowired
 	private CustomerRepository customerRepository;
+
+	/** Snapshot data passed by caller before invoice creation (editable customer info). */
+	@Data
+	public static class InvoiceSnapshotData {
+		private String name;
+		private String address;
+		private String phone;
+		private String taxRegNo;
+	}
 
 	@Override
 	protected _BaseRepository<InvoiceHeader, Long> getRepository() {
@@ -84,11 +94,11 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 	}
 
 	/**
-	 * Create an invoice from a set of ticket ids.
+	 * Create an invoice from a set of ticket ids with optional snapshot data.
 	 */
 	@Transactional(rollbackFor = Exception.class)
 	public InvoiceHeader createInvoice(Long customerId, List<Long> ticketIds, LocalDate invoiceDate, String notes,
-			InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser) throws Exception {
+			InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser, InvoiceSnapshotData snapshot) throws Exception {
 
 		if (ticketIds == null || ticketIds.isEmpty()) {
 			throw new IllegalArgumentException("At least one ticket must be selected to create an invoice");
@@ -127,6 +137,19 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 		invoice.setCreatedByUser(createdByUser);
 		invoice.setLineGroupingMode(effectiveMode);
 		invoice.setNotes(notes);
+
+		// Apply snapshot data (fall back to customer FK data)
+		if (snapshot != null) {
+			invoice.setSnapshotCustomerName(notBlank(snapshot.getName()) ? snapshot.getName() : customer.getName());
+			invoice.setSnapshotCustomerAddress(notBlank(snapshot.getAddress()) ? snapshot.getAddress() : customer.getAddress());
+			invoice.setSnapshotCustomerPhone(notBlank(snapshot.getPhone()) ? snapshot.getPhone() : customer.getPhone());
+			invoice.setSnapshotCustomerTaxRegNo(notBlank(snapshot.getTaxRegNo()) ? snapshot.getTaxRegNo() : customer.getTaxRegistrationNo());
+		} else {
+			invoice.setSnapshotCustomerName(customer.getName());
+			invoice.setSnapshotCustomerAddress(customer.getAddress());
+			invoice.setSnapshotCustomerPhone(customer.getPhone());
+			invoice.setSnapshotCustomerTaxRegNo(customer.getTaxRegistrationNo());
+		}
 
 		invoice = save(invoice);
 
@@ -168,12 +191,19 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 		return invoice;
 	}
 
+	/** Backward-compatible overload without snapshot data. */
+	@Transactional(rollbackFor = Exception.class)
+	public InvoiceHeader createInvoice(Long customerId, List<Long> ticketIds, LocalDate invoiceDate, String notes,
+			InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser) throws Exception {
+		return createInvoice(customerId, ticketIds, invoiceDate, notes, lineGroupingMode, createdByUser, null);
+	}
+
 	/**
 	 * Helper: create invoice for a single ticket, defaulting to BY_ITEM grouping.
 	 */
 	@Transactional(rollbackFor = Exception.class)
 	public InvoiceHeader createInvoiceFromTicket(Long ticketId, LocalDate invoiceDate, String notes,
-			UserAccount createdByUser) throws Exception {
+			UserAccount createdByUser, InvoiceSnapshotData snapshot) throws Exception {
 
 		SalesHeader ticket = salesHeaderRepository.findById(ticketId)
 				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
@@ -187,7 +217,14 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 
 		return createInvoice(ticket.getCustomer().getId(), singleTicket,
 				invoiceDate != null ? invoiceDate : LocalDate.now(), notes,
-				InvoiceLineGroupingMode.BY_ITEM, createdByUser);
+				InvoiceLineGroupingMode.BY_ITEM, createdByUser, snapshot);
+	}
+
+	/** Backward-compatible overload without snapshot data. */
+	@Transactional(rollbackFor = Exception.class)
+	public InvoiceHeader createInvoiceFromTicket(Long ticketId, LocalDate invoiceDate, String notes,
+			UserAccount createdByUser) throws Exception {
+		return createInvoiceFromTicket(ticketId, invoiceDate, notes, createdByUser, null);
 	}
 
 	/**
@@ -238,9 +275,11 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 			il.setItem(item);
 			il.setQuantity(agg.quantity);
 			il.setUnitPrice(agg.averageUnitPrice());
+			il.setUnitPriceIncludingVat(agg.averageUnitPriceIncludingVat());
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
 			il.setVatPercent(agg.vatPercent);
 
 			result.add(il);
@@ -270,9 +309,12 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 			il.setItemFamily(family);
 			il.setLineDescription(family != null ? family.getName() : "Non classé");
 			il.setQuantity(agg.quantity);
+			il.setUnitPrice(agg.quantity > 0 ? agg.subtotal / agg.quantity : 0.0);
+			il.setUnitPriceIncludingVat(agg.quantity > 0 ? agg.totalAmount / agg.quantity : 0.0);
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
 			il.setVatPercent(agg.vatPercent);
 
 			result.add(il);
@@ -302,9 +344,12 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 			il.setItemSubFamily(subFamily);
 			il.setLineDescription(subFamily != null ? subFamily.getName() : "Non classé");
 			il.setQuantity(agg.quantity);
+			il.setUnitPrice(agg.quantity > 0 ? agg.subtotal / agg.quantity : 0.0);
+			il.setUnitPriceIncludingVat(agg.quantity > 0 ? agg.totalAmount / agg.quantity : 0.0);
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
 			il.setVatPercent(agg.vatPercent);
 
 			result.add(il);
@@ -320,9 +365,11 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 			il.setItem(sl.getItem());
 			il.setQuantity(sl.getQuantity());
 			il.setUnitPrice(sl.getUnitPrice());
+			il.setUnitPriceIncludingVat(sl.getUnitPriceIncludingVat());
 			il.setSubtotal(sl.getLineTotal());
 			il.setTaxAmount(sl.getVatAmount());
 			il.setTotalAmount(sl.getLineTotalIncludingVat());
+			il.setLineTotalIncludingVat(sl.getLineTotalIncludingVat());
 			il.setVatPercent(sl.getVatPercent());
 			result.add(il);
 		}
@@ -339,6 +386,7 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 		double totalAmount = 0.0;
 		Integer vatPercent = null;
 		double unitPriceSum = 0.0;
+		double unitPriceIncludingVatSum = 0.0;
 		int unitPriceCount = 0;
 
 		void add(SalesLine line) {
@@ -361,16 +409,22 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 				unitPriceSum += line.getUnitPrice();
 				unitPriceCount++;
 			}
+			if (line.getUnitPriceIncludingVat() != null) {
+				unitPriceIncludingVatSum += line.getUnitPriceIncludingVat();
+			}
 		}
 
 		double averageUnitPrice() {
 			return unitPriceCount > 0 ? unitPriceSum / unitPriceCount : 0.0;
 		}
+
+		double averageUnitPriceIncludingVat() {
+			return unitPriceCount > 0 ? unitPriceIncludingVatSum / unitPriceCount : 0.0;
+		}
 	}
 
 	/**
 	 * Simple invoice number generation: YEAR-XXXXXX sequential per year.
-	 * Can be replaced by a more robust sequence later if needed.
 	 */
 	protected String generateNextInvoiceNumber(LocalDate invoiceDate) {
 		int year = invoiceDate.getYear();
@@ -417,7 +471,6 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 			return basePage;
 		}
 
-		// Simple filter on current page content by invoice number part
 		List<InvoiceHeader> filtered = basePage.getContent().stream()
 				.filter(i -> i.getInvoiceNumber() != null
 						&& i.getInvoiceNumber().toLowerCase().contains(invoiceNumber.toLowerCase()))
@@ -428,7 +481,6 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 
 	/**
 	 * Load invoice with its lines and linked tickets for detail/print.
-	 * Returns DTOs to avoid Jackson circular reference when serializing entities.
 	 */
 	public Map<String, Object> getInvoiceDetails(Long id) {
 		InvoiceHeader invoice = invoiceHeaderRepository.findById(id)
@@ -460,7 +512,9 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 		InvoiceDetailsDTO.CustomerSummary customerSummary = null;
 		Customer c = h.getCustomer();
 		if (c != null) {
-			customerSummary = new InvoiceDetailsDTO.CustomerSummary(c.getId(), c.getName(), c.getCustomerCode());
+			customerSummary = new InvoiceDetailsDTO.CustomerSummary(
+					c.getId(), c.getName(), c.getCustomerCode(),
+					c.getAddress(), c.getPhone(), c.getTaxRegistrationNo());
 		}
 		InvoiceDetailsDTO.UserSummary userSummary = null;
 		UserAccount u = h.getCreatedByUser();
@@ -478,7 +532,11 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 				h.getTaxAmount(),
 				h.getDiscountAmount(),
 				h.getTotalAmount(),
-				h.getNotes());
+				h.getNotes(),
+				h.getSnapshotCustomerName(),
+				h.getSnapshotCustomerAddress(),
+				h.getSnapshotCustomerPhone(),
+				h.getSnapshotCustomerTaxRegNo());
 	}
 
 	private InvoiceDetailsDTO.InvoiceLineDetail toLineDetail(InvoiceLine line) {
@@ -505,9 +563,12 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 				line.getLineDescription(),
 				line.getQuantity(),
 				line.getUnitPrice(),
+				line.getUnitPriceIncludingVat(),
 				line.getSubtotal(),
 				line.getTaxAmount(),
-				line.getTotalAmount());
+				line.getTotalAmount(),
+				line.getLineTotalIncludingVat(),
+				line.getVatPercent());
 	}
 
 	private InvoiceDetailsDTO.TicketSummary toTicketSummary(SalesHeader t) {
@@ -517,5 +578,8 @@ public class InvoiceService extends _BaseService<InvoiceHeader, Long> {
 				t.getSalesDate(),
 				t.getTotalAmount());
 	}
-}
 
+	private boolean notBlank(String s) {
+		return s != null && !s.trim().isEmpty();
+	}
+}

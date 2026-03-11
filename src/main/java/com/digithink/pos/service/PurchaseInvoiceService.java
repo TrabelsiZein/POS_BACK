@@ -36,6 +36,7 @@ import com.digithink.pos.repository.PurchaseInvoiceLineRepository;
 import com.digithink.pos.repository.PurchaseLineRepository;
 import com.digithink.pos.repository.VendorRepository;
 import com.digithink.pos.repository._BaseRepository;
+import com.digithink.pos.service.InvoiceService.InvoiceSnapshotData;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -83,9 +84,13 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 				.collect(Collectors.toList());
 	}
 
+	/**
+	 * Create purchase invoice with optional vendor snapshot data.
+	 */
 	@Transactional(rollbackFor = Exception.class)
 	public PurchaseInvoiceHeader createPurchaseInvoice(Long vendorId, List<Long> purchaseIds, LocalDate invoiceDate,
-			String notes, InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser) throws Exception {
+			String notes, InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser,
+			InvoiceSnapshotData snapshot) throws Exception {
 
 		if (purchaseIds == null || purchaseIds.isEmpty()) {
 			throw new IllegalArgumentException("At least one purchase must be selected to create a purchase invoice");
@@ -125,6 +130,19 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		invoice.setLineGroupingMode(effectiveMode);
 		invoice.setNotes(notes);
 
+		// Apply snapshot data (fall back to vendor FK data)
+		if (snapshot != null) {
+			invoice.setSnapshotVendorName(notBlank(snapshot.getName()) ? snapshot.getName() : vendor.getName());
+			invoice.setSnapshotVendorAddress(notBlank(snapshot.getAddress()) ? snapshot.getAddress() : vendor.getAddress());
+			invoice.setSnapshotVendorPhone(notBlank(snapshot.getPhone()) ? snapshot.getPhone() : vendor.getPhone());
+			invoice.setSnapshotVendorTaxRegNo(notBlank(snapshot.getTaxRegNo()) ? snapshot.getTaxRegNo() : vendor.getTaxRegistrationNo());
+		} else {
+			invoice.setSnapshotVendorName(vendor.getName());
+			invoice.setSnapshotVendorAddress(vendor.getAddress());
+			invoice.setSnapshotVendorPhone(vendor.getPhone());
+			invoice.setSnapshotVendorTaxRegNo(vendor.getTaxRegistrationNo());
+		}
+
 		invoice = save(invoice);
 
 		List<PurchaseLine> allLines = new ArrayList<>();
@@ -158,6 +176,13 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		}
 
 		return invoice;
+	}
+
+	/** Backward-compatible overload without snapshot data. */
+	@Transactional(rollbackFor = Exception.class)
+	public PurchaseInvoiceHeader createPurchaseInvoice(Long vendorId, List<Long> purchaseIds, LocalDate invoiceDate,
+			String notes, InvoiceLineGroupingMode lineGroupingMode, UserAccount createdByUser) throws Exception {
+		return createPurchaseInvoice(vendorId, purchaseIds, invoiceDate, notes, lineGroupingMode, createdByUser, null);
 	}
 
 	private List<PurchaseInvoiceLine> buildPurchaseInvoiceLines(PurchaseInvoiceHeader invoice, List<PurchaseLine> lines,
@@ -199,6 +224,8 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 			double lineTotalInc = line.getLineTotalIncludingVat() != null ? line.getLineTotalIncludingVat() : lineTotal;
 			totalAmount += lineTotalInc;
 			taxAmount += (lineTotalInc - lineTotal);
+			if (line.getVatPercent() != null)
+				vatPercent = line.getVatPercent();
 			if (line.getUnitPrice() != null) {
 				unitPriceSum += line.getUnitPrice();
 				unitPriceCount++;
@@ -208,14 +235,22 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		double averageUnitPrice() {
 			return unitPriceCount > 0 ? unitPriceSum / unitPriceCount : 0.0;
 		}
+
+		double averageUnitPriceIncludingVat() {
+			if (unitPriceCount <= 0) return 0.0;
+			double avgHT = unitPriceSum / unitPriceCount;
+			if (vatPercent != null && vatPercent > 0) {
+				return avgHT * (1.0 + vatPercent / 100.0);
+			}
+			return avgHT;
+		}
 	}
 
 	private List<PurchaseInvoiceLine> buildLinesGroupedByItem(PurchaseInvoiceHeader invoice, List<PurchaseLine> lines) {
 		Map<Item, PurchaseAggregatedAmounts> byItem = new HashMap<>();
 		for (PurchaseLine pl : lines) {
 			Item item = pl.getItem();
-			if (item == null)
-				continue;
+			if (item == null) continue;
 			PurchaseAggregatedAmounts agg = byItem.computeIfAbsent(item, k -> new PurchaseAggregatedAmounts());
 			agg.add(pl);
 		}
@@ -227,9 +262,12 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 			PurchaseAggregatedAmounts agg = entry.getValue();
 			il.setQuantity(agg.quantity);
 			il.setUnitPrice(agg.averageUnitPrice());
+			il.setUnitPriceIncludingVat(agg.averageUnitPriceIncludingVat());
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
+			il.setVatPercent(agg.vatPercent);
 			result.add(il);
 		}
 		return result;
@@ -240,8 +278,7 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		Map<ItemFamily, PurchaseAggregatedAmounts> byFamily = new HashMap<>();
 		for (PurchaseLine pl : lines) {
 			Item item = pl.getItem();
-			if (item == null)
-				continue;
+			if (item == null) continue;
 			ItemFamily family = item.getItemFamily();
 			PurchaseAggregatedAmounts agg = byFamily.computeIfAbsent(family, k -> new PurchaseAggregatedAmounts());
 			agg.add(pl);
@@ -254,9 +291,13 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 			il.setLineDescription(entry.getKey() != null ? entry.getKey().getName() : "Non classé");
 			PurchaseAggregatedAmounts agg = entry.getValue();
 			il.setQuantity(agg.quantity);
+			il.setUnitPrice(agg.quantity > 0 ? agg.subtotal / agg.quantity : 0.0);
+			il.setUnitPriceIncludingVat(agg.quantity > 0 ? agg.totalAmount / agg.quantity : 0.0);
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
+			il.setVatPercent(agg.vatPercent);
 			result.add(il);
 		}
 		return result;
@@ -267,8 +308,7 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		Map<ItemSubFamily, PurchaseAggregatedAmounts> bySub = new HashMap<>();
 		for (PurchaseLine pl : lines) {
 			Item item = pl.getItem();
-			if (item == null)
-				continue;
+			if (item == null) continue;
 			ItemSubFamily sub = item.getItemSubFamily();
 			PurchaseAggregatedAmounts agg = bySub.computeIfAbsent(sub, k -> new PurchaseAggregatedAmounts());
 			agg.add(pl);
@@ -281,9 +321,13 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 			il.setLineDescription(entry.getKey() != null ? entry.getKey().getName() : "Non classé");
 			PurchaseAggregatedAmounts agg = entry.getValue();
 			il.setQuantity(agg.quantity);
+			il.setUnitPrice(agg.quantity > 0 ? agg.subtotal / agg.quantity : 0.0);
+			il.setUnitPriceIncludingVat(agg.quantity > 0 ? agg.totalAmount / agg.quantity : 0.0);
 			il.setSubtotal(agg.subtotal);
 			il.setTaxAmount(agg.taxAmount);
 			il.setTotalAmount(agg.totalAmount);
+			il.setLineTotalIncludingVat(agg.totalAmount);
+			il.setVatPercent(agg.vatPercent);
 			result.add(il);
 		}
 		return result;
@@ -298,10 +342,19 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 			il.setItem(pl.getItem());
 			il.setQuantity(pl.getQuantity());
 			il.setUnitPrice(pl.getUnitPrice());
-			il.setSubtotal(pl.getLineTotal());
-			il.setTotalAmount(pl.getLineTotalIncludingVat() != null ? pl.getLineTotalIncludingVat()
-					: pl.getLineTotal());
-			il.setTaxAmount(il.getTotalAmount() - (pl.getLineTotal() != null ? pl.getLineTotal() : 0.0));
+			double lineTotal = pl.getLineTotal() != null ? pl.getLineTotal() : 0.0;
+			double lineTotalInc = pl.getLineTotalIncludingVat() != null ? pl.getLineTotalIncludingVat() : lineTotal;
+			il.setSubtotal(lineTotal);
+			il.setTotalAmount(lineTotalInc);
+			il.setLineTotalIncludingVat(lineTotalInc);
+			il.setTaxAmount(lineTotalInc - lineTotal);
+			il.setVatPercent(pl.getVatPercent());
+			// unitPriceIncludingVat = unitPrice * (1 + vat/100)
+			if (pl.getUnitPrice() != null && pl.getVatPercent() != null) {
+				il.setUnitPriceIncludingVat(pl.getUnitPrice() * (1.0 + pl.getVatPercent() / 100.0));
+			} else if (pl.getUnitPrice() != null) {
+				il.setUnitPriceIncludingVat(pl.getUnitPrice());
+			}
 			result.add(il);
 		}
 		return result;
@@ -377,7 +430,9 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		PurchaseInvoiceDetailsDTO.VendorSummary vendorSummary = null;
 		if (h.getVendor() != null) {
 			Vendor v = h.getVendor();
-			vendorSummary = new PurchaseInvoiceDetailsDTO.VendorSummary(v.getId(), v.getName(), v.getVendorCode());
+			vendorSummary = new PurchaseInvoiceDetailsDTO.VendorSummary(
+					v.getId(), v.getName(), v.getVendorCode(),
+					v.getAddress(), v.getPhone(), v.getTaxRegistrationNo());
 		}
 		PurchaseInvoiceDetailsDTO.UserSummary userSummary = null;
 		if (h.getCreatedByUser() != null) {
@@ -387,7 +442,9 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		return new PurchaseInvoiceDetailsDTO.PurchaseInvoiceHeaderDetail(
 				h.getId(), h.getInvoiceNumber(), h.getInvoiceDate(), vendorSummary, userSummary,
 				h.getLineGroupingMode(), h.getSubtotal(), h.getTaxAmount(), h.getDiscountAmount(), h.getTotalAmount(),
-				h.getNotes());
+				h.getNotes(),
+				h.getSnapshotVendorName(), h.getSnapshotVendorAddress(),
+				h.getSnapshotVendorPhone(), h.getSnapshotVendorTaxRegNo());
 	}
 
 	private PurchaseInvoiceDetailsDTO.PurchaseInvoiceLineDetail toLineDetail(PurchaseInvoiceLine line) {
@@ -408,11 +465,17 @@ public class PurchaseInvoiceService extends _BaseService<PurchaseInvoiceHeader, 
 		}
 		return new PurchaseInvoiceDetailsDTO.PurchaseInvoiceLineDetail(
 				line.getId(), itemSummary, familySummary, subSummary, line.getLineDescription(),
-				line.getQuantity(), line.getUnitPrice(), line.getSubtotal(), line.getTaxAmount(), line.getTotalAmount());
+				line.getQuantity(), line.getUnitPrice(), line.getUnitPriceIncludingVat(),
+				line.getSubtotal(), line.getTaxAmount(), line.getTotalAmount(), line.getLineTotalIncludingVat(),
+				line.getVatPercent());
 	}
 
 	private PurchaseInvoiceDetailsDTO.PurchaseSummary toPurchaseSummary(PurchaseHeader p) {
 		return new PurchaseInvoiceDetailsDTO.PurchaseSummary(
 				p.getId(), p.getPurchaseNumber(), p.getPurchaseDate(), p.getTotalAmount());
+	}
+
+	private boolean notBlank(String s) {
+		return s != null && !s.trim().isEmpty();
 	}
 }

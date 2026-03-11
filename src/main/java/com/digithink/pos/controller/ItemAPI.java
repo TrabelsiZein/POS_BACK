@@ -1,10 +1,15 @@
 package com.digithink.pos.controller;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -163,6 +168,42 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 			return ResponseEntity.noContent().build();
 		} catch (Exception e) {
 			log.error("ItemAPI::deleteById:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Lightweight paginated item search for purchase forms and lookups.
+	 * Returns id, itemCode, name, unitPrice only (lightweight for dropdowns).
+	 */
+	@GetMapping("/search")
+	public ResponseEntity<?> searchItems(
+			@RequestParam(defaultValue = "") String q,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		try {
+			PageRequest pageable = PageRequest.of(page, Math.min(size, 50), Sort.by("name").ascending());
+			Page<Item> result = service.searchItemsForPurchase(
+					q.trim().isEmpty() ? null : q.trim(), pageable);
+			List<Map<String, Object>> items = result.getContent().stream().map(item -> {
+				Map<String, Object> dto = new HashMap<>();
+				dto.put("id", item.getId());
+				dto.put("itemCode", item.getItemCode());
+				dto.put("name", item.getName());
+				dto.put("unitPrice", item.getUnitPrice() != null ? item.getUnitPrice() : 0.0);
+				dto.put("lastDirectCost", item.getLastDirectCost());
+				dto.put("lastDirectNetCost", item.getLastDirectNetCost());
+				dto.put("defaultVAT", item.getDefaultVAT() != null ? item.getDefaultVAT() : 0);
+				return dto;
+			}).collect(Collectors.toList());
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", items);
+			response.put("totalElements", result.getTotalElements());
+			response.put("totalPages", result.getTotalPages());
+			response.put("number", result.getNumber());
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			log.error("ItemAPI::searchItems:error: " + e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
 		}
 	}

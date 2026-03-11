@@ -42,11 +42,17 @@ public class PurchaseInvoiceLine extends _BaseEntity {
 
 	private Double unitPrice;
 
+	/** Unit price including VAT (TTC). */
+	private Double unitPriceIncludingVat;
+
 	private Double subtotal;
 
 	private Double taxAmount;
 
 	private Double totalAmount;
+
+	/** Same as totalAmount — total for this line including VAT. */
+	private Double lineTotalIncludingVat;
 
 	private Integer vatPercent;
 }

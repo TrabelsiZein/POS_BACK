@@ -55,6 +55,12 @@ public class PurchaseInvoiceHeader extends _BaseEntity {
 
 	private String notes;
 
+	/** Editable snapshot of vendor info captured at invoice creation time. */
+	private String snapshotVendorName;
+	private String snapshotVendorAddress;
+	private String snapshotVendorPhone;
+	private String snapshotVendorTaxRegNo;
+
 	@OneToMany(mappedBy = "purchaseInvoice")
 	private List<PurchaseInvoiceLine> lines;
 }

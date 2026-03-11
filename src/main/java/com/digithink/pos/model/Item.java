@@ -42,6 +42,14 @@ public class Item extends _BaseEntity {
 
 	private Double costPrice;
 
+	/** Last purchase price per unit (HT, before discount). Set automatically after each validated purchase. */
+	@Column(name = "last_direct_cost")
+	private Double lastDirectCost;
+
+	/** Last net purchase price per unit (HT, after discount). Set automatically after each validated purchase. */
+	@Column(name = "last_direct_net_cost")
+	private Double lastDirectNetCost;
+
 	private Integer stockQuantity;
 
 	private Integer minStockLevel;

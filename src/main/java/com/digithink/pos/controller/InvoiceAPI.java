@@ -28,6 +28,7 @@ import com.digithink.pos.model.enumeration.InvoiceLineGroupingMode;
 import com.digithink.pos.model.enumeration.Role;
 import com.digithink.pos.security.CurrentUserProvider;
 import com.digithink.pos.service.InvoiceService;
+import com.digithink.pos.service.InvoiceService.InvoiceSnapshotData;
 
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
@@ -56,6 +57,11 @@ public class InvoiceAPI {
 		private String notes;
 		private List<Long> ticketIds;
 		private InvoiceLineGroupingMode lineGroupingMode;
+		// Editable snapshot of customer info for this invoice
+		private String snapshotCustomerName;
+		private String snapshotCustomerAddress;
+		private String snapshotCustomerPhone;
+		private String snapshotCustomerTaxRegNo;
 	}
 
 	/**
@@ -168,13 +174,20 @@ public class InvoiceAPI {
 					? LocalDate.parse(request.getInvoiceDate())
 					: LocalDate.now();
 
+			InvoiceSnapshotData snapshot = new InvoiceSnapshotData();
+			snapshot.setName(request.getSnapshotCustomerName());
+			snapshot.setAddress(request.getSnapshotCustomerAddress());
+			snapshot.setPhone(request.getSnapshotCustomerPhone());
+			snapshot.setTaxRegNo(request.getSnapshotCustomerTaxRegNo());
+
 			InvoiceHeader created = service.createInvoice(
 					request.getCustomerId(),
 					request.getTicketIds(),
 					invoiceDate,
 					request.getNotes(),
 					request.getLineGroupingMode(),
-					currentUserProvider.getCurrentUser());
+					currentUserProvider.getCurrentUser(),
+					snapshot);
 
 			return ResponseEntity.status(HttpStatus.CREATED).body(created);
 		} catch (IllegalArgumentException e) {
@@ -205,15 +218,20 @@ public class InvoiceAPI {
 
 			String notes = null;
 			String invoiceDateStr = null;
+			InvoiceSnapshotData snapshot = new InvoiceSnapshotData();
 			if (body != null) {
 				Object n = body.get("notes");
-				if (n instanceof String) {
-					notes = ((String) n).trim();
-				}
+				if (n instanceof String) notes = ((String) n).trim();
 				Object d = body.get("invoiceDate");
-				if (d instanceof String) {
-					invoiceDateStr = ((String) d).trim();
-				}
+				if (d instanceof String) invoiceDateStr = ((String) d).trim();
+				Object sn = body.get("snapshotCustomerName");
+				if (sn instanceof String) snapshot.setName((String) sn);
+				Object sa = body.get("snapshotCustomerAddress");
+				if (sa instanceof String) snapshot.setAddress((String) sa);
+				Object sp = body.get("snapshotCustomerPhone");
+				if (sp instanceof String) snapshot.setPhone((String) sp);
+				Object st = body.get("snapshotCustomerTaxRegNo");
+				if (st instanceof String) snapshot.setTaxRegNo((String) st);
 			}
 
 			LocalDate invoiceDate = (invoiceDateStr != null && !invoiceDateStr.isEmpty())
@@ -224,7 +242,8 @@ public class InvoiceAPI {
 					ticketId,
 					invoiceDate,
 					notes,
-					currentUserProvider.getCurrentUser());
+					currentUserProvider.getCurrentUser(),
+					snapshot);
 
 			return ResponseEntity.status(HttpStatus.CREATED).body(created);
 		} catch (IllegalArgumentException e) {

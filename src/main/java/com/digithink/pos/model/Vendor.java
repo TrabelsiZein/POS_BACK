@@ -39,5 +39,7 @@ public class Vendor extends _BaseEntity {
 
 	private String taxId;
 
+	private String taxRegistrationNo;
+
 	private String notes;
 }

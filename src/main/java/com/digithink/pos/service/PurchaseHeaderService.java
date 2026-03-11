@@ -81,23 +81,32 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 		header.setCreatedByUser(currentUser);
 		header.setStatus(TransactionStatus.COMPLETED);
 		header.setNotes(request.getNotes());
+		header.setVendorBlNumber(request.getVendorBlNumber());
 
 		double subtotal = 0;
+		double totalVat = 0;
 		for (ProcessPurchaseRequestDTO.PurchaseLineDTO lineDto : request.getLines()) {
 			if (lineDto.getItemId() == null || lineDto.getQuantity() == null || lineDto.getQuantity() <= 0
 					|| lineDto.getUnitPrice() == null || lineDto.getUnitPrice() < 0) {
 				continue;
 			}
-			itemRepository.findById(lineDto.getItemId())
+			Item itemCheck = itemRepository.findById(lineDto.getItemId())
 					.orElseThrow(() -> new IllegalArgumentException("Item not found: " + lineDto.getItemId()));
-			double lineTotal = lineDto.getQuantity() * lineDto.getUnitPrice();
-			subtotal += lineTotal;
+			double discPct = lineDto.getDiscountPercent() != null && lineDto.getDiscountPercent() > 0
+					? lineDto.getDiscountPercent() : 0.0;
+			double netUnitPrice = lineDto.getUnitPrice() * (1.0 - discPct / 100.0);
+			double lineNetTotal = lineDto.getQuantity() * netUnitPrice;
+			int vatPct = lineDto.getVatPercent() != null ? lineDto.getVatPercent()
+					: (itemCheck.getDefaultVAT() != null ? itemCheck.getDefaultVAT() : 0);
+			double vatAmount = lineNetTotal * vatPct / 100.0;
+			subtotal += lineNetTotal;
+			totalVat += vatAmount;
 		}
 
 		header.setSubtotal(subtotal);
-		header.setTaxAmount(null);
+		header.setTaxAmount(totalVat);
 		header.setDiscountAmount(null);
-		header.setTotalAmount(subtotal);
+		header.setTotalAmount(subtotal + totalVat);
 
 		header = purchaseHeaderRepository.save(header);
 
@@ -109,15 +118,31 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 			Item item = itemRepository.findById(lineDto.getItemId()).orElse(null);
 			if (item == null) continue;
 
-			double lineTotal = lineDto.getQuantity() * lineDto.getUnitPrice();
+			double discPct = lineDto.getDiscountPercent() != null && lineDto.getDiscountPercent() > 0
+					? lineDto.getDiscountPercent() : 0.0;
+			double netUnitPrice = lineDto.getUnitPrice() * (1.0 - discPct / 100.0);
+			double lineNetTotal = lineDto.getQuantity() * netUnitPrice;
+			int vatPct = lineDto.getVatPercent() != null ? lineDto.getVatPercent()
+					: (item.getDefaultVAT() != null ? item.getDefaultVAT() : 0);
+			double vatAmount = lineNetTotal * vatPct / 100.0;
+			double lineTotalTtc = lineNetTotal + vatAmount;
+
 			PurchaseLine line = new PurchaseLine();
 			line.setPurchaseHeader(header);
 			line.setItem(item);
 			line.setQuantity(lineDto.getQuantity());
 			line.setUnitPrice(lineDto.getUnitPrice());
-			line.setLineTotal(lineTotal);
-			line.setLineTotalIncludingVat(null);
+			line.setDiscountPercent(discPct > 0 ? discPct : null);
+			line.setVatPercent(vatPct);
+			line.setVatAmount(vatAmount);
+			line.setLineTotal(lineNetTotal);
+			line.setLineTotalIncludingVat(lineTotalTtc);
 			purchaseLineRepository.save(line);
+
+			// Update item last direct costs
+			item.setLastDirectCost(lineDto.getUnitPrice());
+			item.setLastDirectNetCost(netUnitPrice);
+			itemRepository.save(item);
 
 			// Update stock (standalone only; single service, atomic updates, concurrency-safe)
 			stockService.incrementForPurchase(item.getId(), lineDto.getQuantity());

@@ -65,6 +65,10 @@ public class PurchaseHeader extends _BaseEntity {
 
 	private String notes;
 
+	/** Vendor delivery note / BL number provided by the vendor at time of delivery. Optional. */
+	@Column(name = "vendor_bl_number", length = 100)
+	private String vendorBlNumber;
+
 	/** Link to purchase invoice when this purchase is included in a supplier invoice. Null if not yet invoiced. */
 	@ManyToOne
 	@JoinColumn(name = "purchase_invoice_id")

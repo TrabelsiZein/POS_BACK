@@ -54,6 +54,12 @@ public class InvoiceHeader extends _BaseEntity {
 
 	private String notes;
 
+	/** Editable snapshot of customer info captured at invoice creation time. */
+	private String snapshotCustomerName;
+	private String snapshotCustomerAddress;
+	private String snapshotCustomerPhone;
+	private String snapshotCustomerTaxRegNo;
+
 	@OneToMany(mappedBy = "invoice")
 	private List<InvoiceLine> lines;
 }

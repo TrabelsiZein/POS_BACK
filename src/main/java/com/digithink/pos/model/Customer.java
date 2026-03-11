@@ -38,6 +38,8 @@ public class Customer extends _BaseEntity {
 
 	private String taxId;
 
+	private String taxRegistrationNo;
+
 	private Double creditLimit;
 
 	private String notes;

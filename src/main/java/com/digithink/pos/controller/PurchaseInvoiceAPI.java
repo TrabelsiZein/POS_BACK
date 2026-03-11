@@ -27,6 +27,7 @@ import com.digithink.pos.model.Vendor;
 import com.digithink.pos.model.enumeration.InvoiceLineGroupingMode;
 import com.digithink.pos.model.enumeration.Role;
 import com.digithink.pos.security.CurrentUserProvider;
+import com.digithink.pos.service.InvoiceService.InvoiceSnapshotData;
 import com.digithink.pos.service.PurchaseInvoiceService;
 
 import lombok.Data;
@@ -71,6 +72,11 @@ public class PurchaseInvoiceAPI {
 		private String notes;
 		private List<Long> purchaseIds;
 		private InvoiceLineGroupingMode lineGroupingMode;
+		// Editable snapshot of vendor info for this invoice
+		private String snapshotVendorName;
+		private String snapshotVendorAddress;
+		private String snapshotVendorPhone;
+		private String snapshotVendorTaxRegNo;
 	}
 
 	/**
@@ -171,13 +177,20 @@ public class PurchaseInvoiceAPI {
 					? LocalDate.parse(request.getInvoiceDate())
 					: LocalDate.now();
 
+			InvoiceSnapshotData snapshot = new InvoiceSnapshotData();
+			snapshot.setName(request.getSnapshotVendorName());
+			snapshot.setAddress(request.getSnapshotVendorAddress());
+			snapshot.setPhone(request.getSnapshotVendorPhone());
+			snapshot.setTaxRegNo(request.getSnapshotVendorTaxRegNo());
+
 			PurchaseInvoiceHeader created = purchaseInvoiceService.createPurchaseInvoice(
 					request.getVendorId(),
 					request.getPurchaseIds(),
 					invoiceDate,
 					request.getNotes(),
 					request.getLineGroupingMode(),
-					currentUserProvider.getCurrentUser());
+					currentUserProvider.getCurrentUser(),
+					snapshot);
 
 			return ResponseEntity.status(HttpStatus.CREATED).body(created);
 		} catch (org.springframework.web.server.ResponseStatusException e) {

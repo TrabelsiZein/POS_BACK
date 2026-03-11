@@ -30,6 +30,11 @@ public class InvoiceDetailsDTO {
 		private Double discountAmount;
 		private Double totalAmount;
 		private String notes;
+		// Editable snapshot fields (may override customer FK data on the invoice)
+		private String snapshotCustomerName;
+		private String snapshotCustomerAddress;
+		private String snapshotCustomerPhone;
+		private String snapshotCustomerTaxRegNo;
 	}
 
 	@Data
@@ -39,6 +44,9 @@ public class InvoiceDetailsDTO {
 		private Long id;
 		private String name;
 		private String customerCode;
+		private String address;
+		private String phone;
+		private String taxRegistrationNo;
 	}
 
 	@Data
@@ -62,9 +70,12 @@ public class InvoiceDetailsDTO {
 		private String lineDescription;
 		private Integer quantity;
 		private Double unitPrice;
+		private Double unitPriceIncludingVat;
 		private Double subtotal;
 		private Double taxAmount;
 		private Double totalAmount;
+		private Double lineTotalIncludingVat;
+		private Integer vatPercent;
 	}
 
 	@Data

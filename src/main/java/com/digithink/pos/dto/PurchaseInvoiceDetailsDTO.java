@@ -29,6 +29,11 @@ public class PurchaseInvoiceDetailsDTO {
 		private Double discountAmount;
 		private Double totalAmount;
 		private String notes;
+		// Editable snapshot fields (may override vendor FK data on the invoice)
+		private String snapshotVendorName;
+		private String snapshotVendorAddress;
+		private String snapshotVendorPhone;
+		private String snapshotVendorTaxRegNo;
 	}
 
 	@Data
@@ -38,6 +43,9 @@ public class PurchaseInvoiceDetailsDTO {
 		private Long id;
 		private String name;
 		private String vendorCode;
+		private String address;
+		private String phone;
+		private String taxRegistrationNo;
 	}
 
 	@Data
@@ -60,9 +68,12 @@ public class PurchaseInvoiceDetailsDTO {
 		private String lineDescription;
 		private Integer quantity;
 		private Double unitPrice;
+		private Double unitPriceIncludingVat;
 		private Double subtotal;
 		private Double taxAmount;
 		private Double totalAmount;
+		private Double lineTotalIncludingVat;
+		private Integer vatPercent;
 	}
 
 	@Data

@@ -35,8 +35,22 @@ public class PurchaseLine extends _BaseEntity {
 	@Column(nullable = false)
 	private Double unitPrice;
 
+	/** Discount percentage applied to this line (e.g. 10.0 = 10%). Null if no discount. */
+	@Column(name = "discount_percent")
+	private Double discountPercent;
+
+	/** VAT rate for this line, copied from item defaultVAT at time of purchase (e.g. 19). */
+	@Column(name = "vat_percent")
+	private Integer vatPercent;
+
+	/** Calculated VAT amount: lineTotal * vatPercent / 100. */
+	@Column(name = "vat_amount")
+	private Double vatAmount;
+
+	/** Line total HT after discount: quantity * (unitPrice * (1 - discountPercent/100)). */
 	@Column(nullable = false)
 	private Double lineTotal;
 
+	/** Line total TTC: lineTotal + vatAmount. */
 	private Double lineTotalIncludingVat;
 }
