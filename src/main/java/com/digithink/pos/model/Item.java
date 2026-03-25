@@ -84,4 +84,21 @@ public class Item extends _BaseEntity {
 	 */
 	@Column(name = "show_in_pos", nullable = false)
 	private Boolean showInPos = true;
+
+	/**
+	 * Franchise: mandatory selling price for franchise clients.
+	 * When franchise admin mode is active, this field is required on save.
+	 * Franchise clients receive this as their unitPrice during item sync.
+	 * Null in normal (non-franchise) mode — no impact on existing behaviour.
+	 */
+	@Column(name = "franchise_sales_price")
+	private Double franchiseSalesPrice;
+
+	/**
+	 * True when this item was synced from the franchise admin (read-only for franchise clients).
+	 * False (default) when the item was created locally.
+	 * Only meaningful when franchise.customer=true; ignored in all other modes.
+	 */
+	@Column(name = "from_franchise_admin")
+	private Boolean fromFranchiseAdmin = false;
 }

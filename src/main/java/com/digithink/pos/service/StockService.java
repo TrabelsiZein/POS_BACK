@@ -31,14 +31,18 @@ public class StockService {
 	@Autowired
 	private ItemRepository itemRepository;
 
+	@Autowired
+	private GeneralSetupService generalSetupService;
+
 	/**
 	 * Decrement stock for a sale (one completed ticket line). Called once per item line.
-	 * Fails with {@link InsufficientStockException} if current stock would go negative.
+	 * When ALLOW_NEGATIVE_STOCK=true in GeneralSetup, stock is decremented unconditionally (may go negative).
+	 * When false (default), throws {@link InsufficientStockException} if stock would go negative.
 	 * No-op when not in standalone mode.
 	 *
 	 * @param itemId   item id
 	 * @param quantity quantity sold (positive)
-	 * @throws InsufficientStockException if stock is insufficient
+	 * @throws InsufficientStockException if stock is insufficient and negative stock is not allowed
 	 */
 	@Transactional(rollbackFor = Exception.class)
 	public void decrementForSale(Long itemId, int quantity) {
@@ -48,12 +52,19 @@ public class StockService {
 		if (quantity <= 0) {
 			return;
 		}
-		int updated = itemRepository.decrementStockQuantityIfSufficient(itemId, quantity);
-		if (updated == 0) {
-			log.warn("Insufficient stock for sale: itemId={}, quantity={}", itemId, quantity);
-			throw new InsufficientStockException(itemId, quantity, -1);
+		boolean allowNegative = "true".equalsIgnoreCase(
+				generalSetupService.findValueByCode("ALLOW_NEGATIVE_STOCK"));
+		if (allowNegative) {
+			itemRepository.decrementStockQuantityUnconditional(itemId, quantity);
+			log.debug("Stock decremented for sale (negative allowed): itemId={}, quantity={}", itemId, quantity);
+		} else {
+			int updated = itemRepository.decrementStockQuantityIfSufficient(itemId, quantity);
+			if (updated == 0) {
+				log.warn("Insufficient stock for sale: itemId={}, quantity={}", itemId, quantity);
+				throw new InsufficientStockException(itemId, quantity, -1);
+			}
+			log.debug("Stock decremented for sale: itemId={}, quantity={}", itemId, quantity);
 		}
-		log.debug("Stock decremented for sale: itemId={}, quantity={}", itemId, quantity);
 	}
 
 	/**

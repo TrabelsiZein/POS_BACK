@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.model.Item;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
@@ -37,6 +38,9 @@ public class ItemService extends _BaseService<Item, Long> {
 	@Autowired
 	private ItemSubFamilyRepository itemSubFamilyRepository;
 
+	@Autowired
+	private ApplicationModeService applicationModeService;
+
 	@Override
 	protected _BaseRepository<Item, Long> getRepository() {
 		return itemRepository;
@@ -54,9 +58,9 @@ public class ItemService extends _BaseService<Item, Long> {
 			predicate = cb.and(predicate, showInPos);
 
 			// Filter out items with price 0 or null
-			Predicate priceNotNull = cb.isNotNull(root.get("unitPrice"));
-			Predicate priceNotZero = cb.notEqual(root.get("unitPrice"), 0.0);
-			predicate = cb.and(predicate, priceNotNull, priceNotZero);
+//			Predicate priceNotNull = cb.isNotNull(root.get("unitPrice"));
+//			Predicate priceNotZero = cb.notEqual(root.get("unitPrice"), 0.0);
+//			predicate = cb.and(predicate, priceNotNull, priceNotZero);
 
 			if (Boolean.TRUE.equals(withBarcodesOnly)) {
 				// Item has barcode in ItemBarcode table OR in legacy Item.barcode field
@@ -115,6 +119,12 @@ public class ItemService extends _BaseService<Item, Long> {
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Item save(Item item) throws Exception {
+		if (applicationModeService.isFranchiseAdmin()) {
+			if (item.getFranchiseSalesPrice() == null || item.getFranchiseSalesPrice() <= 0) {
+				throw new IllegalArgumentException("Franchise sales price is required and must be greater than zero in franchise admin mode");
+			}
+		}
+
 		if (item.getItemSubFamily() != null) {
 			if (item.getItemSubFamily().getId() == null) {
 				throw new IllegalArgumentException("Item sub-family ID is required");

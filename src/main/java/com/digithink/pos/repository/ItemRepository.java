@@ -1,5 +1,6 @@
 package com.digithink.pos.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +36,16 @@ public interface ItemRepository extends _BaseRepository<Item, Long> {
 	@Query(value = "UPDATE item SET stock_quantity = COALESCE(stock_quantity, 0) - :quantity WHERE id = :itemId AND COALESCE(stock_quantity, 0) >= :quantity", nativeQuery = true)
 	int decrementStockQuantityIfSufficient(@Param("itemId") Long itemId, @Param("quantity") int quantity);
 
+	/**
+	 * Unconditional decrement — allows stock to go negative.
+	 * Used when ALLOW_NEGATIVE_STOCK=true in GeneralSetup.
+	 * @param itemId item id
+	 * @param quantity positive quantity to subtract
+	 */
+	@Modifying
+	@Query(value = "UPDATE item SET stock_quantity = COALESCE(stock_quantity, 0) - :quantity WHERE id = :itemId", nativeQuery = true)
+	void decrementStockQuantityUnconditional(@Param("itemId") Long itemId, @Param("quantity") int quantity);
+
 	Optional<Item> findByItemCode(String itemCode);
 
 	Optional<Item> findByErpExternalId(String erpExternalId);
@@ -48,4 +59,7 @@ public interface ItemRepository extends _BaseRepository<Item, Long> {
 	List<Item> findByItemFamily(ItemFamily itemFamily);
 
 	List<Item> findByItemSubFamily(ItemSubFamily itemSubFamily);
+
+	/** Franchise: returns all items (active and inactive) modified after the given datetime. */
+	List<Item> findByUpdatedAtAfter(LocalDateTime updatedAt);
 }

@@ -49,4 +49,13 @@ public class Customer extends _BaseEntity {
 	private String customerPriceGroup;
 	private String customerDiscGroup;
 	private String auxiliaryIndex1;
+
+	/**
+	 * Franchise: location code identifying this customer as a franchise client.
+	 * When set, invoices created for this customer will be automatically tagged
+	 * with this location code so the franchise client can pull them via the sync API.
+	 * Null for regular (non-franchise) customers — no impact on existing behaviour.
+	 */
+	@Column(name = "default_location")
+	private String defaultLocation;
 }

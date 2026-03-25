@@ -37,6 +37,13 @@ public class AppConfigAPI {
 	@GetMapping
 	public ResponseEntity<AppConfigDTO> getConfig() {
 		boolean loyaltyEnabled = loyaltyService.isLoyaltyEnabled();
-		return ResponseEntity.ok(new AppConfigDTO(applicationModeService.isStandalone(), enableSalesPriceGroup, loyaltyEnabled));
+		return ResponseEntity.ok(new AppConfigDTO(
+				applicationModeService.isStandalone(),
+				enableSalesPriceGroup,
+				loyaltyEnabled,
+				applicationModeService.isFranchiseAdmin(),
+				applicationModeService.isFranchiseClient(),
+				applicationModeService.isLocalItemsAllowed()
+		));
 	}
 }

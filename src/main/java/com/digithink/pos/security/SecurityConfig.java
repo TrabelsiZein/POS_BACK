@@ -29,6 +29,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
 
+	/** Null when franchise.admin=false (ConditionalOnProperty prevents bean creation). */
+	@Autowired(required = false)
+	private FranchiseApiKeyFilter franchiseApiKeyFilter;
+
 	@Autowired
 	@Override
 	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -40,10 +44,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		http.csrf().disable().headers().frameOptions().sameOrigin().and().sessionManagement()
 				.sessionCreationPolicy(SessionCreationPolicy.STATELESS).and().authorizeRequests()
 				.antMatchers("/sse-endpoint/**", "/login/**", "/config", "/company-info", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
-						"/thymeleaf/**")
+						"/thymeleaf/**",
+						// Franchise sync API: authenticated by X-Franchise-Api-Key header via FranchiseApiKeyFilter,
+						// not by JWT. Only active endpoints when franchise.admin=true (ConditionalOnProperty).
+						"/franchise/**")
 				.permitAll().anyRequest().authenticated().and()
 				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean()))
 				.addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+		// Register the franchise API key filter before JWT processing (only when franchise.admin=true)
+		if (franchiseApiKeyFilter != null) {
+			http.addFilterBefore(franchiseApiKeyFilter, UsernamePasswordAuthenticationFilter.class);
+		}
 	}
 
 	@Bean

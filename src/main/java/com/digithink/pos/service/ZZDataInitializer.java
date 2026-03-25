@@ -17,6 +17,7 @@ import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.UserAccount;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
 import com.digithink.pos.model.enumeration.Role;
+import com.digithink.pos.model.Vendor;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.ItemBarcodeRepository;
@@ -26,6 +27,7 @@ import com.digithink.pos.repository.ItemSubFamilyRepository;
 import com.digithink.pos.repository.LocationRepository;
 import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.UserAccountRepository;
+import com.digithink.pos.repository.VendorRepository;
 
 import lombok.AllArgsConstructor;
 
@@ -43,6 +45,7 @@ public class ZZDataInitializer {
 	private ItemBarcodeRepository itemBarcodeRepository;
 	private LocationRepository locationRepository;
 	private GeneralSetupRepository generalSetupRepository;
+	private VendorRepository vendorRepository;
 	private ErpSyncJobRepository erpSyncJobRepository;
 	private ApplicationModeService applicationModeService;
 	private CompanyInformationService companyInformationService;
@@ -100,6 +103,14 @@ public class ZZDataInitializer {
 			if (erpSyncJobRepository.count() == 0) {
 				initErpSyncJobs();
 			}
+		}
+
+		// Ensure stock settings exist (always, regardless of mode or DB age)
+		ensureStockSettings();
+
+		// Franchise client: ensure sync checkpoint key exists
+		if (applicationModeService.isFranchiseClient()) {
+			ensureFranchiseClientSetup();
 		}
 
 		// Ensure tax stamp item exists (idempotent)
@@ -962,6 +973,64 @@ public class ZZDataInitializer {
 				"Template job for exporting tickets (disabled by default)", false);
 		createErpJob("0 0 * * * *", ErpSyncJobType.EXPORT_RETURNS, "Export returns to ERP (runs every 1 hour)", true);
 		createErpJob("0 0 * * * *", ErpSyncJobType.EXPORT_SESSIONS, "Export sessions to ERP (runs every 1 hour)", true);
+	}
+
+	/**
+	 * Ensures stock-related GeneralSetup keys exist.
+	 * Always called on startup regardless of mode or DB age so existing databases get the key.
+	 */
+	private void ensureStockSettings() {
+		if (!generalSetupRepository.findByCode("ALLOW_NEGATIVE_STOCK").isPresent()) {
+			GeneralSetup setup = new GeneralSetup();
+			setup.setCode("ALLOW_NEGATIVE_STOCK");
+			setup.setValeur("false");
+			setup.setDescription("Allow stock to go negative during sales (true/false). Applies only in standalone/franchise mode. When false, sale is blocked if stock is insufficient.");
+			setup.setReadOnly(false);
+			setup.setActive(true);
+			setup.setCreatedBy("System");
+			setup.setUpdatedBy("System");
+			generalSetupRepository.save(setup);
+		}
+	}
+
+	/**
+	 * Franchise client: ensures the item sync checkpoint key exists and the FRANCHISE_ADMIN vendor is seeded.
+	 */
+	private void ensureFranchiseClientSetup() {
+		if (!generalSetupRepository.findByCode("FRANCHISE_LAST_ITEM_SYNC").isPresent()) {
+			GeneralSetup checkpoint = new GeneralSetup();
+			checkpoint.setCode("FRANCHISE_LAST_ITEM_SYNC");
+			checkpoint.setValeur("");
+			checkpoint.setDescription("Timestamp of last successful item sync from franchise admin (ISO-8601). Empty = full sync on next run.");
+			checkpoint.setReadOnly(true);
+			checkpoint.setActive(true);
+			checkpoint.setCreatedBy("System");
+			checkpoint.setUpdatedBy("System");
+			generalSetupRepository.save(checkpoint);
+		}
+
+		if (!generalSetupRepository.findByCode("FRANCHISE_LAST_SUPPLY_RECEPTION_SYNC").isPresent()) {
+			GeneralSetup checkpoint = new GeneralSetup();
+			checkpoint.setCode("FRANCHISE_LAST_SUPPLY_RECEPTION_SYNC");
+			checkpoint.setValeur("");
+			checkpoint.setDescription("Timestamp of last supply reception check from franchise admin (ISO-8601). Empty = never checked.");
+			checkpoint.setReadOnly(true);
+			checkpoint.setActive(true);
+			checkpoint.setCreatedBy("System");
+			checkpoint.setUpdatedBy("System");
+			generalSetupRepository.save(checkpoint);
+		}
+
+		if (!vendorRepository.findByVendorCode("FRANCHISE_ADMIN").isPresent()) {
+			Vendor franchiseVendor = new Vendor();
+			franchiseVendor.setVendorCode("FRANCHISE_ADMIN");
+			franchiseVendor.setName("Franchise Admin (HQ)");
+			franchiseVendor.setPhone("N/A");
+			franchiseVendor.setActive(true);
+			franchiseVendor.setCreatedBy("System");
+			franchiseVendor.setUpdatedBy("System");
+			vendorRepository.save(franchiseVendor);
+		}
 	}
 
 	private void createErpJob(String cron, ErpSyncJobType type, String description, boolean enabled) {

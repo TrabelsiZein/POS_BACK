@@ -16,7 +16,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.digithink.pos.dto.ImportFieldMappingDTO;
@@ -25,13 +24,17 @@ import com.digithink.pos.dto.ImportResultDTO;
 import com.digithink.pos.dto.ImportResultDTO.RowError;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.Item;
+import com.digithink.pos.model.ItemBarcode;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
+import com.digithink.pos.model.Location;
 import com.digithink.pos.model.Vendor;
 import com.digithink.pos.repository.CustomerRepository;
+import com.digithink.pos.repository.ItemBarcodeRepository;
 import com.digithink.pos.repository.ItemFamilyRepository;
 import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.ItemSubFamilyRepository;
+import com.digithink.pos.repository.LocationRepository;
 import com.digithink.pos.repository.VendorRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -47,8 +50,10 @@ public class DataImportService {
     private final ItemFamilyRepository itemFamilyRepository;
     private final ItemSubFamilyRepository itemSubFamilyRepository;
     private final ItemRepository itemRepository;
+    private final ItemBarcodeRepository itemBarcodeRepository;
     private final VendorRepository vendorRepository;
     private final CustomerRepository customerRepository;
+    private final LocationRepository locationRepository;
 
     public ImportPreviewDTO previewFile(MultipartFile file) throws IOException {
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
@@ -89,7 +94,6 @@ public class DataImportService {
         }
     }
 
-    @Transactional
     public ImportResultDTO executeImport(MultipartFile file, String entityType,
                                          List<ImportFieldMappingDTO> mapping) throws IOException {
         switch (entityType.toUpperCase()) {
@@ -98,6 +102,8 @@ public class DataImportService {
             case "ITEMS":       return importItems(file, mapping);
             case "VENDORS":     return importVendors(file, mapping);
             case "CUSTOMERS":   return importCustomers(file, mapping);
+            case "LOCATIONS":   return importLocations(file, mapping);
+            case "BARCODES":    return importBarcodes(file, mapping);
             default:
                 throw new IllegalArgumentException("Unknown entity type: " + entityType);
         }
@@ -401,6 +407,124 @@ public class DataImportService {
         return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
     }
 
+    // ─── Locations ────────────────────────────────────────────────────────────
+
+    private ImportResultDTO importLocations(MultipartFile file, List<ImportFieldMappingDTO> mapping)
+            throws IOException {
+        List<RowError> errors = new ArrayList<>();
+        int successCount = 0;
+        int totalRows = 0;
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+            Map<String, Integer> colIndex = buildColumnIndex(sheet, formatter);
+            Map<String, String> fieldMap = buildFieldMap(mapping);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row, formatter)) continue;
+                totalRows++;
+
+                try {
+                    String locationCode = getRequiredValue(row, formatter, colIndex, fieldMap, "locationCode", i);
+                    String name = getRequiredValue(row, formatter, colIndex, fieldMap, "name", i);
+
+                    Location location = locationRepository.findByLocationCode(locationCode).orElse(new Location());
+                    location.setLocationCode(locationCode);
+                    location.setName(name);
+                    location.setDescription(getOptionalValue(row, formatter, colIndex, fieldMap, "description"));
+                    location.setAddress(getOptionalValue(row, formatter, colIndex, fieldMap, "address"));
+                    location.setCity(getOptionalValue(row, formatter, colIndex, fieldMap, "city"));
+                    location.setState(getOptionalValue(row, formatter, colIndex, fieldMap, "state"));
+                    location.setCountry(getOptionalValue(row, formatter, colIndex, fieldMap, "country"));
+                    location.setPostalCode(getOptionalValue(row, formatter, colIndex, fieldMap, "postalCode"));
+                    location.setPhone(getOptionalValue(row, formatter, colIndex, fieldMap, "phone"));
+                    location.setEmail(getOptionalValue(row, formatter, colIndex, fieldMap, "email"));
+                    location.setContactPerson(getOptionalValue(row, formatter, colIndex, fieldMap, "contactPerson"));
+                    location.setNotes(getOptionalValue(row, formatter, colIndex, fieldMap, "notes"));
+                    location.setResponsibilityCenter(getOptionalValue(row, formatter, colIndex, fieldMap, "responsibilityCenter"));
+
+                    if (location.getId() == null) {
+                        location.setCreatedAt(LocalDateTime.now());
+                        location.setCreatedBy("Import");
+                        if (location.getIsDefault() == null) {
+                            location.setIsDefault(false);
+                        }
+                    }
+                    location.setUpdatedAt(LocalDateTime.now());
+                    location.setUpdatedBy("Import");
+                    locationRepository.save(location);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add(new RowError(i + 1, e.getMessage()));
+                    log.warn("Location import row {} error: {}", i + 1, e.getMessage());
+                }
+            }
+        }
+        return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
+    }
+
+    // ─── Barcodes ─────────────────────────────────────────────────────────────
+
+    private ImportResultDTO importBarcodes(MultipartFile file, List<ImportFieldMappingDTO> mapping)
+            throws IOException {
+        List<RowError> errors = new ArrayList<>();
+        int successCount = 0;
+        int totalRows = 0;
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+            Map<String, Integer> colIndex = buildColumnIndex(sheet, formatter);
+            Map<String, String> fieldMap = buildFieldMap(mapping);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row, formatter)) continue;
+                totalRows++;
+
+                try {
+                    String barcodeValue = getRequiredValue(row, formatter, colIndex, fieldMap, "barcode", i);
+                    String itemCode = getRequiredValue(row, formatter, colIndex, fieldMap, "itemCode", i);
+
+                    Item item = itemRepository.findByItemCode(itemCode)
+                            .orElseThrow(() -> new RuntimeException("Item not found: " + itemCode));
+
+                    ItemBarcode barcode = itemBarcodeRepository.findByBarcode(barcodeValue)
+                            .orElse(new ItemBarcode());
+
+                    if (barcode.getId() != null && barcode.getItem() != null
+                            && !barcode.getItem().getId().equals(item.getId())) {
+                        throw new RuntimeException("Barcode '" + barcodeValue + "' already assigned to a different item");
+                    }
+
+                    barcode.setBarcode(barcodeValue);
+                    barcode.setItem(item);
+                    barcode.setDescription(getOptionalValue(row, formatter, colIndex, fieldMap, "description"));
+
+                    String isPrimaryStr = getOptionalValue(row, formatter, colIndex, fieldMap, "isPrimary");
+                    if (isPrimaryStr != null) {
+                        barcode.setIsPrimary("true".equalsIgnoreCase(isPrimaryStr) || "1".equals(isPrimaryStr) || "yes".equalsIgnoreCase(isPrimaryStr));
+                    }
+
+                    if (barcode.getId() == null) {
+                        barcode.setCreatedAt(LocalDateTime.now());
+                        barcode.setCreatedBy("Import");
+                    }
+                    barcode.setUpdatedAt(LocalDateTime.now());
+                    barcode.setUpdatedBy("Import");
+                    itemBarcodeRepository.save(barcode);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add(new RowError(i + 1, e.getMessage()));
+                    log.warn("Barcode import row {} error: {}", i + 1, e.getMessage());
+                }
+            }
+        }
+        return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private Map<String, Integer> buildColumnIndex(Sheet sheet, DataFormatter formatter) {
@@ -447,7 +571,7 @@ public class DataImportService {
     private String getRequiredValue(Row row, DataFormatter formatter, Map<String, Integer> colIndex,
                                      Map<String, String> fieldMap, String dbField, int rowNum) {
         String value = getCellValue(row, formatter, colIndex, fieldMap, dbField);
-        if (value == null || value.isEmpty()) {
+        if (value == null || value.isEmpty() || value.equalsIgnoreCase("null")) {
             throw new RuntimeException("Required field '" + dbField + "' is missing or empty at row " + (rowNum + 1));
         }
         return value;
@@ -456,7 +580,10 @@ public class DataImportService {
     private String getOptionalValue(Row row, DataFormatter formatter, Map<String, Integer> colIndex,
                                      Map<String, String> fieldMap, String dbField) {
         String value = getCellValue(row, formatter, colIndex, fieldMap, dbField);
-        return (value == null || value.isEmpty()) ? null : value;
+        if (value == null || value.isEmpty() || value.equalsIgnoreCase("null")) {
+            return null;
+        }
+        return value;
     }
 
     private boolean isRowEmpty(Row row, DataFormatter formatter) {

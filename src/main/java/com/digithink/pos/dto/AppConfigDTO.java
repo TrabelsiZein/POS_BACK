@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Public application configuration for the frontend (e.g. dual mode: ERP vs Standalone).
+ * Public application configuration for the frontend (e.g. dual mode: ERP vs Standalone, franchise flags).
  */
 @Data
 @NoArgsConstructor
@@ -26,4 +26,23 @@ public class AppConfigDTO {
 	 * True when the loyalty (fidélité) program is enabled. Controlled by GeneralSetup LOYALTY_ENABLED.
 	 */
 	private boolean loyaltyEnabled;
+
+	/**
+	 * True when this instance is the central franchise admin (HQ).
+	 * Enables franchise sync APIs and franchise-specific admin UI.
+	 */
+	private boolean franchiseAdmin;
+
+	/**
+	 * True when this instance is a franchise client.
+	 * Disables item CRUD and manual purchases; enables sync UI from admin.
+	 */
+	private boolean franchiseCustomer;
+
+	/**
+	 * True when the franchise client is allowed to add/manage its own local items.
+	 * Items synced from the franchise admin remain read-only regardless.
+	 * Always false when not in franchise client mode.
+	 */
+	private boolean allowLocalItems;
 }

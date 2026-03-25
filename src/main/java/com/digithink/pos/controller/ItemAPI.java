@@ -108,7 +108,8 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 	}
 
 	/**
-	 * Create item. Only allowed in standalone mode.
+	 * Create item. Requires standalone mode.
+	 * Franchise clients: only allowed when allow-local-items=true; new items are always local (fromFranchiseAdmin=false).
 	 */
 	@Override
 	@PostMapping
@@ -116,6 +117,14 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 		if (!applicationModeService.isStandalone()) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN)
 					.body(createErrorResponse("Item creation is only available in standalone mode. In ERP mode items are synchronized from the ERP."));
+		}
+		if (applicationModeService.isFranchiseClient() && !applicationModeService.isLocalItemsAllowed()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Item creation is not allowed in franchise client mode. Items are synchronized from the franchise admin."));
+		}
+		// Locally-created items by franchise client are never from the admin
+		if (applicationModeService.isFranchiseClient()) {
+			entity.setFromFranchiseAdmin(false);
 		}
 		try {
 			log.info("ItemAPI::create");
@@ -128,7 +137,8 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 	}
 
 	/**
-	 * Update item. Only allowed in standalone mode.
+	 * Update item. Requires standalone mode.
+	 * Franchise clients with allow-local-items=true may only edit their own local items (fromFranchiseAdmin=false).
 	 */
 	@Override
 	@PutMapping("/{id}")
@@ -137,13 +147,25 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN)
 					.body(createErrorResponse("Item update is only available in standalone mode. In ERP mode items are synchronized from the ERP."));
 		}
+		if (applicationModeService.isFranchiseClient() && !applicationModeService.isLocalItemsAllowed()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Item update is not allowed in franchise client mode. Items are synchronized from the franchise admin."));
+		}
 		try {
 			log.info("ItemAPI::update::" + id);
 			Optional<Item> existing = service.findById(id);
 			if (!existing.isPresent()) {
 				return ResponseEntity.notFound().build();
 			}
-			entity.setId(existing.get().getId());
+			Item existingItem = existing.get();
+			// Franchise client cannot edit items that originated from the admin
+			if (applicationModeService.isFranchiseClient() && Boolean.TRUE.equals(existingItem.getFromFranchiseAdmin())) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Items synced from the franchise admin are read-only and cannot be edited."));
+			}
+			entity.setId(existingItem.getId());
+			// Preserve the fromFranchiseAdmin flag — cannot be changed via update
+			entity.setFromFranchiseAdmin(existingItem.getFromFranchiseAdmin());
 			Item updated = service.save(entity);
 			return ResponseEntity.ok(updated);
 		} catch (Exception e) {
@@ -153,7 +175,8 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 	}
 
 	/**
-	 * Delete item. Only allowed in standalone mode.
+	 * Delete item. Requires standalone mode.
+	 * Franchise clients with allow-local-items=true may only delete their own local items (fromFranchiseAdmin=false).
 	 */
 	@Override
 	@DeleteMapping("/{id}")
@@ -162,8 +185,21 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN)
 					.body(createErrorResponse("Item deletion is only available in standalone mode. In ERP mode items are synchronized from the ERP."));
 		}
+		if (applicationModeService.isFranchiseClient() && !applicationModeService.isLocalItemsAllowed()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(createErrorResponse("Item deletion is not allowed in franchise client mode. Items are synchronized from the franchise admin."));
+		}
 		try {
 			log.info("ItemAPI::deleteById::" + id);
+			Optional<Item> existing = service.findById(id);
+			if (!existing.isPresent()) {
+				return ResponseEntity.notFound().build();
+			}
+			// Franchise client cannot delete items that originated from the admin
+			if (applicationModeService.isFranchiseClient() && Boolean.TRUE.equals(existing.get().getFromFranchiseAdmin())) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(createErrorResponse("Items synced from the franchise admin cannot be deleted."));
+			}
 			service.deleteById(id);
 			return ResponseEntity.noContent().build();
 		} catch (Exception e) {
