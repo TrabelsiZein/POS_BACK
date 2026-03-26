@@ -27,9 +27,9 @@ public class LicenseRecord extends _BaseEntity {
     @Column(name = "company_name")
     private String companyName;
 
-    /** App ID extracted from the license (must match app.id property). */
-    @Column(name = "app_id")
-    private String appId;
+    /** Machine installation ID extracted from the license and validated against runtime fingerprint. */
+    @Column(name = "installation_id")
+    private String installationId;
 
     /** License issue date extracted from the license data. */
     @Column(name = "issued_at")

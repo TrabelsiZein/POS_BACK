@@ -5,11 +5,11 @@
  * Requires: Java 11+, private_key.pem in the same folder.
  *
  * Usage:
- *   java LicenseGenerator.java <company> <appId> <expiresAt>
+ *   java LicenseGenerator.java <company> <installationId> <expiresAt>
  *
  * Examples:
- *   java LicenseGenerator.java "ABC Store" "POS-CLIENT-001" "2027-03-25"
- *   java LicenseGenerator.java "My Dev Machine" "POS-DEV-001" "2099-12-31"
+ *   java LicenseGenerator.java "ABC Store" "A1B2C3...F9" "2027-03-25"
+ *   java LicenseGenerator.java "My Dev Machine" "A1B2C3...F9" "2099-12-31"
  *
  * Output:
  *   license.json  — ready to upload via Company Information page
@@ -30,17 +30,17 @@ public class LicenseGenerator {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 3) {
-            System.err.println("Usage: java LicenseGenerator.java <company> <appId> <expiresAt>");
+            System.err.println("Usage: java LicenseGenerator.java <company> <installationId> <expiresAt>");
             System.err.println("  expiresAt format: YYYY-MM-DD");
             System.err.println("");
             System.err.println("Examples:");
-            System.err.println("  java LicenseGenerator.java \"ABC Store\" \"POS-CLIENT-001\" \"2027-03-25\"");
-            System.err.println("  java LicenseGenerator.java \"Dev Machine\" \"POS-DEV-001\" \"2099-12-31\"");
+            System.err.println("  java LicenseGenerator.java \"ABC Store\" \"A1B2C3...F9\" \"2027-03-25\"");
+            System.err.println("  java LicenseGenerator.java \"Dev Machine\" \"A1B2C3...F9\" \"2099-12-31\"");
             System.exit(1);
         }
 
         String company   = args[0];
-        String appId     = args[1];
+        String installationId = args[1];
         String expiresAt = args[2];
         String issuedAt  = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
@@ -67,7 +67,7 @@ public class LicenseGenerator {
         // Build data JSON (compact, deterministic key order for reliable signing)
         String dataJson = "{"
             + "\"company\":\"" + escape(company) + "\","
-            + "\"appId\":\"" + escape(appId) + "\","
+            + "\"installationId\":\"" + escape(installationId) + "\","
             + "\"issuedAt\":\"" + issuedAt + "\","
             + "\"expiresAt\":\"" + expiresAt + "\""
             + "}";
@@ -90,7 +90,7 @@ public class LicenseGenerator {
 
         System.out.println("✅ License generated successfully!");
         System.out.println("   Company  : " + company);
-        System.out.println("   App ID   : " + appId);
+        System.out.println("   Installation ID : " + installationId);
         System.out.println("   Issued   : " + issuedAt);
         System.out.println("   Expires  : " + expiresAt);
         System.out.println("   Output   : " + outputPath.toAbsolutePath());

@@ -84,6 +84,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	private StockService stockService;
 
 	@Autowired
+	private StockMovementService stockMovementService;
+
+	@Autowired
 	private LoyaltyService loyaltyService;
 
 	@Autowired
@@ -290,7 +293,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		}
 
 		// Update stock (standalone only; shared helper)
-		decrementStockForSalesLines(salesLines);
+		decrementStockForSalesLines(salesLines, salesHeader);
 
 		triggerSessionExportForPayments(payments, salesHeader);
 
@@ -469,7 +472,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		List<Payment> payments = createAndSavePaymentsForSale(salesHeader, request, currentUser);
 
 		// Update stock (standalone only; shared helper)
-		decrementStockForSalesLines(salesLines);
+		decrementStockForSalesLines(salesLines, salesHeader);
 
 		// Mark header completed and persist
 		salesHeader.setStatus(TransactionStatus.COMPLETED);
@@ -562,10 +565,14 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	/**
 	 * Decrement stock for all sale lines (standalone only). Single place used by processCompleteSale and completePendingSale.
 	 */
-	private void decrementStockForSalesLines(List<SalesLine> salesLines) {
+	private void decrementStockForSalesLines(List<SalesLine> salesLines, SalesHeader salesHeader) {
 		for (SalesLine line : salesLines) {
 			if (line.getItem() != null && line.getQuantity() != null && line.getQuantity() > 0) {
 				stockService.decrementForSale(line.getItem().getId(), line.getQuantity());
+				stockMovementService.recordSale(
+						line.getItem().getId(), line.getQuantity(),
+						line.getUnitPrice(), line.getVatPercent(), line.getUnitPriceIncludingVat(),
+						salesHeader.getId(), salesHeader.getCashierSession());
 			}
 		}
 	}

@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.digithink.pos.model.LicenseRecord;
 import com.digithink.pos.model.enumeration.LicenseStatus;
 import com.digithink.pos.service.LicenseService;
+import com.digithink.pos.service.MachineFingerprintService;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class LicenseAPI {
 
     private final LicenseService licenseService;
+    private final MachineFingerprintService machineFingerprintService;
 
     /**
      * Returns the current license status.
@@ -48,9 +50,10 @@ public class LicenseAPI {
         LicenseStatusDTO dto = new LicenseStatusDTO();
         dto.setStatus(status.name());
         dto.setDaysUntilExpiry(daysLeft);
+        dto.setMachineInstallationId(machineFingerprintService.getInstallationId());
         if (current != null) {
             dto.setCompany(current.getCompanyName());
-            dto.setAppId(current.getAppId());
+            dto.setInstallationId(current.getInstallationId());
             dto.setIssuedAt(current.getIssuedAt());
             dto.setExpiresAt(current.getExpiresAt());
             dto.setUploadedAt(current.getUploadedAt() != null ? current.getUploadedAt().toString() : null);
@@ -87,7 +90,8 @@ public class LicenseAPI {
         private String status;
         private long daysUntilExpiry;
         private String company;
-        private String appId;
+        private String installationId;
+        private String machineInstallationId;
         private LocalDate issuedAt;
         private LocalDate expiresAt;
         private String uploadedAt;
@@ -101,7 +105,7 @@ public class LicenseAPI {
     public static class LicenseHistoryDTO {
         private Long id;
         private String company;
-        private String appId;
+        private String installationId;
         private LocalDate issuedAt;
         private LocalDate expiresAt;
         private String uploadedAt;
@@ -112,7 +116,7 @@ public class LicenseAPI {
             return new LicenseHistoryDTO(
                 r.getId(),
                 r.getCompanyName(),
-                r.getAppId(),
+                r.getInstallationId(),
                 r.getIssuedAt(),
                 r.getExpiresAt(),
                 r.getUploadedAt() != null ? r.getUploadedAt().toString() : null,

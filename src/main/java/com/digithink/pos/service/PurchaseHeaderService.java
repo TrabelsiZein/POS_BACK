@@ -52,6 +52,9 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 	@Autowired
 	private StockService stockService;
 
+	@Autowired
+	private StockMovementService stockMovementService;
+
 	@Override
 	protected _BaseRepository<PurchaseHeader, Long> getRepository() {
 		return purchaseHeaderRepository;
@@ -146,6 +149,10 @@ public class PurchaseHeaderService extends _BaseService<PurchaseHeader, Long> {
 
 			// Update stock (standalone only; single service, atomic updates, concurrency-safe)
 			stockService.incrementForPurchase(item.getId(), lineDto.getQuantity());
+			stockMovementService.recordPurchase(
+					item.getId(), lineDto.getQuantity(),
+					lineDto.getUnitPrice(), vatPct, lineTotalTtc / lineDto.getQuantity(),
+					header.getId());
 		}
 
 		log.info("Purchase created: {} id={}", purchaseNumber, header.getId());

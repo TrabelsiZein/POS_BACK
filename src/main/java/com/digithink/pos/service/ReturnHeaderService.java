@@ -67,6 +67,9 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	private StockService stockService;
 
 	@Autowired
+	private StockMovementService stockMovementService;
+
+	@Autowired
 	private LoyaltyService loyaltyService;
 
 	@Override
@@ -284,11 +287,20 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			returnLineRepository.save(returnLine);
 		}
 
-		// Update stock only for SIMPLE_RETURN (customer gets product back). Voucher return does not put stock back.
-		if (request.getReturnType() == ReturnType.SIMPLE_RETURN) {
-			for (ReturnLine returnLine : returnLines) {
-				if (returnLine.getItem() != null && returnLine.getQuantity() != null && returnLine.getQuantity() > 0) {
-					stockService.incrementForReturn(returnLine.getItem().getId(), returnLine.getQuantity());
+		// Update stock for all return types — goods always come back to stock regardless of refund method.
+		for (ReturnLine returnLine : returnLines) {
+			if (returnLine.getItem() != null && returnLine.getQuantity() != null && returnLine.getQuantity() > 0) {
+				stockService.incrementForReturn(returnLine.getItem().getId(), returnLine.getQuantity());
+				if (request.getReturnType() == ReturnType.SIMPLE_RETURN) {
+					stockMovementService.recordSimpleReturn(
+							returnLine.getItem().getId(), returnLine.getQuantity(),
+							returnLine.getUnitPrice(), null, returnLine.getUnitPriceIncludingVat(),
+							returnHeader.getId(), returnHeader.getCashierSession());
+				} else {
+					stockMovementService.recordVoucherReturn(
+							returnLine.getItem().getId(), returnLine.getQuantity(),
+							returnLine.getUnitPrice(), null, returnLine.getUnitPriceIncludingVat(),
+							returnHeader.getId(), returnHeader.getCashierSession());
 				}
 			}
 		}

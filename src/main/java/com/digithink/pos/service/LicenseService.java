@@ -17,7 +17,6 @@ import javax.annotation.PostConstruct;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +37,7 @@ import lombok.RequiredArgsConstructor;
  * {
  *   "data": {
  *     "company": "ABC Store",
- *     "appId":   "POS-CLIENT-001",
+ *     "installationId": "SHA256_MACHINE_FINGERPRINT",
  *     "issuedAt": "2026-01-01",
  *     "expiresAt": "2027-01-01"
  *   },
@@ -56,9 +55,7 @@ public class LicenseService {
 
     private final LicenseRecordRepository licenseRepo;
     private final ObjectMapper objectMapper;
-
-    @Value("${app.id:UNKNOWN}")
-    private String appId;
+    private final MachineFingerprintService machineFingerprintService;
 
     private PublicKey publicKey;
 
@@ -87,6 +84,7 @@ public class LicenseService {
         Optional<LicenseRecord> current = licenseRepo.findByCurrentLicenseTrue();
         if (current.isEmpty()) return LicenseStatus.MISSING;
         LicenseRecord lic = current.get();
+        if (!isBoundToCurrentMachine(lic)) return LicenseStatus.EXPIRED;
         long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), lic.getExpiresAt());
         if (daysLeft < 0)  return LicenseStatus.EXPIRED;
         if (daysLeft <= WARNING_DAYS) return LicenseStatus.WARNING;
@@ -95,7 +93,7 @@ public class LicenseService {
 
     public long getDaysUntilExpiry() {
         return licenseRepo.findByCurrentLicenseTrue()
-                .map(l -> ChronoUnit.DAYS.between(LocalDate.now(), l.getExpiresAt()))
+                .map(l -> isBoundToCurrentMachine(l) ? ChronoUnit.DAYS.between(LocalDate.now(), l.getExpiresAt()) : -1L)
                 .orElse(-1L);
     }
 
@@ -132,11 +130,14 @@ public class LicenseService {
                 throw new IllegalArgumentException("License signature is invalid — this license was not issued by a trusted source");
             }
 
-            // Validate appId matches this deployment
-            String licAppId = data.path("appId").asText();
-            if (!appId.equalsIgnoreCase(licAppId)) {
-                throw new IllegalArgumentException(
-                    "License is not valid for this installation (expected appId '" + appId + "', got '" + licAppId + "')");
+            // Validate installationId against machine fingerprint (runtime source of truth)
+            String licenseInstallationId = data.path("installationId").asText();
+            if (licenseInstallationId == null || licenseInstallationId.isBlank()) {
+                throw new IllegalArgumentException("License is missing installationId");
+            }
+            String machineInstallationId = machineFingerprintService.getInstallationId();
+            if (!machineInstallationId.equalsIgnoreCase(licenseInstallationId)) {
+                throw new IllegalArgumentException("License is not valid for this machine (installationId mismatch)");
             }
 
             // Parse fields
@@ -150,7 +151,7 @@ public class LicenseService {
 
             LicenseRecord record = new LicenseRecord();
             record.setCompanyName(company);
-            record.setAppId(licAppId);
+            record.setInstallationId(licenseInstallationId);
             record.setIssuedAt(issued);
             record.setExpiresAt(expires);
             record.setRawJson(licenseJson);
@@ -160,7 +161,8 @@ public class LicenseService {
             record.setCreatedBy(uploadedBy);
 
             LicenseRecord saved = licenseRepo.save(record);
-            log.info("License uploaded: company='{}', appId='{}', expires={}, by={}", company, licAppId, expires, uploadedBy);
+            log.info("License uploaded: company='{}', installationId='{}', expires={}, by={}",
+                    company, mask(licenseInstallationId), expires, uploadedBy);
             return saved;
 
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -188,5 +190,19 @@ public class LicenseService {
         } catch (Exception e) {
             return "system";
         }
+    }
+
+    private String mask(String id) {
+        if (id == null || id.length() < 12) return "N/A";
+        return id.substring(0, 6) + "..." + id.substring(id.length() - 6);
+    }
+
+    private boolean isBoundToCurrentMachine(LicenseRecord record) {
+        String storedInstallationId = record.getInstallationId();
+        if (storedInstallationId == null || storedInstallationId.isBlank()) {
+            return false;
+        }
+        String machineInstallationId = machineFingerprintService.getInstallationId();
+        return machineInstallationId.equalsIgnoreCase(storedInstallationId);
     }
 }
