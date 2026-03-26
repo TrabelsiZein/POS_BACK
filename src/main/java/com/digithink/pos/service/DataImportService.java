@@ -1,6 +1,7 @@
 package com.digithink.pos.service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,13 +29,20 @@ import com.digithink.pos.model.ItemBarcode;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
 import com.digithink.pos.model.Location;
+import com.digithink.pos.model.SalesDiscount;
+import com.digithink.pos.model.SalesPrice;
 import com.digithink.pos.model.Vendor;
+import com.digithink.pos.model.enumeration.SalesDiscountSalesType;
+import com.digithink.pos.model.enumeration.SalesDiscountType;
+import com.digithink.pos.model.enumeration.SalesPriceType;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.ItemBarcodeRepository;
 import com.digithink.pos.repository.ItemFamilyRepository;
 import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.ItemSubFamilyRepository;
 import com.digithink.pos.repository.LocationRepository;
+import com.digithink.pos.repository.SalesDiscountRepository;
+import com.digithink.pos.repository.SalesPriceRepository;
 import com.digithink.pos.repository.VendorRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -54,6 +62,8 @@ public class DataImportService {
     private final VendorRepository vendorRepository;
     private final CustomerRepository customerRepository;
     private final LocationRepository locationRepository;
+    private final SalesPriceRepository salesPriceRepository;
+    private final SalesDiscountRepository salesDiscountRepository;
 
     public ImportPreviewDTO previewFile(MultipartFile file) throws IOException {
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
@@ -104,6 +114,8 @@ public class DataImportService {
             case "CUSTOMERS":   return importCustomers(file, mapping);
             case "LOCATIONS":   return importLocations(file, mapping);
             case "BARCODES":    return importBarcodes(file, mapping);
+            case "SALES_PRICES": return importSalesPrices(file, mapping);
+            case "SALES_DISCOUNTS": return importSalesDiscounts(file, mapping);
             default:
                 throw new IllegalArgumentException("Unknown entity type: " + entityType);
         }
@@ -525,6 +537,162 @@ public class DataImportService {
         return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
     }
 
+    // ─── Sales Prices ─────────────────────────────────────────────────────────
+    private ImportResultDTO importSalesPrices(MultipartFile file, List<ImportFieldMappingDTO> mapping)
+            throws IOException {
+        List<RowError> errors = new ArrayList<>();
+        int successCount = 0;
+        int totalRows = 0;
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+            Map<String, Integer> colIndex = buildColumnIndex(sheet, formatter);
+            Map<String, String> fieldMap = buildFieldMap(mapping);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row, formatter)) continue;
+                totalRows++;
+
+                try {
+                    String itemNo = getRequiredValue(row, formatter, colIndex, fieldMap, "itemNo", i);
+                    SalesPriceType salesType = parseSalesPriceType(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "salesType", i), i);
+                    String salesCode = getRequiredValue(row, formatter, colIndex, fieldMap, "salesCode", i);
+                    String responsibilityCenter = getRequiredValue(row, formatter, colIndex, fieldMap, "responsibilityCenter", i);
+                    LocalDate startingDate = parseLocalDate(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "startingDate", i), "startingDate", i);
+                    String currencyCode = getRequiredValue(row, formatter, colIndex, fieldMap, "currencyCode", i);
+                    String variantCode = getRequiredValue(row, formatter, colIndex, fieldMap, "variantCode", i);
+                    String unitOfMeasureCode = getRequiredValue(row, formatter, colIndex, fieldMap, "unitOfMeasureCode", i);
+                    Double minimumQuantity = parseDouble(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "minimumQuantity", i));
+
+                    SalesPrice salesPrice = salesPriceRepository
+                            .findByItemNoAndSalesTypeAndSalesCodeAndResponsibilityCenterAndStartingDateAndCurrencyCodeAndVariantCodeAndUnitOfMeasureCodeAndMinimumQuantity(
+                                    itemNo, salesType, salesCode, responsibilityCenter, startingDate, currencyCode,
+                                    variantCode, unitOfMeasureCode, minimumQuantity)
+                            .orElse(new SalesPrice());
+
+                    salesPrice.setErpExternalId(getOptionalValue(row, formatter, colIndex, fieldMap, "erpExternalId"));
+                    salesPrice.setItemNo(itemNo);
+                    salesPrice.setSalesType(salesType);
+                    salesPrice.setSalesCode(salesCode);
+                    salesPrice.setResponsibilityCenter(responsibilityCenter);
+                    salesPrice.setStartingDate(startingDate);
+                    salesPrice.setCurrencyCode(currencyCode);
+                    salesPrice.setVariantCode(variantCode);
+                    salesPrice.setUnitOfMeasureCode(unitOfMeasureCode);
+                    salesPrice.setMinimumQuantity(minimumQuantity);
+
+                    String unitPrice = getOptionalValue(row, formatter, colIndex, fieldMap, "unitPrice");
+                    salesPrice.setUnitPrice(unitPrice == null ? null : parseDouble(unitPrice));
+
+                    String priceIncludesVat = getOptionalValue(row, formatter, colIndex, fieldMap, "priceIncludesVat");
+                    salesPrice.setPriceIncludesVat(priceIncludesVat == null ? null : parseBoolean(priceIncludesVat));
+
+                    salesPrice.setResponsibilityCenterType(
+                            getOptionalValue(row, formatter, colIndex, fieldMap, "responsibilityCenterType"));
+
+                    String endingDate = getOptionalValue(row, formatter, colIndex, fieldMap, "endingDate");
+                    salesPrice.setEndingDate(endingDate == null ? null : parseLocalDate(endingDate, "endingDate", i));
+
+                    if (salesPrice.getId() == null) {
+                        salesPrice.setCreatedAt(LocalDateTime.now());
+                        salesPrice.setCreatedBy("Import");
+                    }
+                    salesPrice.setUpdatedAt(LocalDateTime.now());
+                    salesPrice.setUpdatedBy("Import");
+                    salesPriceRepository.save(salesPrice);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add(new RowError(i + 1, e.getMessage()));
+                    log.warn("SalesPrice import row {} error: {}", i + 1, e.getMessage());
+                }
+            }
+        }
+        return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
+    }
+
+    // ─── Sales Discounts ──────────────────────────────────────────────────────
+    private ImportResultDTO importSalesDiscounts(MultipartFile file, List<ImportFieldMappingDTO> mapping)
+            throws IOException {
+        List<RowError> errors = new ArrayList<>();
+        int successCount = 0;
+        int totalRows = 0;
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+            Map<String, Integer> colIndex = buildColumnIndex(sheet, formatter);
+            Map<String, String> fieldMap = buildFieldMap(mapping);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row, formatter)) continue;
+                totalRows++;
+
+                try {
+                    SalesDiscountType type = parseSalesDiscountType(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "type", i), i);
+                    String code = getRequiredValue(row, formatter, colIndex, fieldMap, "code", i);
+                    SalesDiscountSalesType salesType = parseSalesDiscountSalesType(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "salesType", i), i);
+                    String salesCode = getRequiredValue(row, formatter, colIndex, fieldMap, "salesCode", i);
+                    String responsibilityCenter = getRequiredValue(row, formatter, colIndex, fieldMap, "responsibilityCenter", i);
+                    LocalDate startingDate = parseLocalDate(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "startingDate", i), "startingDate", i);
+                    String auxiliaryIndex1 = getRequiredValue(row, formatter, colIndex, fieldMap, "auxiliaryIndex1", i);
+                    String auxiliaryIndex2 = getRequiredValue(row, formatter, colIndex, fieldMap, "auxiliaryIndex2", i);
+                    String auxiliaryIndex3 = getRequiredValue(row, formatter, colIndex, fieldMap, "auxiliaryIndex3", i);
+                    Integer auxiliaryIndex4 = parseInteger(
+                            getRequiredValue(row, formatter, colIndex, fieldMap, "auxiliaryIndex4", i));
+
+                    SalesDiscount salesDiscount = salesDiscountRepository
+                            .findByTypeAndCodeAndSalesTypeAndSalesCodeAndResponsibilityCenterAndStartingDateAndAuxiliaryIndex1AndAuxiliaryIndex2AndAuxiliaryIndex3AndAuxiliaryIndex4(
+                                    type, code, salesType, salesCode, responsibilityCenter, startingDate,
+                                    auxiliaryIndex1, auxiliaryIndex2, auxiliaryIndex3, auxiliaryIndex4)
+                            .orElse(new SalesDiscount());
+
+                    salesDiscount.setErpExternalId(getOptionalValue(row, formatter, colIndex, fieldMap, "erpExternalId"));
+                    salesDiscount.setType(type);
+                    salesDiscount.setCode(code);
+                    salesDiscount.setSalesType(salesType);
+                    salesDiscount.setSalesCode(salesCode);
+                    salesDiscount.setResponsibilityCenter(responsibilityCenter);
+                    salesDiscount.setStartingDate(startingDate);
+                    salesDiscount.setAuxiliaryIndex1(auxiliaryIndex1);
+                    salesDiscount.setAuxiliaryIndex2(auxiliaryIndex2);
+                    salesDiscount.setAuxiliaryIndex3(auxiliaryIndex3);
+                    salesDiscount.setAuxiliaryIndex4(auxiliaryIndex4);
+
+                    salesDiscount.setResponsibilityCenterType(
+                            getOptionalValue(row, formatter, colIndex, fieldMap, "responsibilityCenterType"));
+
+                    String endingDate = getOptionalValue(row, formatter, colIndex, fieldMap, "endingDate");
+                    salesDiscount.setEndingDate(endingDate == null ? null : parseLocalDate(endingDate, "endingDate", i));
+
+                    String lineDiscount = getOptionalValue(row, formatter, colIndex, fieldMap, "lineDiscount");
+                    salesDiscount.setLineDiscount(lineDiscount == null ? null : parseDouble(lineDiscount));
+
+                    if (salesDiscount.getId() == null) {
+                        salesDiscount.setCreatedAt(LocalDateTime.now());
+                        salesDiscount.setCreatedBy("Import");
+                    }
+                    salesDiscount.setUpdatedAt(LocalDateTime.now());
+                    salesDiscount.setUpdatedBy("Import");
+                    salesDiscountRepository.save(salesDiscount);
+                    successCount++;
+                } catch (Exception e) {
+                    errors.add(new RowError(i + 1, e.getMessage()));
+                    log.warn("SalesDiscount import row {} error: {}", i + 1, e.getMessage());
+                }
+            }
+        }
+        return new ImportResultDTO(totalRows, successCount, errors.size(), errors);
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private Map<String, Integer> buildColumnIndex(Sheet sheet, DataFormatter formatter) {
@@ -609,5 +777,52 @@ public class DataImportService {
         } catch (NumberFormatException e) {
             throw new RuntimeException("Invalid integer format: '" + value + "'");
         }
+    }
+
+    private LocalDate parseLocalDate(String value, String fieldName, int rowNum) {
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid date format for '" + fieldName + "' at row " + (rowNum + 1)
+                    + ". Expected ISO format yyyy-MM-dd, got: '" + value + "'");
+        }
+    }
+
+    private Boolean parseBoolean(String value) {
+        String normalized = value.trim().toLowerCase();
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+            return false;
+        }
+        throw new RuntimeException("Invalid boolean format: '" + value + "' (accepted: true/false, 1/0, yes/no)");
+    }
+
+    private SalesPriceType parseSalesPriceType(String value, int rowNum) {
+        SalesPriceType type = SalesPriceType.fromString(value);
+        if (type == null) {
+            throw new RuntimeException("Invalid salesType at row " + (rowNum + 1) + ": '" + value
+                    + "'. Accepted values: CUSTOMER, CUSTOMER_PRICE_GROUP, ALL_CUSTOMERS");
+        }
+        return type;
+    }
+
+    private SalesDiscountType parseSalesDiscountType(String value, int rowNum) {
+        SalesDiscountType type = SalesDiscountType.fromString(value);
+        if (type == null) {
+            throw new RuntimeException("Invalid type at row " + (rowNum + 1) + ": '" + value
+                    + "'. Accepted values: ITEM, ITEM_DISC_GROUP");
+        }
+        return type;
+    }
+
+    private SalesDiscountSalesType parseSalesDiscountSalesType(String value, int rowNum) {
+        SalesDiscountSalesType type = SalesDiscountSalesType.fromString(value);
+        if (type == null) {
+            throw new RuntimeException("Invalid salesType at row " + (rowNum + 1) + ": '" + value
+                    + "'. Accepted values: CUSTOMER, CUSTOMER_DISC_GROUP, ALL_CUSTOMERS");
+        }
+        return type;
     }
 }

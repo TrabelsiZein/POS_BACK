@@ -14,6 +14,10 @@ public interface SalesPriceRepository extends _BaseRepository<SalesPrice, Long> 
 
 	Optional<SalesPrice> findByErpExternalId(String erpExternalId);
 
+	Optional<SalesPrice> findByItemNoAndSalesTypeAndSalesCodeAndResponsibilityCenterAndStartingDateAndCurrencyCodeAndVariantCodeAndUnitOfMeasureCodeAndMinimumQuantity(
+			String itemNo, SalesPriceType salesType, String salesCode, String responsibilityCenter, LocalDate startingDate,
+			String currencyCode, String variantCode, String unitOfMeasureCode, Double minimumQuantity);
+
 	// Legacy method - note: startingDate parameter is String but entity uses LocalDate
 	// This method may not work correctly and should be updated if used
 	Optional<SalesPrice> findByItemNoAndSalesTypeAndSalesCodeAndResponsibilityCenterAndStartingDateAndCurrencyCodeAndVariantCodeAndUnitOfMeasureCodeAndMinimumQuantity(

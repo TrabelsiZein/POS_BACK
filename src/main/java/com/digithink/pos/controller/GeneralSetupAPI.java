@@ -1,7 +1,5 @@
 package com.digithink.pos.controller;
 
-import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -55,37 +53,26 @@ public class GeneralSetupAPI extends _BaseController<GeneralSetup, Long, General
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody GeneralSetup updatedSetting) {
         try {
-            Optional<GeneralSetup> existingOpt = service.findById(id);
-            if (!existingOpt.isPresent()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Setting not found"));
-            }
-
-            GeneralSetup existing = existingOpt.get();
-
-            if (Boolean.TRUE.equals(existing.getReadOnly())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(createErrorResponse("This setting is read only and cannot be modified."));
-            }
-
-            String oldValue = existing.getValeur();
-            existing.setValeur(updatedSetting.getValeur());
-            existing.setDescription(updatedSetting.getDescription());
-
-            // Preserve readOnly flag and code
-            GeneralSetup saved = service.save(existing);
+            String oldValue = service.findById(id).map(GeneralSetup::getValeur).orElse(null);
+            GeneralSetup saved = service.updateFromAdmin(id, updatedSetting, null);
 
             // If this is DEFAULT_LOCATION, update the Location entity
-            if ("DEFAULT_LOCATION".equals(existing.getCode()) && !oldValue.equals(updatedSetting.getValeur())) {
+            if ("DEFAULT_LOCATION".equals(saved.getCode()) && oldValue != null && !oldValue.equals(updatedSetting.getValeur())) {
                 updateLocationDefaultFlag(updatedSetting.getValeur());
             }
 
             // If this is PASSENGER_CUSTOMER, update the Customer entity
-            if ("PASSENGER_CUSTOMER".equals(existing.getCode()) && !oldValue.equals(updatedSetting.getValeur())) {
+            if ("PASSENGER_CUSTOMER".equals(saved.getCode()) && oldValue != null && !oldValue.equals(updatedSetting.getValeur())) {
                 updateCustomerDefaultFlag(updatedSetting.getValeur());
             }
 
             return ResponseEntity.ok(saved);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(createErrorResponse(e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
             String detailedMessage = getDetailedMessage(e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
