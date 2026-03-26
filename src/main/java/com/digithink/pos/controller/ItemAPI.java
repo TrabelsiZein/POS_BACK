@@ -166,6 +166,11 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 			entity.setId(existingItem.getId());
 			// Preserve the fromFranchiseAdmin flag — cannot be changed via update
 			entity.setFromFranchiseAdmin(existingItem.getFromFranchiseAdmin());
+			// These fields are computed automatically after each validated purchase.
+			// The frontend modal shows them as read-only and may omit them from the update payload,
+			// so we must preserve existing values to avoid wiping them to null.
+			entity.setLastDirectCost(existingItem.getLastDirectCost());
+			entity.setLastDirectNetCost(existingItem.getLastDirectNetCost());
 			Item updated = service.save(entity);
 			return ResponseEntity.ok(updated);
 		} catch (Exception e) {

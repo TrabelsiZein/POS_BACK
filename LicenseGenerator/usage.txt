@@ -1,0 +1,1 @@
+java LicenseGenerator.java "Customer Name" "POS-CLIENT-001" "2027-03-25"

@@ -34,6 +34,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	private FranchiseApiKeyFilter franchiseApiKeyFilter;
 
 	@Autowired
+	private LicenseFilter licenseFilter;
+
+	@Autowired
 	@Override
 	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
 		auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder);
@@ -43,7 +46,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 		http.csrf().disable().headers().frameOptions().sameOrigin().and().sessionManagement()
 				.sessionCreationPolicy(SessionCreationPolicy.STATELESS).and().authorizeRequests()
-				.antMatchers("/sse-endpoint/**", "/login/**", "/config", "/company-info", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+				.antMatchers("/sse-endpoint/**", "/login/**", "/config", "/company-info",
+						"/license/**",
+						"/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
 						"/thymeleaf/**",
 						// Franchise sync API: authenticated by X-Franchise-Api-Key header via FranchiseApiKeyFilter,
 						// not by JWT. Only active endpoints when franchise.admin=true (ConditionalOnProperty).
@@ -51,6 +56,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.permitAll().anyRequest().authenticated().and()
 				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean()))
 				.addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+		// License filter runs after JWT auth so we have the authenticated user context when needed
+		http.addFilterAfter(licenseFilter, UsernamePasswordAuthenticationFilter.class);
 
 		// Register the franchise API key filter before JWT processing (only when franchise.admin=true)
 		if (franchiseApiKeyFilter != null) {

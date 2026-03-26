@@ -45,4 +45,16 @@ public class AppConfigDTO {
 	 * Always false when not in franchise client mode.
 	 */
 	private boolean allowLocalItems;
+
+	/**
+	 * Current license status: VALID, WARNING, EXPIRED, or MISSING.
+	 * Frontend uses this to show warning banners and block access when needed.
+	 */
+	private String licenseStatus;
+
+	/**
+	 * Number of days until the current license expires.
+	 * Negative when license is expired or missing. Used for warning countdown.
+	 */
+	private long licenseDaysUntilExpiry;
 }

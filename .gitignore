@@ -1,1 +1,6 @@
 /target/
+
+# License private key - NEVER commit this
+private_key.pem
+*.pem
+
