@@ -109,6 +109,22 @@ public class SalesHeader extends _BaseEntity {
 	@JoinColumn(name = "loyalty_member_id")
 	private LoyaltyMember loyaltyMember;
 
+	/**
+	 * Origin of the header-level discount on this sale.
+	 * Values: MANUAL | PROMOTION
+	 * Null when no header discount was applied.
+	 */
+	@Column(name = "discount_source", length = 20)
+	private String discountSource;
+
+	/**
+	 * Cart-level promotion that produced the header discount.
+	 * Set only when discountSource = PROMOTION.
+	 */
+	@ManyToOne
+	@JoinColumn(name = "promotion_id")
+	private Promotion promotion;
+
 	/** Points earned by the loyalty member from this sale */
 	@Column(name = "loyalty_points_earned")
 	private Integer loyaltyPointsEarned;

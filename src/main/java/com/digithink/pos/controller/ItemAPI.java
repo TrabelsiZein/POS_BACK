@@ -33,6 +33,7 @@ import com.digithink.pos.model.ItemBarcode;
 import java.util.Optional;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.service.CustomerService;
+import com.digithink.pos.service.GeneralSetupService;
 import com.digithink.pos.service.ItemBarcodeService;
 import com.digithink.pos.service.ItemService;
 import com.digithink.pos.service.PricingService;
@@ -62,6 +63,9 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 
 	@Autowired
 	private StockService stockService;
+
+	@Autowired
+	private GeneralSetupService generalSetupService;
 
 	@Value("${pos.pricing.enable-sales-price-group:false}")
 	private boolean priceGroupEnabled;
@@ -261,10 +265,19 @@ public class ItemAPI extends _BaseController<Item, Long, ItemService> {
 	@GetMapping("/by-sub-family/{subFamilyId}")
 	public ResponseEntity<?> getBySubFamily(@PathVariable Long subFamilyId) {
 		try {
-			return ResponseEntity.ok(service.findActiveBySubFamilyId(subFamilyId));
+			List<Item> items = service.findActiveBySubFamilyId(subFamilyId);
+			if (!isPosShowImages()) {
+				items.forEach(i -> i.setImageUrl(null));
+			}
+			return ResponseEntity.ok(items);
 		} catch (Exception e) {
 			return ResponseEntity.badRequest().body(createErrorResponse(getDetailedMessage(e)));
 		}
+	}
+
+	private boolean isPosShowImages() {
+		String val = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
+		return val == null || !"false".equalsIgnoreCase(val);
 	}
 
 	/**

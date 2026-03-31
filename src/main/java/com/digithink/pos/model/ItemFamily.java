@@ -28,4 +28,8 @@ public class ItemFamily extends _BaseEntity {
 	private String description;
 
 	private Integer displayOrder = 0;
+
+	/** Filename of the POS image (e.g. "12.jpg"). Null when no image is configured. */
+	@Column(name = "image_filename")
+	private String imageFilename;
 }

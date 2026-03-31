@@ -1,1 +1,1 @@
-java LicenseGenerator.java "Customer Name" "POS-CLIENT-001" "2027-03-25"
+java LicenseGenerator.java "ZS Retail Dev" "039495CA2732B350F180C1D62B3BFABE7EEB9F95C90C9C650B6596F2DF64B6AD" "2099-12-31"

@@ -34,4 +34,8 @@ public class ItemSubFamily extends _BaseEntity {
 	@ManyToOne
 	@JoinColumn(name = "item_family_id", nullable = false)
 	private ItemFamily itemFamily;
+
+	/** Filename of the POS image (e.g. "12.jpg"). Null when no image is configured. */
+	@Column(name = "image_filename")
+	private String imageFilename;
 }

@@ -4,3 +4,5 @@
 private_key.pem
 *.pem
 
+# User-uploaded POS images — stored on disk, not in version control
+/uploads/

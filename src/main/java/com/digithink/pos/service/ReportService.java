@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.digithink.pos.dto.report.LoyaltyReportRowDTO;
+import com.digithink.pos.dto.report.PromotionReportRowDTO;
 import com.digithink.pos.dto.report.PurchaseReportRowDTO;
 import com.digithink.pos.dto.report.SalesReportRowDTO;
 import com.digithink.pos.dto.report.SessionReportRowDTO;
@@ -448,6 +449,73 @@ public class ReportService {
                 result.add(new SessionReportRowDTO(str(r[0]), toLong(r[1]), nbTx, total, nbTx > 0 ? total / nbTx : 0.0));
             }
         }
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PROMOTION REPORT
+    // Returns one row per promotion that was used in completed sales.
+    // Merges line-level usage (sl.promotion) and header-level usage (sh.promotion).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<PromotionReportRowDTO> getPromotionReport(LocalDate dateFrom, LocalDate dateTo) {
+        LocalDateTime from = toFrom(dateFrom);
+        LocalDateTime to   = toTo(dateTo);
+
+        // Map keyed by promotionCode to accumulate line + header results
+        java.util.Map<String, PromotionReportRowDTO> map = new java.util.LinkedHashMap<>();
+
+        // --- Query 1: line-level promotion usage ---
+        // Excludes 100% discount free lines (discountPercentage < 100) to avoid double-counting
+        // "Buy 3 Get 2 Free" as two separate entries.
+        String lineJpql =
+                "SELECT p.code, p.name, p.promotionType, " +
+                "COUNT(DISTINCT sl.salesHeader.id), " +
+                "SUM(COALESCE(sl.discountAmount, 0)), " +
+                "SUM(COALESCE(sl.lineTotalIncludingVat, 0) + COALESCE(sl.discountAmount, 0)) " +
+                "FROM SalesLine sl JOIN sl.promotion p " +
+                "WHERE sl.salesHeader.status = 'COMPLETED' " +
+                "AND sl.salesHeader.salesDate BETWEEN :from AND :to " +
+                "AND (sl.discountPercentage IS NULL OR sl.discountPercentage < 100) " +
+                "GROUP BY p.id, p.code, p.name, p.promotionType";
+
+        for (Object[] r : (List<Object[]>) em.createQuery(lineJpql)
+                .setParameter("from", from).setParameter("to", to).getResultList()) {
+            String code = str(r[0]);
+            map.put(code, new PromotionReportRowDTO(
+                    code, str(r[1]), str(r[2]),
+                    toLong(r[3]), toDouble(r[4]), toDouble(r[5])));
+        }
+
+        // --- Query 2: header-level (cart) promotion usage ---
+        String headerJpql =
+                "SELECT p.code, p.name, p.promotionType, " +
+                "COUNT(sh.id), " +
+                "SUM(COALESCE(sh.discountAmount, 0)), " +
+                "SUM(COALESCE(sh.totalAmount, 0) + COALESCE(sh.discountAmount, 0)) " +
+                "FROM SalesHeader sh JOIN sh.promotion p " +
+                "WHERE sh.status = 'COMPLETED' " +
+                "AND sh.salesDate BETWEEN :from AND :to " +
+                "GROUP BY p.id, p.code, p.name, p.promotionType";
+
+        for (Object[] r : (List<Object[]>) em.createQuery(headerJpql)
+                .setParameter("from", from).setParameter("to", to).getResultList()) {
+            String code = str(r[0]);
+            if (map.containsKey(code)) {
+                PromotionReportRowDTO existing = map.get(code);
+                existing.setNbTickets(existing.getNbTickets() + toLong(r[3]));
+                existing.setTotalDiscount(existing.getTotalDiscount() + toDouble(r[4]));
+                existing.setRevenueInfluenced(existing.getRevenueInfluenced() + toDouble(r[5]));
+            } else {
+                map.put(code, new PromotionReportRowDTO(
+                        code, str(r[1]), str(r[2]),
+                        toLong(r[3]), toDouble(r[4]), toDouble(r[5])));
+            }
+        }
+
+        List<PromotionReportRowDTO> result = new ArrayList<>(map.values());
+        result.sort((a, b) -> Double.compare(b.getTotalDiscount(), a.getTotalDiscount()));
         return result;
     }
 

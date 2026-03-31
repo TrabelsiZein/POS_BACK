@@ -57,4 +57,11 @@ public class AppConfigDTO {
 	 * Negative when license is expired or missing. Used for warning countdown.
 	 */
 	private long licenseDaysUntilExpiry;
+
+	/**
+	 * True when POS should display images for families, subfamilies and items.
+	 * Controlled by GeneralSetup POS_SHOW_IMAGES. Set to false to suppress all
+	 * image requests when the network or server is slow.
+	 */
+	private boolean posShowImages;
 }

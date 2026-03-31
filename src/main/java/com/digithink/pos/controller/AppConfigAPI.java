@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.dto.AppConfigDTO;
+import com.digithink.pos.service.GeneralSetupService;
 import com.digithink.pos.service.LicenseService;
 import com.digithink.pos.service.LoyaltyService;
 
@@ -25,6 +26,7 @@ public class AppConfigAPI {
 
 	private final ApplicationModeService applicationModeService;
 	private final LicenseService licenseService;
+	private final GeneralSetupService generalSetupService;
 
 	@Value("${pos.pricing.enable-sales-price-group:false}")
 	private boolean enableSalesPriceGroup;
@@ -39,6 +41,8 @@ public class AppConfigAPI {
 	@GetMapping
 	public ResponseEntity<AppConfigDTO> getConfig() {
 		boolean loyaltyEnabled = loyaltyService.isLoyaltyEnabled();
+		String posShowImagesVal = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
+		boolean posShowImages = posShowImagesVal == null || !"false".equalsIgnoreCase(posShowImagesVal);
 		return ResponseEntity.ok(new AppConfigDTO(
 				applicationModeService.isStandalone(),
 				enableSalesPriceGroup,
@@ -47,7 +51,8 @@ public class AppConfigAPI {
 				applicationModeService.isFranchiseClient(),
 				applicationModeService.isLocalItemsAllowed(),
 				licenseService.getStatus().name(),
-				licenseService.getDaysUntilExpiry()
+				licenseService.getDaysUntilExpiry(),
+				posShowImages
 		));
 	}
 }

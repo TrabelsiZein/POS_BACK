@@ -52,7 +52,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 						"/thymeleaf/**",
 						// Franchise sync API: authenticated by X-Franchise-Api-Key header via FranchiseApiKeyFilter,
 						// not by JWT. Only active endpoints when franchise.admin=true (ConditionalOnProperty).
-						"/franchise/**")
+						"/franchise/**",
+						// Image serving is public (browser loads directly, no auth header)
+						"/item-image/**")
 				.permitAll().anyRequest().authenticated().and()
 				.addFilter(new JWTAuthenticationFilter(authenticationManagerBean()))
 				.addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);

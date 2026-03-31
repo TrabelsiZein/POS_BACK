@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "app.upload.dir",
+      "type": "java.lang.String",
+      "description": "Directory where POS entity images (families, subfamilies, items) are stored on disk. Use a relative path (resolved from server working directory) or an absolute path in production.",
+      "defaultValue": "uploads/pos-images"
+    }
+  ]
+}

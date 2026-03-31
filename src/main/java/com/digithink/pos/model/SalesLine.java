@@ -6,6 +6,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -50,13 +51,27 @@ public class SalesLine extends _BaseEntity {
 
 	@Column(nullable = false)
 	private Double lineTotalIncludingVat;
-	
+
 	// Transient fields for convenience
 	private transient Long salesHeaderId;
-	
+
 	private transient Long itemId;
 
 	@Column(nullable = false)
 	private Boolean synched = false;
-}
 
+	/**
+	 * Origin of the discount applied on this line. Values: MANUAL | SALES_PRICE |
+	 * SALES_DISCOUNT | PROMOTION Null when no discount was applied.
+	 */
+	@Column(name = "discount_source", length = 20)
+	private String discountSource;
+
+	/**
+	 * Promotion that produced the discount on this line. Set only when
+	 * discountSource = PROMOTION.
+	 */
+	@ManyToOne
+	@JoinColumn(name = "promotion_id")
+	private Promotion promotion;
+}

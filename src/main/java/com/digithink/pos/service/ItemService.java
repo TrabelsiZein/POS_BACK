@@ -67,11 +67,10 @@ public class ItemService extends _BaseService<Item, Long> {
 				Subquery<Long> hasItemBarcode = query.subquery(Long.class);
 				var bcRoot = hasItemBarcode.from(com.digithink.pos.model.ItemBarcode.class);
 				hasItemBarcode.select(bcRoot.get("item").get("id"));
-				hasItemBarcode.where(
-					cb.equal(bcRoot.get("item").get("id"), root.get("id")),
-					cb.or(cb.isTrue(bcRoot.get("active")), cb.isNull(bcRoot.get("active")))
-				);
-				Predicate hasLegacyBarcode = cb.and(cb.isNotNull(root.get("barcode")), cb.notEqual(root.get("barcode"), ""));
+				hasItemBarcode.where(cb.equal(bcRoot.get("item").get("id"), root.get("id")),
+						cb.or(cb.isTrue(bcRoot.get("active")), cb.isNull(bcRoot.get("active"))));
+				Predicate hasLegacyBarcode = cb.and(cb.isNotNull(root.get("barcode")),
+						cb.notEqual(root.get("barcode"), ""));
 				predicate = cb.and(predicate, cb.or(cb.exists(hasItemBarcode), hasLegacyBarcode));
 			}
 
@@ -80,7 +79,7 @@ public class ItemService extends _BaseService<Item, Long> {
 				// Search in item code and name
 				Predicate codeNameMatch = cb.or(cb.like(cb.lower(root.get("itemCode")), likeValue),
 						cb.like(cb.lower(root.get("name")), likeValue));
-				
+
 				// Search in barcodes
 				Subquery<Long> barcodeSubquery = query.subquery(Long.class);
 				var barcodeRoot = barcodeSubquery.from(com.digithink.pos.model.ItemBarcode.class);
@@ -89,7 +88,7 @@ public class ItemService extends _BaseService<Item, Long> {
 						cb.or(cb.isTrue(barcodeRoot.get("active")), cb.isNull(barcodeRoot.get("active"))),
 						cb.like(cb.lower(barcodeRoot.get("barcode")), likeValue));
 				Predicate barcodeMatch = cb.exists(barcodeSubquery);
-				
+
 				// Match if code/name OR barcode matches
 				predicate = cb.and(predicate, cb.or(codeNameMatch, barcodeMatch));
 			}
@@ -121,7 +120,8 @@ public class ItemService extends _BaseService<Item, Long> {
 	public Item save(Item item) throws Exception {
 		if (applicationModeService.isFranchiseAdmin()) {
 			if (item.getFranchiseSalesPrice() == null || item.getFranchiseSalesPrice() <= 0) {
-				throw new IllegalArgumentException("Franchise sales price is required and must be greater than zero in franchise admin mode");
+				throw new IllegalArgumentException(
+						"Franchise sales price is required and must be greater than zero in franchise admin mode");
 			}
 		}
 
@@ -147,9 +147,9 @@ public class ItemService extends _BaseService<Item, Long> {
 	}
 
 	/**
-	 * Lightweight search for purchase forms.
-	 * Returns all active items matching the search term (code, name, or barcode).
-	 * No POS-specific filters (showInPos, unitPrice > 0) applied.
+	 * Lightweight search for purchase forms. Returns all active items matching the
+	 * search term (code, name, or barcode). No POS-specific filters (showInPos,
+	 * unitPrice > 0) applied.
 	 */
 	public Page<Item> searchItemsForPurchase(String search, Pageable pageable) {
 		Specification<Item> spec = (root, query, cb) -> {
@@ -158,15 +158,13 @@ public class ItemService extends _BaseService<Item, Long> {
 
 			if (StringUtils.hasText(search)) {
 				String likeValue = "%" + search.toLowerCase() + "%";
-				Predicate codeNameMatch = cb.or(
-						cb.like(cb.lower(root.get("itemCode")), likeValue),
+				Predicate codeNameMatch = cb.or(cb.like(cb.lower(root.get("itemCode")), likeValue),
 						cb.like(cb.lower(root.get("name")), likeValue));
 
 				Subquery<Long> barcodeSubquery = query.subquery(Long.class);
 				var barcodeRoot = barcodeSubquery.from(com.digithink.pos.model.ItemBarcode.class);
 				barcodeSubquery.select(barcodeRoot.get("item").get("id"));
-				barcodeSubquery.where(
-						cb.equal(barcodeRoot.get("item").get("id"), root.get("id")),
+				barcodeSubquery.where(cb.equal(barcodeRoot.get("item").get("id"), root.get("id")),
 						cb.or(cb.isTrue(barcodeRoot.get("active")), cb.isNull(barcodeRoot.get("active"))),
 						cb.like(cb.lower(barcodeRoot.get("barcode")), likeValue));
 
@@ -185,8 +183,7 @@ public class ItemService extends _BaseService<Item, Long> {
 		return itemRepository.findByItemFamily(family).stream()
 				.filter(item -> item.getActive() == null || Boolean.TRUE.equals(item.getActive()))
 				.filter(item -> item.getShowInPos() == null || Boolean.TRUE.equals(item.getShowInPos()))
-				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0)
-				.collect(Collectors.toList());
+				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0).collect(Collectors.toList());
 	}
 
 	public List<Item> findActiveBySubFamilyId(Long subFamilyId) {
@@ -196,13 +193,13 @@ public class ItemService extends _BaseService<Item, Long> {
 		return itemRepository.findByItemSubFamily(subFamily).stream()
 				.filter(item -> item.getActive() == null || Boolean.TRUE.equals(item.getActive()))
 				.filter(item -> item.getShowInPos() == null || Boolean.TRUE.equals(item.getShowInPos()))
-				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0)
-				.collect(Collectors.toList());
+				.filter(item -> item.getUnitPrice() != null && item.getUnitPrice() > 0).collect(Collectors.toList());
 	}
 
 	/**
-	 * For standalone mode only: ensure a default family and subfamily exist, then create
-	 * an item. Caller is responsible for creating ItemBarcode. Returns the created item.
+	 * For standalone mode only: ensure a default family and subfamily exist, then
+	 * create an item. Caller is responsible for creating ItemBarcode. Returns the
+	 * created item.
 	 */
 	@Transactional(rollbackFor = Exception.class)
 	public Item createStandaloneQuickProduct(String name, String itemCode, Double unitPrice) throws Exception {
@@ -251,4 +248,3 @@ public class ItemService extends _BaseService<Item, Long> {
 		return "ITEM-" + dateStr + "-" + String.format("%03d", (count % 1000) + 1);
 	}
 }
-

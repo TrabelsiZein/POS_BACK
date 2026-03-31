@@ -17,7 +17,8 @@ import com.digithink.pos.security.CurrentUserProvider;
 
 /**
  * Base service implementation providing common CRUD operations
- * @param <T> Entity type extending _BaseEntity
+ * 
+ * @param <T>  Entity type extending _BaseEntity
  * @param <ID> ID type (usually Long)
  */
 public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseService<T, ID> {
@@ -72,7 +73,7 @@ public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseS
 	}
 
 	@Transactional
-	public T save(T entity) throws Exception{
+	public T save(T entity) throws Exception {
 		String username = currentUserProvider.getCurrentUserName();
 
 		if (entity.getId() == null) {
@@ -89,7 +90,7 @@ public abstract class _BaseService<T extends _BaseEntity, ID> implements __BaseS
 	public void deleteById(ID id) {
 		getRepository().deleteById(id);
 	}
-	
+
 	public long count() {
 		return getRepository().count();
 	}

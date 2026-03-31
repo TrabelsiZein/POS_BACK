@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.model.ItemFamily;
 import com.digithink.pos.model.ItemSubFamily;
+import com.digithink.pos.service.GeneralSetupService;
 import com.digithink.pos.service.ItemFamilyService;
 import com.digithink.pos.service.ItemSubFamilyService;
 
@@ -30,6 +31,9 @@ public class ItemSubFamilyAPI extends _BaseController<ItemSubFamily, Long, ItemS
 
 	@Autowired
 	private ApplicationModeService applicationModeService;
+
+	@Autowired
+	private GeneralSetupService generalSetupService;
 
 	/**
 	 * Create subfamily. Only allowed in standalone mode (in ERP mode subfamilies come from sync).
@@ -56,10 +60,18 @@ public class ItemSubFamilyAPI extends _BaseController<ItemSubFamily, Long, ItemS
 			ItemFamily family = itemFamilyService.findById(familyId)
 					.orElseThrow(() -> new IllegalArgumentException("Item family not found: " + familyId));
 			List<ItemSubFamily> subFamilies = service.findByFamily(family);
+			if (!isPosShowImages()) {
+				subFamilies.forEach(sf -> sf.setImageFilename(null));
+			}
 			return ResponseEntity.ok(subFamilies);
 		} catch (Exception e) {
 			return ResponseEntity.badRequest().body(createErrorResponse(getDetailedMessage(e)));
 		}
+	}
+
+	private boolean isPosShowImages() {
+		String val = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
+		return val == null || !"false".equalsIgnoreCase(val);
 	}
 }
 

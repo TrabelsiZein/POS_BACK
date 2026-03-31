@@ -1,7 +1,10 @@
 package com.digithink.pos.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.config.ApplicationModeService;
 import com.digithink.pos.model.ItemFamily;
+import com.digithink.pos.service.GeneralSetupService;
 import com.digithink.pos.service.ItemFamilyService;
 
 import lombok.extern.log4j.Log4j2;
@@ -19,9 +23,34 @@ import lombok.extern.log4j.Log4j2;
 public class ItemFamilyAPI extends _BaseController<ItemFamily, Long, ItemFamilyService> {
 
 	private final ApplicationModeService applicationModeService;
+	private final GeneralSetupService generalSetupService;
 
-	public ItemFamilyAPI(ApplicationModeService applicationModeService) {
+	public ItemFamilyAPI(ApplicationModeService applicationModeService,
+	                     GeneralSetupService generalSetupService) {
 		this.applicationModeService = applicationModeService;
+		this.generalSetupService = generalSetupService;
+	}
+
+	/** Override getAll to strip imageFilename when POS_SHOW_IMAGES is disabled. */
+	@Override
+	@GetMapping
+	public ResponseEntity<?> getAll() {
+		try {
+			log.info("ItemFamilyAPI::getAll");
+			List<ItemFamily> families = service.findAll();
+			if (!isPosShowImages()) {
+				families.forEach(f -> f.setImageFilename(null));
+			}
+			return ResponseEntity.ok(families);
+		} catch (Exception e) {
+			log.error("ItemFamilyAPI::getAll:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	private boolean isPosShowImages() {
+		String val = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
+		return val == null || !"false".equalsIgnoreCase(val);
 	}
 
 	/**

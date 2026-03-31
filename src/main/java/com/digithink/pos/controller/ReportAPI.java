@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.dto.report.LoyaltyReportRowDTO;
+import com.digithink.pos.dto.report.PromotionReportRowDTO;
 import com.digithink.pos.dto.report.PurchaseReportRowDTO;
 import com.digithink.pos.dto.report.SalesReportRowDTO;
 import com.digithink.pos.dto.report.SessionReportRowDTO;
@@ -116,6 +117,20 @@ public class ReportAPI {
             return ResponseEntity.ok(data);
         } catch (Exception e) {
             log.error("Error generating loyalty report", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/promotions")
+    public ResponseEntity<?> getPromotionReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        if (!isAdmin()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        try {
+            List<PromotionReportRowDTO> data = reportService.getPromotionReport(dateFrom, dateTo);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            log.error("Error generating promotion report", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }
     }

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Business Management/Apps/POS/Apps/Cursor Workspace/**)"
+    ],
+    "additionalDirectories": [
+      "D:\\Business Management\\Apps\\POS\\Apps\\Cursor Workspace"
+    ]
+  }
+}

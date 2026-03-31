@@ -31,6 +31,7 @@ import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.ItemRepository;
 import com.digithink.pos.repository.LoyaltyMemberRepository;
 import com.digithink.pos.repository.PaymentMethodRepository;
+import com.digithink.pos.repository.PromotionRepository;
 import com.digithink.pos.repository.SalesHeaderRepository;
 import com.digithink.pos.repository.SalesLineRepository;
 import com.digithink.pos.repository._BaseRepository;
@@ -92,6 +93,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	@Autowired
 	private LoyaltyMemberRepository loyaltyMemberRepository;
 
+	@Autowired
+	private PromotionRepository promotionRepository;
+
 	@Override
 	protected _BaseRepository<SalesHeader, Long> getRepository() {
 		return salesHeaderRepository;
@@ -135,6 +139,15 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesHeader.setChangeAmount(request.getChangeAmount());
 		salesHeader.setNotes(request.getNotes());
 		salesHeader.setCompletedDate(LocalDateTime.now());
+
+		// Discount source tracking (header level)
+		if (request.getDiscountSource() != null) {
+			salesHeader.setDiscountSource(request.getDiscountSource());
+			if ("PROMOTION".equals(request.getDiscountSource()) && request.getPromotionId() != null) {
+				promotionRepository.findById(request.getPromotionId())
+						.ifPresent(salesHeader::setPromotion);
+			}
+		}
 
 		// Set customer - use provided customer or passenger customer
 		Customer customer = null;
@@ -192,6 +205,15 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 				salesLine.setDiscountAmount(lineDTO.getDiscountAmount());
 			}
 
+			// Discount source tracking (line level)
+			if (lineDTO.getDiscountSource() != null) {
+				salesLine.setDiscountSource(lineDTO.getDiscountSource());
+				if ("PROMOTION".equals(lineDTO.getDiscountSource()) && lineDTO.getPromotionId() != null) {
+					promotionRepository.findById(lineDTO.getPromotionId())
+							.ifPresent(salesLine::setPromotion);
+				}
+			}
+
 			// Set VAT fields - use values from DTO if provided, otherwise calculate
 			Integer vatPercent = lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT();
 			salesLine.setVatPercent(vatPercent);
@@ -218,6 +240,30 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
 			log.info("Sales line created: " + salesLine.getId());
+
+			// FREE_QUANTITY promotion: create a second line for the free items (qty=freeQuantity, total=0)
+			if (lineDTO.getFreeQuantity() != null && lineDTO.getFreeQuantity() > 0) {
+				SalesLine freeLine = new SalesLine();
+				freeLine.setSalesHeader(salesHeader);
+				freeLine.setItem(item);
+				freeLine.setQuantity(lineDTO.getFreeQuantity());
+				freeLine.setUnitPrice(lineDTO.getUnitPrice());
+				freeLine.setLineTotal(0.0);
+				freeLine.setDiscountPercentage(100.0);
+				freeLine.setDiscountAmount(lineDTO.getUnitPrice() != null ? lineDTO.getUnitPrice() * lineDTO.getFreeQuantity() : 0.0);
+				freeLine.setDiscountSource("PROMOTION");
+				freeLine.setVatPercent(lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT());
+				freeLine.setVatAmount(0.0);
+				freeLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+				freeLine.setLineTotalIncludingVat(0.0);
+				if (lineDTO.getPromotionId() != null) {
+					promotionRepository.findById(lineDTO.getPromotionId())
+							.ifPresent(freeLine::setPromotion);
+				}
+				freeLine = salesLineService.save(freeLine);
+				salesLines.add(freeLine);
+				log.info("Free line created for FREE_QUANTITY promotion: item={}, freeQty={}", item.getId(), lineDTO.getFreeQuantity());
+			}
 		}
 
 		// Tax stamp (timbre fiscal) - add one line per receipt when enabled (e.g. Tunisia 100 millimes)
@@ -435,6 +481,15 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			salesHeader.setNotes(request.getNotes());
 		}
 
+		// Discount source tracking (header level)
+		if (request.getDiscountSource() != null) {
+			salesHeader.setDiscountSource(request.getDiscountSource());
+			if ("PROMOTION".equals(request.getDiscountSource()) && request.getPromotionId() != null) {
+				promotionRepository.findById(request.getPromotionId())
+						.ifPresent(salesHeader::setPromotion);
+			}
+		}
+
 		// Delete existing sales lines (in case items were added/removed/modified)
 		salesLineRepository.deleteBySalesHeader(salesHeader);
 		log.info("Deleted all old sales lines for pending sale: " + salesHeader.getId());
@@ -463,9 +518,42 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 						lineDTO.getLineTotal() + (salesLine.getVatAmount() != null ? salesLine.getVatAmount() : 0.0));
 			}
 
+			// Discount source tracking (line level)
+			if (lineDTO.getDiscountSource() != null) {
+				salesLine.setDiscountSource(lineDTO.getDiscountSource());
+				if ("PROMOTION".equals(lineDTO.getDiscountSource()) && lineDTO.getPromotionId() != null) {
+					promotionRepository.findById(lineDTO.getPromotionId())
+							.ifPresent(salesLine::setPromotion);
+				}
+			}
+
 			salesLine = salesLineService.save(salesLine);
 			salesLines.add(salesLine);
 			log.info("Created new sales line: " + salesLine.getId() + " for pending sale completion");
+
+			// Create free line for FREE_QUANTITY promotions
+			if (lineDTO.getFreeQuantity() != null && lineDTO.getFreeQuantity() > 0) {
+				SalesLine freeLine = new SalesLine();
+				freeLine.setSalesHeader(salesHeader);
+				freeLine.setItem(item);
+				freeLine.setQuantity(lineDTO.getFreeQuantity());
+				freeLine.setUnitPrice(lineDTO.getUnitPrice());
+				freeLine.setLineTotal(0.0);
+				freeLine.setDiscountPercentage(100.0);
+				freeLine.setDiscountAmount(lineDTO.getUnitPrice() != null ? lineDTO.getUnitPrice() * lineDTO.getFreeQuantity() : 0.0);
+				freeLine.setDiscountSource("PROMOTION");
+				freeLine.setVatPercent(lineDTO.getVatPercent() != null ? lineDTO.getVatPercent() : item.getDefaultVAT());
+				freeLine.setVatAmount(0.0);
+				freeLine.setUnitPriceIncludingVat(lineDTO.getUnitPriceIncludingVat());
+				freeLine.setLineTotalIncludingVat(0.0);
+				if (lineDTO.getPromotionId() != null) {
+					promotionRepository.findById(lineDTO.getPromotionId())
+							.ifPresent(freeLine::setPromotion);
+				}
+				freeLine = salesLineService.save(freeLine);
+				salesLines.add(freeLine);
+				log.info("Created free line (qty={}) for pending sale completion, item={}", lineDTO.getFreeQuantity(), item.getId());
+			}
 		}
 
 		// Create payments and update header paid/change (shared with processCompleteSale)
@@ -568,6 +656,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	private void decrementStockForSalesLines(List<SalesLine> salesLines, SalesHeader salesHeader) {
 		for (SalesLine line : salesLines) {
 			if (line.getItem() != null && line.getQuantity() != null && line.getQuantity() > 0) {
+				if ("TAX_STAMP".equals(line.getItem().getItemCode())) continue;
 				stockService.decrementForSale(line.getItem().getId(), line.getQuantity());
 				stockMovementService.recordSale(
 						line.getItem().getId(), line.getQuantity(),

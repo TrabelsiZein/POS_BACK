@@ -18,6 +18,12 @@ public class ProcessSaleRequestDTO {
 	private Double discountAmount;
 	private Double discountPercentage;
 	private Double totalAmount;
+
+	/** MANUAL | PROMOTION — null when no header discount. */
+	private String discountSource;
+
+	/** ID of the cart-level promotion applied (set when discountSource = PROMOTION). */
+	private Long promotionId;
 	private Double paidAmount;
 	private Double changeAmount;
 	private Long customerId;
@@ -44,6 +50,15 @@ public class ProcessSaleRequestDTO {
 		private Integer vatPercent;
 		private Double unitPriceIncludingVat;
 		private Double lineTotalIncludingVat;
+
+		/** MANUAL | SALES_PRICE | SALES_DISCOUNT | PROMOTION — null when no discount. */
+		private String discountSource;
+
+		/** ID of the promotion applied on this line (set when discountSource = PROMOTION). */
+		private Long promotionId;
+
+		/** Number of free units granted by a FREE_QUANTITY promotion. When > 0, backend creates a second line. */
+		private Integer freeQuantity;
 	}
 	
 	@Data
