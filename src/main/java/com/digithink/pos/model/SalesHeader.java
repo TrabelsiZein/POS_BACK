@@ -125,6 +125,13 @@ public class SalesHeader extends _BaseEntity {
 	@JoinColumn(name = "promotion_id")
 	private Promotion promotion;
 
+	/**
+	 * Table number assigned to this ticket (used when table management is enabled).
+	 * Null when table management is disabled or not applicable.
+	 */
+	@Column(name = "table_number")
+	private Integer tableNumber;
+
 	/** Points earned by the loyalty member from this sale */
 	@Column(name = "loyalty_points_earned")
 	private Integer loyaltyPointsEarned;

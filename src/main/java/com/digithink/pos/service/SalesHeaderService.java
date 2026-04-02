@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.digithink.pos.dto.PricingResult;
 import com.digithink.pos.dto.ProcessSaleRequestDTO;
+import com.digithink.pos.dto.SplitBillRequestDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.GeneralSetup;
@@ -380,6 +381,7 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		salesHeader.setPaidAmount(0.0); // No payment yet
 		salesHeader.setChangeAmount(0.0);
 		salesHeader.setNotes(request.getNotes());
+		salesHeader.setTableNumber(request.getTableNumber());
 		// completedDate is null for pending sales
 
 		// Set customer - use provided customer or passenger customer
@@ -441,6 +443,59 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		// Payments will be added when the sale is completed
 		log.info("Pending sale saved successfully: " + salesNumber);
 
+		return salesHeader;
+	}
+
+	/**
+	 * Update an existing pending sale's lines and totals (used when returning to table grid).
+	 * Replaces all existing lines with the new ones from the request.
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public SalesHeader updatePendingSale(Long salesHeaderId, ProcessSaleRequestDTO request, UserAccount currentUser)
+			throws Exception {
+		log.info("Updating pending sale: " + salesHeaderId + " for user: " + currentUser.getUsername());
+
+		SalesHeader salesHeader = findById(salesHeaderId)
+				.orElseThrow(() -> new IllegalArgumentException("Pending sale not found: " + salesHeaderId));
+
+		if (salesHeader.getStatus() != TransactionStatus.PENDING) {
+			throw new IllegalStateException(
+					"Sale is not in PENDING status. Current status: " + salesHeader.getStatus());
+		}
+
+		// Update header totals
+		salesHeader.setSubtotal(request.getSubtotal());
+		salesHeader.setTaxAmount(request.getTaxAmount());
+		salesHeader.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
+		salesHeader.setDiscountPercentage(request.getDiscountPercentage());
+		salesHeader.setTotalAmount(request.getTotalAmount());
+		salesHeader.setNotes(request.getNotes());
+		if (request.getTableNumber() != null) {
+			salesHeader.setTableNumber(request.getTableNumber());
+		}
+		if (request.getCustomerId() != null) {
+			customerRepository.findById(request.getCustomerId()).ifPresent(salesHeader::setCustomer);
+		}
+
+		salesHeader = save(salesHeader);
+
+		// Replace all existing lines with the new ones
+		salesLineRepository.deleteBySalesHeader(salesHeader);
+
+		Customer customer = salesHeader.getCustomer();
+		for (ProcessSaleRequestDTO.SaleLineDTO lineDTO : request.getLines()) {
+			Item item = itemRepository.findById(lineDTO.getItemId())
+					.orElseThrow(() -> new IllegalArgumentException("Item not found: " + lineDTO.getItemId()));
+
+			SalesLine salesLine = new SalesLine();
+			salesLine.setSalesHeader(salesHeader);
+			salesLine.setItem(item);
+			salesLine.setQuantity(lineDTO.getQuantity());
+			applyPricingToSalesLine(salesLine, item, customer, lineDTO);
+			salesLineService.save(salesLine);
+		}
+
+		log.info("Pending sale updated successfully: " + salesHeader.getSalesNumber());
 		return salesHeader;
 	}
 
@@ -575,10 +630,164 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	}
 
 	/**
-	 * Get all pending sales for current session
+	 * Get regular pending sales for current session (excludes table-linked tickets).
+	 * Used for the pending tickets panel in ItemSelection — table tickets are managed separately.
 	 */
 	public List<SalesHeader> getPendingSalesForSession(CashierSession session) {
-		return salesHeaderRepository.findByCashierSessionAndStatus(session, TransactionStatus.PENDING);
+		return salesHeaderRepository.findByCashierSessionAndStatusAndTableNumberIsNull(session, TransactionStatus.PENDING);
+	}
+
+	/**
+	 * Get table-linked pending tickets for current session (tableNumber IS NOT NULL).
+	 * Used by the table selection grid to show occupied tables and their totals.
+	 */
+	public List<SalesHeader> getTableTicketsForSession(CashierSession session) {
+		return salesHeaderRepository.findByCashierSessionAndStatusAndTableNumberIsNotNull(session, TransactionStatus.PENDING);
+	}
+
+	/**
+	 * Split-bill: pay for a subset of lines from a pending table ticket.
+	 * 1. Creates a new COMPLETED SalesHeader with only the selected lines.
+	 * 2. Removes those lines from the original pending ticket and recalculates its totals.
+	 * 3. If the original ticket has no remaining lines, cancels it (table becomes free).
+	 * Returns the new completed SalesHeader for receipt printing.
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public SalesHeader splitAndPay(Long originalId, SplitBillRequestDTO request, UserAccount currentUser)
+			throws Exception {
+
+		// 1. Load and validate the original pending ticket
+		SalesHeader original = findById(originalId)
+				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + originalId));
+		if (original.getStatus() != TransactionStatus.PENDING) {
+			throw new IllegalStateException("Only PENDING tickets can be split");
+		}
+		if (request.getSelectedLineIds() == null || request.getSelectedLineIds().isEmpty()) {
+			throw new IllegalArgumentException("At least one line must be selected for split payment");
+		}
+
+		List<SalesLine> allLines = salesLineRepository.findBySalesHeader(original);
+		List<SalesLine> selectedLines = allLines.stream()
+				.filter(l -> request.getSelectedLineIds().contains(l.getId()))
+				.collect(java.util.stream.Collectors.toList());
+		if (selectedLines.isEmpty()) {
+			throw new IllegalArgumentException("None of the selected line IDs found on this ticket");
+		}
+
+		// 2. Resolve customer
+		Customer customer = original.getCustomer();
+		if (request.getCustomerId() != null) {
+			customer = customerRepository.findById(request.getCustomerId()).orElse(customer);
+		}
+
+		// 3. Create the new completed SalesHeader for the split portion
+		String salesNumber = generateSalesNumber();
+		SalesHeader splitHeader = new SalesHeader();
+		splitHeader.setSalesNumber(salesNumber);
+		splitHeader.setSalesDate(LocalDateTime.now());
+		splitHeader.setCreatedByUser(currentUser);
+		splitHeader.setCashierSession(original.getCashierSession());
+		splitHeader.setStatus(TransactionStatus.COMPLETED);
+		splitHeader.setCustomer(customer);
+		splitHeader.setSubtotal(request.getSubtotal());
+		splitHeader.setTaxAmount(request.getTaxAmount());
+		splitHeader.setDiscountAmount(0.0);
+		splitHeader.setTotalAmount(request.getTotalAmount());
+		splitHeader.setPaidAmount(request.getPaidAmount());
+		splitHeader.setChangeAmount(request.getChangeAmount() != null ? request.getChangeAmount() : 0.0);
+		splitHeader.setCompletedDate(LocalDateTime.now());
+		splitHeader.setNotes("Split from " + original.getSalesNumber());
+		splitHeader.setTableNumber(original.getTableNumber());
+		splitHeader = save(splitHeader);
+
+		// 4. Copy selected lines to the new header
+		for (SalesLine origLine : selectedLines) {
+			SalesLine newLine = new SalesLine();
+			newLine.setSalesHeader(splitHeader);
+			newLine.setItem(origLine.getItem());
+			newLine.setQuantity(origLine.getQuantity());
+			newLine.setUnitPrice(origLine.getUnitPrice());
+			newLine.setLineTotal(origLine.getLineTotal());
+			newLine.setDiscountPercentage(origLine.getDiscountPercentage());
+			newLine.setDiscountAmount(origLine.getDiscountAmount());
+			newLine.setVatPercent(origLine.getVatPercent());
+			newLine.setVatAmount(origLine.getVatAmount());
+			newLine.setUnitPriceIncludingVat(origLine.getUnitPriceIncludingVat());
+			newLine.setLineTotalIncludingVat(origLine.getLineTotalIncludingVat());
+			salesLineService.save(newLine);
+		}
+
+		// 5. Create payments for the split header
+		if (request.getPayments() != null) {
+			for (SplitBillRequestDTO.PaymentDTO payDTO : request.getPayments()) {
+				PaymentMethod method = paymentMethodRepository.findById(payDTO.getPaymentMethodId())
+						.orElseThrow(() -> new IllegalArgumentException("Payment method not found: " + payDTO.getPaymentMethodId()));
+				Payment payment = new Payment();
+				payment.setSalesHeader(splitHeader);
+				payment.setPaymentMethod(method);
+				payment.setTotalAmount(payDTO.getAmount());
+				payment.setTitleNumber(payDTO.getTitleNumber());
+				payment.setDueDate(payDTO.getDueDate());
+				payment.setDrawerName(payDTO.getDrawerName());
+				payment.setIssuingBank(payDTO.getIssuingBank());
+				paymentService.save(payment);
+			}
+		}
+
+		// 6. Remove selected lines from original and recalculate totals
+		java.util.Set<Long> selectedIds = new java.util.HashSet<>(request.getSelectedLineIds());
+		List<SalesLine> remainingLines = allLines.stream()
+				.filter(l -> !selectedIds.contains(l.getId()))
+				.collect(java.util.stream.Collectors.toList());
+
+		for (SalesLine toRemove : selectedLines) {
+			salesLineRepository.delete(toRemove);
+		}
+
+		if (remainingLines.isEmpty()) {
+			// Table is now empty — cancel the original ticket
+			original.setStatus(TransactionStatus.CANCELLED);
+			save(original);
+			log.info("Split-bill: original ticket {} cancelled (all lines paid)", original.getSalesNumber());
+		} else {
+			// Recalculate totals from remaining lines
+			double newSubtotal = remainingLines.stream().mapToDouble(l -> l.getLineTotal() != null ? l.getLineTotal() : 0.0).sum();
+			double newTax = remainingLines.stream().mapToDouble(l -> l.getVatAmount() != null ? l.getVatAmount() : 0.0).sum();
+			double newTotal = remainingLines.stream().mapToDouble(l -> l.getLineTotalIncludingVat() != null ? l.getLineTotalIncludingVat() : 0.0).sum();
+			original.setSubtotal(newSubtotal);
+			original.setTaxAmount(newTax);
+			original.setTotalAmount(newTotal);
+			original.setDiscountAmount(0.0);
+			save(original);
+			log.info("Split-bill: original ticket {} updated, {} lines remaining", original.getSalesNumber(), remainingLines.size());
+		}
+
+		log.info("Split-bill completed: new ticket {}, original {}", splitHeader.getSalesNumber(), original.getSalesNumber());
+		return splitHeader;
+	}
+
+	/**
+	 * Transfer a pending table ticket to a different table number.
+	 * Target table must not already have a pending ticket.
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public void transferTable(Long salesHeaderId, Integer targetTableNumber) throws Exception {
+		SalesHeader salesHeader = findById(salesHeaderId)
+				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + salesHeaderId));
+		if (salesHeader.getStatus() != TransactionStatus.PENDING) {
+			throw new IllegalStateException("Only PENDING tickets can be transferred");
+		}
+		// Check target table is free
+		boolean targetOccupied = salesHeaderRepository
+				.findByCashierSessionAndStatusAndTableNumberIsNotNull(salesHeader.getCashierSession(), TransactionStatus.PENDING)
+				.stream()
+				.anyMatch(h -> targetTableNumber.equals(h.getTableNumber()));
+		if (targetOccupied) {
+			throw new IllegalStateException("Target table " + targetTableNumber + " is already occupied");
+		}
+		salesHeader.setTableNumber(targetTableNumber);
+		save(salesHeader);
+		log.info("Table ticket {} transferred to table {}", salesHeaderId, targetTableNumber);
 	}
 
 	/**

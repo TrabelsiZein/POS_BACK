@@ -31,6 +31,9 @@ public class AppConfigAPI {
 	@Value("${pos.pricing.enable-sales-price-group:false}")
 	private boolean enableSalesPriceGroup;
 
+	@Value("${app.version:unknown}")
+	private String appVersion;
+
 	@Autowired
 	private LoyaltyService loyaltyService;
 
@@ -43,6 +46,13 @@ public class AppConfigAPI {
 		boolean loyaltyEnabled = loyaltyService.isLoyaltyEnabled();
 		String posShowImagesVal = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
 		boolean posShowImages = posShowImagesVal == null || !"false".equalsIgnoreCase(posShowImagesVal);
+		String tableEnabledVal = generalSetupService.findValueByCode("TABLE_MANAGEMENT_ENABLED");
+		boolean tableManagementEnabled = "true".equalsIgnoreCase(tableEnabledVal);
+		String tableCountVal = generalSetupService.findValueByCode("TABLE_MANAGEMENT_TABLE_COUNT");
+		int tableManagementTableCount = 10;
+		if (tableCountVal != null) {
+			try { tableManagementTableCount = Integer.parseInt(tableCountVal); } catch (NumberFormatException ignored) {}
+		}
 		return ResponseEntity.ok(new AppConfigDTO(
 				applicationModeService.isStandalone(),
 				enableSalesPriceGroup,
@@ -52,7 +62,10 @@ public class AppConfigAPI {
 				applicationModeService.isLocalItemsAllowed(),
 				licenseService.getStatus().name(),
 				licenseService.getDaysUntilExpiry(),
-				posShowImages
+				posShowImages,
+				tableManagementEnabled,
+				tableManagementTableCount,
+				appVersion
 		));
 	}
 }

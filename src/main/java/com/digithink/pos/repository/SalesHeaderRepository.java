@@ -22,6 +22,12 @@ public interface SalesHeaderRepository extends _BaseRepository<SalesHeader, Long
 
 	List<SalesHeader> findByCashierSessionAndStatus(CashierSession cashierSession, TransactionStatus status);
 
+	/** Regular pending tickets only — excludes table-linked tickets (tableNumber IS NULL). */
+	List<SalesHeader> findByCashierSessionAndStatusAndTableNumberIsNull(CashierSession cashierSession, TransactionStatus status);
+
+	/** Table-linked pending tickets only — excludes regular pending tickets (tableNumber IS NOT NULL). */
+	List<SalesHeader> findByCashierSessionAndStatusAndTableNumberIsNotNull(CashierSession cashierSession, TransactionStatus status);
+
 	long countBySalesDateGreaterThanEqual(LocalDateTime date);
 	
 	List<SalesHeader> findBySalesDateBetween(LocalDateTime startDate, LocalDateTime endDate);

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.dto.PrepareInvoiceRequestDTO;
 import com.digithink.pos.dto.ProcessSaleRequestDTO;
+import com.digithink.pos.dto.SplitBillRequestDTO;
 import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
@@ -174,15 +175,17 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			log.info("SalesHeaderAPI::getPendingSales");
 			UserAccount currentUser = currentUserProvider.getCurrentUser();
 
-			// Get current session - if no session, return empty list (session might be closed)
-			java.util.Optional<com.digithink.pos.model.CashierSession> currentSessionOpt = service.getCurrentCashierSession(currentUser);
-			
+			// Get current session - if no session, return empty list (session might be
+			// closed)
+			java.util.Optional<com.digithink.pos.model.CashierSession> currentSessionOpt = service
+					.getCurrentCashierSession(currentUser);
+
 			if (!currentSessionOpt.isPresent()) {
 				// No open session - return empty list (this is normal after closing a session)
 				log.info("SalesHeaderAPI::getPendingSales: No open session found, returning empty list");
 				return ResponseEntity.ok(new java.util.ArrayList<>());
 			}
-			
+
 			com.digithink.pos.model.CashierSession currentSession = currentSessionOpt.get();
 
 			// Get pending sales
@@ -224,6 +227,108 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			return ResponseEntity.ok(result);
 		} catch (Exception e) {
 			log.error("SalesHeaderAPI::getPendingSales:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get full table ticket data for current session (table management mode).
+	 * Returns all PENDING tickets that have a tableNumber set, with their sales
+	 * lines. Used by the table grid to restore cart when clicking an occupied
+	 * table.
+	 */
+	@GetMapping("/table-tickets")
+	public ResponseEntity<?> getTableTickets() {
+		try {
+			log.info("SalesHeaderAPI::getTableTickets");
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+
+			java.util.Optional<com.digithink.pos.model.CashierSession> currentSessionOpt = service
+					.getCurrentCashierSession(currentUser);
+			if (!currentSessionOpt.isPresent()) {
+				return ResponseEntity.ok(new java.util.ArrayList<>());
+			}
+
+			java.util.List<SalesHeader> tableTickets = service.getTableTicketsForSession(currentSessionOpt.get());
+
+			java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
+			for (SalesHeader sale : tableTickets) {
+				java.util.List<SalesLine> salesLines = salesLineRepository.findBySalesHeader(sale);
+
+				Map<String, Object> saleMap = new HashMap<>();
+				saleMap.put("id", sale.getId());
+				saleMap.put("salesNumber", sale.getSalesNumber());
+				saleMap.put("salesDate", sale.getSalesDate());
+				saleMap.put("tableNumber", sale.getTableNumber());
+				saleMap.put("subtotal", sale.getSubtotal());
+				saleMap.put("taxAmount", sale.getTaxAmount());
+				saleMap.put("discountAmount", sale.getDiscountAmount());
+				saleMap.put("discountPercentage", sale.getDiscountPercentage());
+				saleMap.put("totalAmount", sale.getTotalAmount());
+				saleMap.put("customer", sale.getCustomer());
+				saleMap.put("salesLines", salesLines);
+				result.add(saleMap);
+			}
+			return ResponseEntity.ok(result);
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::getTableTickets:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get table status for current session (table management mode). Returns a map
+	 * of tableNumber -> { salesHeaderId, totalAmount, salesNumber } for all
+	 * occupied tables (pending tickets that have a tableNumber set).
+	 */
+	@GetMapping("/table-status")
+	public ResponseEntity<?> getTableStatus() {
+		try {
+			log.info("SalesHeaderAPI::getTableStatus");
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+
+			java.util.Optional<com.digithink.pos.model.CashierSession> currentSessionOpt = service
+					.getCurrentCashierSession(currentUser);
+			if (!currentSessionOpt.isPresent()) {
+				return ResponseEntity.ok(new HashMap<>());
+			}
+
+			java.util.List<SalesHeader> tableTickets = service.getTableTicketsForSession(currentSessionOpt.get());
+
+			Map<Integer, Map<String, Object>> tableMap = new HashMap<>();
+			for (SalesHeader sale : tableTickets) {
+				Map<String, Object> info = new HashMap<>();
+				info.put("salesHeaderId", sale.getId());
+				info.put("totalAmount", sale.getTotalAmount());
+				info.put("salesNumber", sale.getSalesNumber());
+				tableMap.put(sale.getTableNumber(), info);
+			}
+			return ResponseEntity.ok(tableMap);
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::getTableStatus:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Update a pending sale's lines and totals (used in table management when
+	 * returning to the table grid).
+	 */
+	@PostMapping("/update-pending/{id}")
+	public ResponseEntity<?> updatePendingSale(@PathVariable Long id, @RequestBody ProcessSaleRequestDTO request) {
+		try {
+			log.info("SalesHeaderAPI::updatePendingSale: " + id);
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+			SalesHeader updatedSale = service.updatePendingSale(id, request, currentUser);
+			return ResponseEntity.ok(updatedSale);
+		} catch (IllegalStateException e) {
+			log.warn("SalesHeaderAPI::updatePendingSale:conflict: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::updatePendingSale:error: " + getDetailedMessage(e), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(createErrorResponse(getDetailedMessage(e)));
 		}
@@ -328,6 +433,67 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 	}
 
 	/**
+	 * Split-bill: pay for a subset of lines on a pending table ticket. Creates a
+	 * new completed sale for the selected lines, removes them from the original.
+	 * Returns the new completed SalesHeader for receipt printing.
+	 */
+	@PostMapping("/split-and-pay/{id}")
+	public ResponseEntity<?> splitAndPay(@PathVariable Long id, @RequestBody SplitBillRequestDTO request) {
+		try {
+			log.info("SalesHeaderAPI::splitAndPay: originalId={}", id);
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+			SalesHeader splitSale = service.splitAndPay(id, request, currentUser);
+			// Return minimal response for receipt printing
+			Map<String, Object> response = new HashMap<>();
+			response.put("id", splitSale.getId());
+			response.put("salesNumber", splitSale.getSalesNumber());
+			response.put("totalAmount", splitSale.getTotalAmount());
+			response.put("paidAmount", splitSale.getPaidAmount());
+			response.put("changeAmount", splitSale.getChangeAmount());
+			response.put("completedDate", splitSale.getCompletedDate());
+			response.put("customer", splitSale.getCustomer());
+			java.util.List<SalesLine> lines = salesLineRepository.findBySalesHeader(splitSale);
+			response.put("salesLines", lines);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			log.warn("SalesHeaderAPI::splitAndPay:conflict: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse(e.getMessage()));
+		} catch (IllegalArgumentException e) {
+			log.warn("SalesHeaderAPI::splitAndPay:badRequest: " + e.getMessage());
+			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::splitAndPay:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Transfer a pending table ticket to a different table number.
+	 */
+	@org.springframework.web.bind.annotation.PatchMapping("/{id}/table-number")
+	public ResponseEntity<?> transferTable(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+		try {
+			Integer targetTableNumber = body.get("tableNumber");
+			if (targetTableNumber == null) {
+				return ResponseEntity.badRequest().body(createErrorResponse("tableNumber is required"));
+			}
+			log.info("SalesHeaderAPI::transferTable: ticket {} → table {}", id, targetTableNumber);
+			service.transferTable(id, targetTableNumber);
+			Map<String, Object> response = new HashMap<>();
+			response.put("message", "Table transferred successfully");
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			log.warn("SalesHeaderAPI::transferTable:conflict: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse(e.getMessage()));
+		} catch (Exception e) {
+			log.error("SalesHeaderAPI::transferTable:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
 	 * Get tickets/sales with filters (for admin)
 	 */
 	@GetMapping("/history")
@@ -339,9 +505,12 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String paymentMethodId,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
 		try {
-			log.info("SalesHeaderAPI::getTicketsHistory: dateFrom=" + dateFrom + ", dateTo=" + dateTo + ", status=" + status + ", syncStatus=" + syncStatus + ", paymentMethodId=" + paymentMethodId + ", search=" + search);
+			log.info("SalesHeaderAPI::getTicketsHistory: dateFrom=" + dateFrom + ", dateTo=" + dateTo + ", status="
+					+ status + ", syncStatus=" + syncStatus + ", paymentMethodId=" + paymentMethodId + ", search="
+					+ search);
 
-			java.util.List<SalesHeader> tickets = service.getTicketsHistory(dateFrom, dateTo, status, syncStatus, paymentMethodId, search);
+			java.util.List<SalesHeader> tickets = service.getTicketsHistory(dateFrom, dateTo, status, syncStatus,
+					paymentMethodId, search);
 
 			// Convert to response format with related data
 			java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
@@ -383,8 +552,9 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 	}
 
 	/**
-	 * Prepare invoice for a completed ticket (set invoiced=true and fiscal registration).
-	 * Sync to ERP happens via existing sync tasks when ERP is available.
+	 * Prepare invoice for a completed ticket (set invoiced=true and fiscal
+	 * registration). Sync to ERP happens via existing sync tasks when ERP is
+	 * available.
 	 */
 	@PostMapping("/{id}/prepare-invoice")
 	public ResponseEntity<?> prepareInvoice(@PathVariable Long id, @RequestBody PrepareInvoiceRequestDTO request) {
@@ -394,11 +564,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 					|| request.getFiscalRegistration().trim().isEmpty()) {
 				return ResponseEntity.badRequest().body(createErrorResponse("Fiscal Registration is mandatory"));
 			}
-			SalesHeader updated = service.prepareInvoice(
-					id,
-					request.getFiscalRegistration().trim(),
-					request.getInvoiceCustomerName() != null ? request.getInvoiceCustomerName().trim() : null
-			);
+			SalesHeader updated = service.prepareInvoice(id, request.getFiscalRegistration().trim(),
+					request.getInvoiceCustomerName() != null ? request.getInvoiceCustomerName().trim() : null);
 			Map<String, Object> response = new HashMap<>();
 			response.put("id", updated.getId());
 			response.put("invoiced", updated.getInvoiced());

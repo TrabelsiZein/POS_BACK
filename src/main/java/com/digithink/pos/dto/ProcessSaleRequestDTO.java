@@ -34,7 +34,10 @@ public class ProcessSaleRequestDTO {
 
 	/** Points the loyalty member wants to redeem on this sale (0 = no redemption) */
 	private Integer loyaltyPointsToRedeem = 0;
-	
+
+	/** Table number (set when table management is enabled, null otherwise) */
+	private Integer tableNumber;
+
 	private List<SaleLineDTO> lines;
 	private List<PaymentDTO> payments;
 	

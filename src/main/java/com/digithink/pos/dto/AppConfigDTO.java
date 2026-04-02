@@ -64,4 +64,22 @@ public class AppConfigDTO {
 	 * image requests when the network or server is slow.
 	 */
 	private boolean posShowImages;
+
+	/**
+	 * True when table management mode is enabled in POS.
+	 * Controlled by GeneralSetup TABLE_MANAGEMENT_ENABLED.
+	 */
+	private boolean tableManagementEnabled;
+
+	/**
+	 * Number of tables shown in the table selection grid.
+	 * Controlled by GeneralSetup TABLE_MANAGEMENT_TABLE_COUNT.
+	 */
+	private int tableManagementTableCount;
+
+	/**
+	 * Application version string (e.g. "1.2.5"), injected from pom.xml at build time.
+	 * Displayed in the frontend footer.
+	 */
+	private String appVersion;
 }

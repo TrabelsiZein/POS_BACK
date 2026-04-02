@@ -12,12 +12,19 @@ import com.digithink.pos.erp.enumeration.ErpSyncJobType;
 import com.digithink.pos.erp.model.ErpSyncJob;
 import com.digithink.pos.erp.repository.ErpSyncJobRepository;
 import com.digithink.pos.erp.service.ErpSyncCheckpointService;
+import com.digithink.pos.model.AppReleaseNote;
+import com.digithink.pos.model.AppVersion;
 import com.digithink.pos.model.GeneralSetup;
+import com.digithink.pos.model.Item;
 import com.digithink.pos.model.PaymentMethod;
 import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.model.Vendor;
+import com.digithink.pos.model.enumeration.ConfigType;
+import com.digithink.pos.model.enumeration.ItemType;
 import com.digithink.pos.model.enumeration.PaymentMethodType;
 import com.digithink.pos.model.enumeration.Role;
-import com.digithink.pos.model.Vendor;
+import com.digithink.pos.repository.AppReleaseNoteRepository;
+import com.digithink.pos.repository.AppVersionRepository;
 import com.digithink.pos.repository.CustomerRepository;
 import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.ItemBarcodeRepository;
@@ -29,75 +36,47 @@ import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.UserAccountRepository;
 import com.digithink.pos.repository.VendorRepository;
 
-import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 @Component
-@AllArgsConstructor
 public class ZZDataInitializer {
 
-	private UserAccountRepository userRepository;
-	private PasswordEncoder passwordEncoder;
-	private PaymentMethodRepository paymentMethodRepository;
-	private CustomerRepository customerRepository;
-	private ItemRepository itemRepository;
-	private ItemFamilyRepository itemFamilyRepository;
-	private ItemSubFamilyRepository itemSubFamilyRepository;
-	private ItemBarcodeRepository itemBarcodeRepository;
-	private LocationRepository locationRepository;
-	private GeneralSetupRepository generalSetupRepository;
-	private VendorRepository vendorRepository;
-	private ErpSyncJobRepository erpSyncJobRepository;
-	private ApplicationModeService applicationModeService;
-	private CompanyInformationService companyInformationService;
+	@Autowired private UserAccountRepository userRepository;
+	@Autowired private PasswordEncoder passwordEncoder;
+	@Autowired private PaymentMethodRepository paymentMethodRepository;
+	@Autowired private CustomerRepository customerRepository;
+	@Autowired private ItemRepository itemRepository;
+	@Autowired private ItemFamilyRepository itemFamilyRepository;
+	@Autowired private ItemSubFamilyRepository itemSubFamilyRepository;
+	@Autowired private ItemBarcodeRepository itemBarcodeRepository;
+	@Autowired private LocationRepository locationRepository;
+	@Autowired private GeneralSetupRepository generalSetupRepository;
+	@Autowired private VendorRepository vendorRepository;
+	@Autowired private ErpSyncJobRepository erpSyncJobRepository;
+	@Autowired private ApplicationModeService applicationModeService;
+	@Autowired private CompanyInformationService companyInformationService;
+	@Autowired private AppVersionRepository appVersionRepository;
+	@Autowired private AppReleaseNoteRepository appReleaseNoteRepository;
+
+	@Value("${app.version:unknown}")
+	private String appVersion;
 
 	@PostConstruct
 	public void init() {
 		if (userRepository.count() == 0) {
-			// Create the initial users
 			initUsers();
 		}
 
 		if (paymentMethodRepository.count() == 0) {
-			// Reset payment methods to new configuration
 			paymentMethodRepository.deleteAll();
 			initPaymentMethods();
 		}
 
-//		if (customerRepository.count() == 0) {
-//			// Create default customer
-//			initDefaultCustomer();
-//		}
-//
-//		if (itemFamilyRepository.count() == 0) {
-//			// Create item families
-//			initItemFamilies();
-//		}
-//
-//		if (itemSubFamilyRepository.count() == 0) {
-//			// Create item sub-families
-//			initItemSubFamilies();
-//		}
-//
-//		if (itemRepository.count() == 0) {
-//			// Create items
-//			initItems();
-//		}
-//
-//		if (itemBarcodeRepository.count() == 0) {
-//			// Create item barcodes
-//			initItemBarcodes();
-//		}
-//
-//		if (locationRepository.count() == 0) {
-//			// Create locations
-//			initLocations();
-//		}
+		// Always run on startup — idempotent (each key guarded by findByCode check)
+		ensureAllGeneralSetupConfigs();
 
-		if (generalSetupRepository.count() == 0) {
-			// Create general setup records
-			initGeneralSetup();
-		}
-		// ERP-related config and sync jobs only when not in standalone mode
+		// ERP-related configs and sync jobs only when not in standalone mode
 		if (!applicationModeService.isStandalone()) {
 			ensureErpSyncCheckpointConfigs();
 			if (erpSyncJobRepository.count() == 0) {
@@ -105,10 +84,7 @@ public class ZZDataInitializer {
 			}
 		}
 
-		// Ensure stock settings exist (always, regardless of mode or DB age)
-		ensureStockSettings();
-
-		// Franchise client: ensure sync checkpoint key exists
+		// Franchise client: ensure vendor seed exists (config keys are in ensureAllGeneralSetupConfigs)
 		if (applicationModeService.isFranchiseClient()) {
 			ensureFranchiseClientSetup();
 		}
@@ -118,6 +94,9 @@ public class ZZDataInitializer {
 
 		// Ensure singleton company information record exists (idempotent)
 		companyInformationService.ensureExists();
+
+		// Ensure APP_VERSION row exists (fresh install only — guard skips when empty)
+		ensureAppVersion();
 	}
 
 	/**
@@ -684,258 +663,161 @@ public class ZZDataInitializer {
 //		locationRepository.save(warehouse);
 //	}
 
+	// ─────────────────────────────────────────────────────────────────────────
+	// General Setup — idempotent ensure (runs on every startup)
+	// ─────────────────────────────────────────────────────────────────────────
+
 	/**
-	 * Create initial general setup records
+	 * Ensures every known GeneralSetup config key exists in the database.
+	 * Called unconditionally on every startup — each key is individually guarded
+	 * by a findByCode check, so already-existing entries are never touched.
+	 * Mode-specific keys are only inserted when the matching mode is active.
 	 */
-	private void initGeneralSetup() {
+	private void ensureAllGeneralSetupConfigs() {
 
-		if (!generalSetupRepository.findByCode("DEFAULT_LOCATION").isPresent()) {
-			GeneralSetup locationSetup = new GeneralSetup();
-			locationSetup.setCode("DEFAULT_LOCATION");
-			locationSetup.setValeur("");
-			locationSetup.setDescription("Default location code for the system");
-			locationSetup.setReadOnly(false);
-			locationSetup.setActive(true);
-			locationSetup.setCreatedBy("System");
-			locationSetup.setUpdatedBy("System");
-			generalSetupRepository.save(locationSetup);
-		}
+		// ── POS / Location ────────────────────────────────────────────────────
+		ensureConfig("DEFAULT_LOCATION", "", "Default location code for the system",
+				false, ConfigType.STRING);
+		ensureConfig("PASSENGER_CUSTOMER", "", "Passenger customer code for POS tickets when no customer is selected",
+				false, ConfigType.STRING);
+		ensureConfig("ALWAYS_SHOW_BADGE_SCAN_POPUP", "false",
+				"If true, always show badge scan popup for restricted functionalities, even if the current user has permission. If false, only show if current user lacks permission.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("POS_SHOW_IMAGES", "true",
+				"Show product/family/subfamily images in POS cashier screen. Set to false to disable images if the system is slow.",
+				false, ConfigType.BOOLEAN);
 
-		if (!generalSetupRepository.findByCode("PASSENGER_CUSTOMER").isPresent()) {
-			GeneralSetup customerSetup = new GeneralSetup();
-			customerSetup.setCode("PASSENGER_CUSTOMER");
-			customerSetup.setValeur("");
-			customerSetup.setDescription("Passenger customer ID for POS tickets when no customer is selected");
-			customerSetup.setReadOnly(false);
-			customerSetup.setActive(true);
-			customerSetup.setCreatedBy("System");
-			customerSetup.setUpdatedBy("System");
-			generalSetupRepository.save(customerSetup);
-		}
+		// ── Table management ──────────────────────────────────────────────────
+		ensureConfig("TABLE_MANAGEMENT_ENABLED", "false",
+				"Enable table management mode in POS",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("TABLE_MANAGEMENT_TABLE_COUNT", "10",
+				"Number of tables to display in the table selection grid",
+				false, ConfigType.NUMBER);
 
-		// MAX_DAYS_FOR_RETURN
-		if (!generalSetupRepository.findByCode("MAX_DAYS_FOR_RETURN").isPresent()) {
-			GeneralSetup maxDaysSetup = new GeneralSetup();
-			maxDaysSetup.setCode("MAX_DAYS_FOR_RETURN");
-			maxDaysSetup.setValeur("10");
-			maxDaysSetup.setDescription("Maximum number of days allowed for product returns");
-			maxDaysSetup.setReadOnly(false);
-			maxDaysSetup.setActive(true);
-			maxDaysSetup.setCreatedBy("System");
-			maxDaysSetup.setUpdatedBy("System");
-			generalSetupRepository.save(maxDaysSetup);
-		}
+		// ── Returns ───────────────────────────────────────────────────────────
+		ensureConfig("MAX_DAYS_FOR_RETURN", "10",
+				"Maximum number of days allowed for product returns",
+				false, ConfigType.NUMBER);
+		ensureConfig("ENABLE_SIMPLE_RETURN", "true",
+				"Enable simple return (cash refund without voucher)",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("RETURN_VOUCHER_VALIDITY_DAYS", "30",
+				"Number of days a return voucher remains valid",
+				false, ConfigType.NUMBER);
 
-		// ENABLE_SIMPLE_RETURN
-		if (!generalSetupRepository.findByCode("ENABLE_SIMPLE_RETURN").isPresent()) {
-			GeneralSetup enableSimpleReturn = new GeneralSetup();
-			enableSimpleReturn.setCode("ENABLE_SIMPLE_RETURN");
-			enableSimpleReturn.setValeur("true");
-			enableSimpleReturn.setDescription("Enable simple return (cash refund without voucher)");
-			enableSimpleReturn.setReadOnly(false);
-			enableSimpleReturn.setActive(true);
-			enableSimpleReturn.setCreatedBy("System");
-			enableSimpleReturn.setUpdatedBy("System");
-			generalSetupRepository.save(enableSimpleReturn);
-		}
+		// ── Payment methods ───────────────────────────────────────────────────
+		ensureConfig("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE", "true",
+				"If true, automatically add empty \"Client Espèce\" payment method when opening payment page. If false, keep payment page empty with no selected payment method.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("ENABLE_CASH_DISCREPANCY_CHECK", "true",
+				"Enable cash discrepancy check when closing session. If true, system validates closing amount matches expected real cash.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("PLAFOND_ESPECE", "",
+				"Plafond espèce (TND). Empty = no limit. When set (e.g. 1000), maximum cash amount allowed per sale in TND.",
+				false, ConfigType.STRING);
+		ensureConfig("PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH", "7",
+				"Required length for title number (N° Titre) for CLIENT_CHEQUE payment method. Must be exactly this number of characters.",
+				false, ConfigType.NUMBER);
+		ensureConfig("PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH", "7",
+				"Required length for title number (N° Titre) for TICKET_RESTAURANT payment method. Must be exactly this number of characters.",
+				false, ConfigType.NUMBER);
+		ensureConfig("PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH", "7",
+				"Required length for title number (N° Titre) for CHEQUE_CADEAU payment method. Must be exactly this number of characters.",
+				false, ConfigType.NUMBER);
+		ensureConfig("PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH", "7",
+				"Required length for title number (N° Titre) for CLIENT_TRAITE payment method. Must be exactly this number of characters.",
+				false, ConfigType.NUMBER);
 
-		// RETURN_VOUCHER_VALIDITY_DAYS
-		if (!generalSetupRepository.findByCode("RETURN_VOUCHER_VALIDITY_DAYS").isPresent()) {
-			GeneralSetup voucherValidity = new GeneralSetup();
-			voucherValidity.setCode("RETURN_VOUCHER_VALIDITY_DAYS");
-			voucherValidity.setValeur("30");
-			voucherValidity.setDescription("Number of days a return voucher remains valid");
-			voucherValidity.setReadOnly(false);
-			voucherValidity.setActive(true);
-			voucherValidity.setCreatedBy("System");
-			voucherValidity.setUpdatedBy("System");
-			generalSetupRepository.save(voucherValidity);
-		}
+		// ── Tax stamp (timbre fiscal) ─────────────────────────────────────────
+		ensureConfig("ENABLE_TAX_STAMP", "false",
+				"Enable tax stamp (timbre fiscal) per receipt. When true, adds configured amount (e.g. 100 millimes in Tunisia) as a line per sale.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("TAX_STAMP_VALUE_MILLIMES", "100",
+				"Tax stamp amount in millimes (e.g. 100 = 0.100 TND per receipt).",
+				false, ConfigType.NUMBER);
+		ensureConfig("TAX_STAMP_ERP_ITEM_CODE", "",
+				"ERP item code for the tax stamp line. Used when exporting ticket lines to ERP. Leave empty if not configured.",
+				false, ConfigType.STRING);
 
-		if (!generalSetupRepository.findByCode("ERP_SYNC_TRACKING_LEVEL").isPresent()) {
-			GeneralSetup erpTracking = new GeneralSetup();
-			erpTracking.setCode("ERP_SYNC_TRACKING_LEVEL");
-			erpTracking.setValeur("ALL");
-			erpTracking.setDescription("ERP communication tracking level (ERRORS_ONLY | ERRORS_AND_WARNINGS | ALL)");
-			erpTracking.setReadOnly(false);
-			erpTracking.setActive(true);
-			erpTracking.setCreatedBy("System");
-			erpTracking.setUpdatedBy("System");
-			generalSetupRepository.save(erpTracking);
-		}
+		// ── Loyalty ───────────────────────────────────────────────────────────
+		ensureConfig("LOYALTY_ENABLED", "false",
+				"Enable the loyalty (fidélité) program. When true, cashiers can attach loyalty cards to sales and customers earn/redeem points. Configure rates in Loyalty Programs admin page.",
+				false, ConfigType.BOOLEAN);
 
-		// Badge-related configurations
+		// ── Stock ─────────────────────────────────────────────────────────────
+		ensureConfig("ALLOW_NEGATIVE_STOCK", "false",
+				"Allow stock to go negative during sales. Applies only in standalone/franchise mode. When false, sale is blocked if stock is insufficient.",
+				false, ConfigType.BOOLEAN);
 
-		// ALWAYS_SHOW_BADGE_SCAN_POPUP
-		if (!generalSetupRepository.findByCode("ALWAYS_SHOW_BADGE_SCAN_POPUP").isPresent()) {
-			GeneralSetup alwaysShowPopup = new GeneralSetup();
-			alwaysShowPopup.setCode("ALWAYS_SHOW_BADGE_SCAN_POPUP");
-			alwaysShowPopup.setValeur("false");
-			alwaysShowPopup.setDescription("If true, always show badge scan popup for restricted functionalities, even if the current user has permission. If false, only show if current user lacks permission.");
-			alwaysShowPopup.setReadOnly(false);
-			alwaysShowPopup.setActive(true);
-			alwaysShowPopup.setCreatedBy("System");
-			alwaysShowPopup.setUpdatedBy("System");
-			generalSetupRepository.save(alwaysShowPopup);
+		// ── ERP-only configs ──────────────────────────────────────────────────
+		if (!applicationModeService.isStandalone()) {
+			ensureConfigWithOptions("ERP_SYNC_TRACKING_LEVEL", "ALL",
+					"ERP communication tracking level (ERRORS_ONLY | ERRORS_AND_WARNINGS | ALL)",
+					false, ConfigType.SELECT, "ERRORS_ONLY,ERRORS_AND_WARNINGS,ALL");
 		}
 
-		// Payment Method Title Number Length Configurations
-		// PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH
-		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH").isPresent()) {
-			GeneralSetup chequeTitleLength = new GeneralSetup();
-			chequeTitleLength.setCode("PAYMENT_METHOD_CLIENT_CHEQUE_TITLE_NUMBER_LENGTH");
-			chequeTitleLength.setValeur("7");
-			chequeTitleLength.setDescription("Required length for title number (N° Titre) for CLIENT_CHEQUE payment method. Must be exactly this number of characters.");
-			chequeTitleLength.setReadOnly(false);
-			chequeTitleLength.setActive(true);
-			chequeTitleLength.setCreatedBy("System");
-			chequeTitleLength.setUpdatedBy("System");
-			generalSetupRepository.save(chequeTitleLength);
-		}
-		// PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH
-		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH").isPresent()) {
-			GeneralSetup ticketRestaurantLength = new GeneralSetup();
-			ticketRestaurantLength.setCode("PAYMENT_METHOD_TICKET_RESTAURANT_TITLE_NUMBER_LENGTH");
-			ticketRestaurantLength.setValeur("7");
-			ticketRestaurantLength.setDescription("Required length for title number (N° Titre) for TICKET_RESTAURANT payment method. Must be exactly this number of characters.");
-			ticketRestaurantLength.setReadOnly(false);
-			ticketRestaurantLength.setActive(true);
-			ticketRestaurantLength.setCreatedBy("System");
-			ticketRestaurantLength.setUpdatedBy("System");
-			generalSetupRepository.save(ticketRestaurantLength);
-		}
-		// PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH
-		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH").isPresent()) {
-			GeneralSetup chequeCadeauLength = new GeneralSetup();
-			chequeCadeauLength.setCode("PAYMENT_METHOD_CHEQUE_CADEAU_TITLE_NUMBER_LENGTH");
-			chequeCadeauLength.setValeur("7");
-			chequeCadeauLength.setDescription("Required length for title number (N° Titre) for CHEQUE_CADEAU payment method. Must be exactly this number of characters.");
-			chequeCadeauLength.setReadOnly(false);
-			chequeCadeauLength.setActive(true);
-			chequeCadeauLength.setCreatedBy("System");
-			chequeCadeauLength.setUpdatedBy("System");
-			generalSetupRepository.save(chequeCadeauLength);
-		}
-		// PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH
-		if (!generalSetupRepository.findByCode("PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH").isPresent()) {
-			GeneralSetup clientTraiteLength = new GeneralSetup();
-			clientTraiteLength.setCode("PAYMENT_METHOD_CLIENT_TRAITE_TITLE_NUMBER_LENGTH");
-			clientTraiteLength.setValeur("7");
-			clientTraiteLength.setDescription("Required length for title number (N° Titre) for CLIENT_TRAITE payment method. Must be exactly this number of characters.");
-			clientTraiteLength.setReadOnly(false);
-			clientTraiteLength.setActive(true);
-			clientTraiteLength.setCreatedBy("System");
-			clientTraiteLength.setUpdatedBy("System");
-			generalSetupRepository.save(clientTraiteLength);
-		}
-
-		// Auto Add Cash Payment on Payment Page Config
-		if (!generalSetupRepository.findByCode("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE").isPresent()) {
-			GeneralSetup autoAddCashPayment = new GeneralSetup();
-			autoAddCashPayment.setCode("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE");
-			autoAddCashPayment.setValeur("true");
-			autoAddCashPayment.setDescription("If true, automatically add empty \"Client Espèce\" payment method when opening payment page. If false, keep payment page empty with no selected payment method.");
-			autoAddCashPayment.setReadOnly(false);
-			autoAddCashPayment.setActive(true);
-			autoAddCashPayment.setCreatedBy("System");
-			autoAddCashPayment.setUpdatedBy("System");
-			generalSetupRepository.save(autoAddCashPayment);
-		}
-
-		// Enable Cash Discrepancy Check
-		if (!generalSetupRepository.findByCode("ENABLE_CASH_DISCREPANCY_CHECK").isPresent()) {
-			GeneralSetup enableCashDiscrepancyCheck = new GeneralSetup();
-			enableCashDiscrepancyCheck.setCode("ENABLE_CASH_DISCREPANCY_CHECK");
-			enableCashDiscrepancyCheck.setValeur("true");
-			enableCashDiscrepancyCheck.setDescription("Enable cash discrepancy check when closing session. If true, system validates closing amount matches expected real cash.");
-			enableCashDiscrepancyCheck.setReadOnly(false);
-			enableCashDiscrepancyCheck.setActive(true);
-			enableCashDiscrepancyCheck.setCreatedBy("System");
-			enableCashDiscrepancyCheck.setUpdatedBy("System");
-			generalSetupRepository.save(enableCashDiscrepancyCheck);
-		}
-
-		// Plafond espèce (cash ceiling in TND) - empty = no limit
-		if (!generalSetupRepository.findByCode("PLAFOND_ESPECE").isPresent()) {
-			GeneralSetup plafondEspece = new GeneralSetup();
-			plafondEspece.setCode("PLAFOND_ESPECE");
-			plafondEspece.setValeur("");
-			plafondEspece.setDescription("Plafond espèce (TND). Empty = no limit. When set (e.g. 1000), maximum cash amount allowed per sale in TND.");
-			plafondEspece.setReadOnly(false);
-			plafondEspece.setActive(true);
-			plafondEspece.setCreatedBy("System");
-			plafondEspece.setUpdatedBy("System");
-			generalSetupRepository.save(plafondEspece);
-		}
-
-		// Tax stamp (timbre fiscal) - Tunisia: 100 millimes per receipt
-		if (!generalSetupRepository.findByCode("ENABLE_TAX_STAMP").isPresent()) {
-			GeneralSetup enableTaxStamp = new GeneralSetup();
-			enableTaxStamp.setCode("ENABLE_TAX_STAMP");
-			enableTaxStamp.setValeur("false");
-			enableTaxStamp.setDescription("Enable tax stamp (timbre fiscal) per receipt. When true, adds configured amount (e.g. 100 millimes in Tunisia) as a line per sale.");
-			enableTaxStamp.setReadOnly(false);
-			enableTaxStamp.setActive(true);
-			enableTaxStamp.setCreatedBy("System");
-			enableTaxStamp.setUpdatedBy("System");
-			generalSetupRepository.save(enableTaxStamp);
-		}
-		if (!generalSetupRepository.findByCode("TAX_STAMP_VALUE_MILLIMES").isPresent()) {
-			GeneralSetup taxStampValue = new GeneralSetup();
-			taxStampValue.setCode("TAX_STAMP_VALUE_MILLIMES");
-			taxStampValue.setValeur("100");
-			taxStampValue.setDescription("Tax stamp amount in millimes (e.g. 100 = 0.100 TND per receipt).");
-			taxStampValue.setReadOnly(false);
-			taxStampValue.setActive(true);
-			taxStampValue.setCreatedBy("System");
-			taxStampValue.setUpdatedBy("System");
-			generalSetupRepository.save(taxStampValue);
-		}
-		if (!generalSetupRepository.findByCode("TAX_STAMP_ERP_ITEM_CODE").isPresent()) {
-			GeneralSetup taxStampErpCode = new GeneralSetup();
-			taxStampErpCode.setCode("TAX_STAMP_ERP_ITEM_CODE");
-			taxStampErpCode.setValeur("");
-			taxStampErpCode.setDescription("ERP item code for tax stamp. Used when exporting ticket lines to ERP. Leave empty if not using ERP or not configured.");
-			taxStampErpCode.setReadOnly(false);
-			taxStampErpCode.setActive(true);
-			taxStampErpCode.setCreatedBy("System");
-			taxStampErpCode.setUpdatedBy("System");
-			generalSetupRepository.save(taxStampErpCode);
-		}
-
-		// LOYALTY_ENABLED — master switch for the loyalty/fidélité program
-		if (!generalSetupRepository.findByCode("LOYALTY_ENABLED").isPresent()) {
-			GeneralSetup loyaltyEnabled = new GeneralSetup();
-			loyaltyEnabled.setCode("LOYALTY_ENABLED");
-			loyaltyEnabled.setValeur("false");
-			loyaltyEnabled.setDescription("Enable the loyalty (fidélité) program. When true, cashiers can attach loyalty cards to sales and customers earn/redeem points. Configure rates in Loyalty Programs admin page.");
-			loyaltyEnabled.setReadOnly(false);
-			loyaltyEnabled.setActive(true);
-			loyaltyEnabled.setCreatedBy("System");
-			loyaltyEnabled.setUpdatedBy("System");
-			generalSetupRepository.save(loyaltyEnabled);
+		// ── Franchise client configs ──────────────────────────────────────────
+		if (applicationModeService.isFranchiseClient()) {
+			ensureConfig("FRANCHISE_LAST_ITEM_SYNC", "",
+					"Timestamp of last successful item sync from franchise admin (ISO-8601). Empty = full sync on next run.",
+					true, ConfigType.DATETIME);
+			ensureConfig("FRANCHISE_LAST_SUPPLY_RECEPTION_SYNC", "",
+					"Timestamp of last supply reception check from franchise admin (ISO-8601). Empty = never checked.",
+					true, ConfigType.DATETIME);
 		}
 	}
 
 	/**
-	 * Ensures the system Tax Stamp item exists (hidden in POS, used for timbre fiscal line).
-	 * Run on every startup so new deployments get the item even if migration already ran.
+	 * Inserts a GeneralSetup entry if the code does not yet exist.
+	 */
+	private void ensureConfig(String code, String defaultValue, String description,
+			boolean readOnly, ConfigType type) {
+		ensureConfigWithOptions(code, defaultValue, description, readOnly, type, null);
+	}
+
+	/**
+	 * Inserts a GeneralSetup entry if the code does not yet exist (SELECT variant
+	 * with comma-separated options).
+	 */
+	private void ensureConfigWithOptions(String code, String defaultValue, String description,
+			boolean readOnly, ConfigType type, String options) {
+		if (generalSetupRepository.findByCode(code).isPresent()) {
+			return;
+		}
+		GeneralSetup setup = new GeneralSetup();
+		setup.setCode(code);
+		setup.setValeur(defaultValue);
+		setup.setDescription(description);
+		setup.setReadOnly(readOnly);
+		setup.setConfigType(type);
+		setup.setConfigOptions(options);
+		setup.setActive(true);
+		setup.setCreatedBy("System");
+		setup.setUpdatedBy("System");
+		generalSetupRepository.save(setup);
+	}
+
+	/**
+	 * Ensures the system Tax Stamp item exists (hidden in POS, used for timbre
+	 * fiscal line). Run on every startup so new deployments get the item even if
+	 * migration already ran.
 	 */
 	private void ensureTaxStampItem() {
 		if (itemRepository.findByItemCode("TAX_STAMP").isPresent()) {
 			return;
 		}
-		com.digithink.pos.model.Item taxStamp = new com.digithink.pos.model.Item();
+		Item taxStamp = new Item();
 		taxStamp.setItemCode("TAX_STAMP");
-		taxStamp.setName("Tax Stamp");
-		taxStamp.setDescription("Tax stamp (timbre fiscal) - not shown in POS");
-		taxStamp.setUnitPrice(0.1); // 100 millimes = 0.1 TND default
+		taxStamp.setName("Timbre Fiscal");
+		taxStamp.setDescription("Tax stamp (timbre fiscal) added automatically per sale when ENABLE_TAX_STAMP is true.");
+		taxStamp.setType(ItemType.SERVICE);
+		taxStamp.setUnitPrice(0.0);
+		taxStamp.setDefaultVAT(0);
 		taxStamp.setShowInPos(false);
 		taxStamp.setActive(true);
 		taxStamp.setCreatedBy("System");
 		taxStamp.setUpdatedBy("System");
-		taxStamp.setCreatedAt(LocalDateTime.now());
-		taxStamp.setUpdatedAt(LocalDateTime.now());
 		itemRepository.save(taxStamp);
 	}
 
@@ -949,6 +831,7 @@ public class ZZDataInitializer {
 			checkpoint.setValeur("");
 			checkpoint.setDescription(description);
 			checkpoint.setReadOnly(true);
+			checkpoint.setConfigType(ConfigType.DATETIME);
 			checkpoint.setActive(true);
 			checkpoint.setCreatedBy("System");
 			checkpoint.setUpdatedBy("System");
@@ -976,51 +859,10 @@ public class ZZDataInitializer {
 	}
 
 	/**
-	 * Ensures stock-related GeneralSetup keys exist.
-	 * Always called on startup regardless of mode or DB age so existing databases get the key.
-	 */
-	private void ensureStockSettings() {
-		if (!generalSetupRepository.findByCode("ALLOW_NEGATIVE_STOCK").isPresent()) {
-			GeneralSetup setup = new GeneralSetup();
-			setup.setCode("ALLOW_NEGATIVE_STOCK");
-			setup.setValeur("false");
-			setup.setDescription("Allow stock to go negative during sales (true/false). Applies only in standalone/franchise mode. When false, sale is blocked if stock is insufficient.");
-			setup.setReadOnly(false);
-			setup.setActive(true);
-			setup.setCreatedBy("System");
-			setup.setUpdatedBy("System");
-			generalSetupRepository.save(setup);
-		}
-	}
-
-	/**
-	 * Franchise client: ensures the item sync checkpoint key exists and the FRANCHISE_ADMIN vendor is seeded.
+	 * Franchise client: ensures the FRANCHISE_ADMIN vendor is seeded.
+	 * Config keys (FRANCHISE_LAST_ITEM_SYNC, etc.) are handled by ensureAllGeneralSetupConfigs.
 	 */
 	private void ensureFranchiseClientSetup() {
-		if (!generalSetupRepository.findByCode("FRANCHISE_LAST_ITEM_SYNC").isPresent()) {
-			GeneralSetup checkpoint = new GeneralSetup();
-			checkpoint.setCode("FRANCHISE_LAST_ITEM_SYNC");
-			checkpoint.setValeur("");
-			checkpoint.setDescription("Timestamp of last successful item sync from franchise admin (ISO-8601). Empty = full sync on next run.");
-			checkpoint.setReadOnly(true);
-			checkpoint.setActive(true);
-			checkpoint.setCreatedBy("System");
-			checkpoint.setUpdatedBy("System");
-			generalSetupRepository.save(checkpoint);
-		}
-
-		if (!generalSetupRepository.findByCode("FRANCHISE_LAST_SUPPLY_RECEPTION_SYNC").isPresent()) {
-			GeneralSetup checkpoint = new GeneralSetup();
-			checkpoint.setCode("FRANCHISE_LAST_SUPPLY_RECEPTION_SYNC");
-			checkpoint.setValeur("");
-			checkpoint.setDescription("Timestamp of last supply reception check from franchise admin (ISO-8601). Empty = never checked.");
-			checkpoint.setReadOnly(true);
-			checkpoint.setActive(true);
-			checkpoint.setCreatedBy("System");
-			checkpoint.setUpdatedBy("System");
-			generalSetupRepository.save(checkpoint);
-		}
-
 		if (!vendorRepository.findByVendorCode("FRANCHISE_ADMIN").isPresent()) {
 			Vendor franchiseVendor = new Vendor();
 			franchiseVendor.setVendorCode("FRANCHISE_ADMIN");
@@ -1031,6 +873,19 @@ public class ZZDataInitializer {
 			franchiseVendor.setUpdatedBy("System");
 			vendorRepository.save(franchiseVendor);
 		}
+	}
+
+	/**
+	 * Seeds APP_VERSION and a single setup record on fresh install.
+	 * On existing installs the row already exists — nothing is written.
+	 * Detailed release notes are managed via db/X.Y.Z/update.sql on upgrades.
+	 */
+	private void ensureAppVersion() {
+		if (appVersionRepository.count() > 0) {
+			return;
+		}
+		appVersionRepository.save(new AppVersion(appVersion));
+		appReleaseNoteRepository.save(new AppReleaseNote(appVersion, "SETUP", "Initial installation"));
 	}
 
 	private void createErpJob(String cron, ErpSyncJobType type, String description, boolean enabled) {
