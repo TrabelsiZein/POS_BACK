@@ -2,9 +2,12 @@ package com.digithink.pos.service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -18,7 +21,7 @@ import org.springframework.stereotype.Service;
  *
  * Windows strategy:
  * - MachineGuid from registry
- * - System drive volume serial (C:)
+ * - System drive volume serial ({@code %SystemDrive%}, default {@code C:})
  *
  * installationId = SHA-256(machineGuid + "|" + volumeSerial), upper-hex.
  */
@@ -26,6 +29,9 @@ import org.springframework.stereotype.Service;
 public class MachineFingerprintService {
 
 	private static final Logger log = LoggerFactory.getLogger(MachineFingerprintService.class);
+
+	/** Volume serial as printed by {@code vol} (four hex digits, dash, four hex digits). Locale-independent. */
+	private static final Pattern VOLUME_SERIAL_PATTERN = Pattern.compile("\\b([0-9A-Fa-f]{4}-[0-9A-Fa-f]{4})\\b");
 
 	private static volatile String installationId;
 
@@ -70,22 +76,100 @@ public class MachineFingerprintService {
 	}
 
 	private String readWindowsSystemVolumeSerial() throws Exception {
-		Process process = new ProcessBuilder("cmd", "/c", "vol C:")
+		String drive = systemDriveSpec();
+		Process process = new ProcessBuilder("cmd", "/c", "vol " + drive)
 				.redirectErrorStream(true)
 				.start();
-		String output = readProcessOutput(process);
-		process.waitFor();
-		for (String line : output.split("\\R")) {
-			String lower = line.toLowerCase(Locale.ROOT);
-			if (lower.contains("serial number is")) {
-				return line.substring(lower.indexOf("serial number is") + "serial number is".length()).trim();
-			}
+		String output = readProcessOutputCmd(process);
+		int exit = process.waitFor();
+		String fromVol = extractVolumeSerialFromVolOutput(output);
+		if (fromVol != null) {
+			return fromVol;
+		}
+		if (exit != 0) {
+			log.warn("vol {} exited with status {}", drive, exit);
+		}
+		String fromWmi = readVolumeSerialViaWmi(drive);
+		if (fromWmi != null) {
+			return fromWmi;
 		}
 		throw new IllegalStateException("Volume serial number not found");
 	}
 
+	/** e.g. {@code C:} from {@code SystemDrive}, for {@code vol} / WMI. */
+	private String systemDriveSpec() {
+		String d = System.getenv("SystemDrive");
+		if (d == null || d.isBlank()) {
+			return "C:";
+		}
+		d = d.trim();
+		if (!d.endsWith(":")) {
+			d = d + ":";
+		}
+		return d;
+	}
+
+	/**
+	 * Parses {@code vol} output without relying on English wording (localized Windows
+	 * uses other phrases; Tomcat-as-service still runs {@code vol} the same way).
+	 */
+	private String extractVolumeSerialFromVolOutput(String output) {
+		if (output == null || output.isBlank()) {
+			return null;
+		}
+		Matcher m = VOLUME_SERIAL_PATTERN.matcher(output);
+		String last = null;
+		while (m.find()) {
+			last = m.group(1);
+		}
+		return last;
+	}
+
+	/**
+	 * Same serial format as {@code vol}, via WMI — works when parsing fails or output encoding is wrong.
+	 */
+	private String readVolumeSerialViaWmi(String driveSpec) {
+		String deviceId = driveSpec.trim().toUpperCase(Locale.ROOT);
+		if (!deviceId.endsWith(":")) {
+			deviceId = deviceId + ":";
+		}
+		try {
+			String ps = String.format(Locale.ROOT,
+					"(Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='%s'\").VolumeSerialNumber",
+					deviceId.replace("\"", "`\""));
+			Process process = new ProcessBuilder(
+					"powershell.exe",
+					"-NoProfile",
+					"-NonInteractive",
+					"-Command",
+					ps)
+					.redirectErrorStream(true)
+					.start();
+			String output = readProcessOutputCmd(process);
+			process.waitFor();
+			String trimmed = output.trim();
+			if (trimmed.isEmpty()) {
+				return null;
+			}
+			long raw = Long.parseLong(trimmed.replaceAll("\\s+", ""));
+			long serial = raw & 0xFFFFFFFFL;
+			return String.format(Locale.ROOT, "%04X-%04X", (serial >> 16) & 0xFFFFL, serial & 0xFFFFL);
+		} catch (Exception e) {
+			log.warn("WMI volume serial fallback failed: {}", e.getMessage());
+			return null;
+		}
+	}
+
 	private String readProcessOutput(Process process) throws Exception {
 		try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+			return br.lines().collect(Collectors.joining("\n"));
+		}
+	}
+
+	/** {@code cmd.exe} uses the process ANSI/OEM code page; UTF-8 mis-decodes localized {@code vol} text. */
+	private String readProcessOutputCmd(Process process) throws Exception {
+		Charset cs = Charset.defaultCharset();
+		try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream(), cs))) {
 			return br.lines().collect(Collectors.joining("\n"));
 		}
 	}

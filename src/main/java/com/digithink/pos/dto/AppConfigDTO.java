@@ -66,6 +66,13 @@ public class AppConfigDTO {
 	private boolean posShowImages;
 
 	/**
+	 * True when POS should display stock quantity on item cards.
+	 * Controlled by GeneralSetup POS_SHOW_STOCK. Defaults to false.
+	 * Only meaningful in standalone/franchise mode where stock is tracked locally.
+	 */
+	private boolean posShowStock;
+
+	/**
 	 * True when table management mode is enabled in POS.
 	 * Controlled by GeneralSetup TABLE_MANAGEMENT_ENABLED.
 	 */

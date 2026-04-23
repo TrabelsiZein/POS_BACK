@@ -30,7 +30,6 @@ import com.digithink.pos.model.enumeration.SessionStatus;
 import com.digithink.pos.model.enumeration.SynchronizationStatus;
 import com.digithink.pos.model.enumeration.TransactionStatus;
 import com.digithink.pos.repository.CashierSessionRepository;
-import com.digithink.pos.repository.PaymentMethodRepository;
 import com.digithink.pos.repository.PaymentRepository;
 import com.digithink.pos.repository.ReturnHeaderRepository;
 import com.digithink.pos.repository.SalesHeaderRepository;
@@ -50,8 +49,7 @@ public class SessionExportService {
 	private final SalesHeaderRepository salesHeaderRepository;
 	private final ReturnHeaderRepository returnHeaderRepository;
 	private final PaymentRepository paymentRepository;
-	private final PaymentMethodRepository paymentMethodRepository;
-	private final PaymentHeaderRepository paymentHeaderRepository;
+private final PaymentHeaderRepository paymentHeaderRepository;
 	private final PaymentLineRepository paymentLineRepository;
 
 	/**
@@ -148,32 +146,10 @@ public class SessionExportService {
 		List<PaymentHeader> existingHeaders = paymentHeaderRepository.findByCashierSession(session);
 
 		if (existingHeaders.isEmpty()) {
-			// Fallback: If headers don't exist (e.g., old sessions created before async
-			// method),
-			// check if there are any payments and create headers/lines
-			List<SalesHeader> tickets = salesHeaderRepository.findByCashierSession(session);
-			List<Payment> allPayments = tickets.stream()
-					.flatMap(ticket -> paymentRepository.findBySalesHeader(ticket).stream())
-					.collect(Collectors.toList());
-			List<Payment> paymentsToProcess = allPayments.stream()
-					.filter(payment -> payment.getPaymentMethod().getType() != PaymentMethodType.RETURN_VOUCHER)
-					.collect(Collectors.toList());
-
-			if (paymentsToProcess.isEmpty()) {
-				LOGGER.info("No payments to sync for session {}", session.getSessionNumber());
-				session.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
-				cashierSessionRepository.save(session);
-				return;
-			}
-
-			// Fallback: Create headers/lines for old sessions
-			LOGGER.warn(
-					"No payment headers found for session {} - creating them now (this should not happen with async method)",
-					session.getSessionNumber());
-			Map<String, List<Payment>> paymentsByClass = paymentsToProcess.stream()
-					.collect(Collectors.groupingBy(p -> p.getPaymentMethod().getCode()));
-			createPaymentHeadersAndLines(session, paymentsByClass);
-			existingHeaders = paymentHeaderRepository.findByCashierSession(session);
+			LOGGER.info("No payment headers found for session {} - nothing to sync", session.getSessionNumber());
+			session.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
+			cashierSessionRepository.save(session);
+			return;
 		}
 
 		LOGGER.info("Found {} payment headers to sync for session {}", existingHeaders.size(),
@@ -258,41 +234,10 @@ public class SessionExportService {
 							paymentLine.setSynched(true);
 							paymentLineRepository.save(paymentLine);
 
-							// Mark corresponding Payment(s) as synced
 							if (paymentLine.getPayment() != null) {
 								Payment payment = paymentLine.getPayment();
 								payment.setSynched(true);
 								paymentRepository.save(payment);
-
-								// For CLIENT_ESPECES, mark all CLIENT_ESPECES payments for this session as
-								// synced since they are grouped into one PaymentLine
-								// The PaymentLine always references a CLIENT_ESPECES payment when it's
-								// CLIENT_ESPECES
-								if (payment.getPaymentMethod() != null
-										&& payment.getPaymentMethod().getType() == PaymentMethodType.CLIENT_ESPECES) {
-									// Get all CLIENT_ESPECES payments for this session that are not yet synced
-									List<SalesHeader> tickets = salesHeaderRepository.findByCashierSession(session);
-									List<Payment> cashPayments = tickets.stream()
-											.flatMap(ticket -> paymentRepository.findBySalesHeader(ticket).stream())
-											.filter(p -> p.getPaymentMethod() != null
-													&& p.getPaymentMethod()
-															.getType() == PaymentMethodType.CLIENT_ESPECES
-													&& !Boolean.TRUE.equals(p.getSynched()))
-											.collect(Collectors.toList());
-
-									// Mark all CLIENT_ESPECES payments as synced (they're all represented by this
-									// one PaymentLine)
-									for (Payment cashPayment : cashPayments) {
-										cashPayment.setSynched(true);
-										paymentRepository.save(cashPayment);
-									}
-
-									if (!cashPayments.isEmpty()) {
-										LOGGER.info(
-												"Marked {} CLIENT_ESPECES payments as synced for session {} (all represented by PaymentLine {})",
-												cashPayments.size(), session.getSessionNumber(), paymentLine.getId());
-									}
-								}
 							}
 
 							LOGGER.info("Payment line {} exported to ERP", paymentLine.getId());
@@ -430,115 +375,51 @@ public class SessionExportService {
 
 				// Create PaymentLines for payments that don't have lines yet
 				if (paymentType == PaymentMethodType.CLIENT_ESPECES) {
-					// CLIENT_ESPECES: check if line already exists for this payment class
-					// For CLIENT_ESPECES, there should be only one line per payment header
-					PaymentLine existingClientEspecesLine = existingLines.stream()
-							.filter(line -> line.getPayment() != null && line.getPayment().getPaymentMethod()
-									.getType() == PaymentMethodType.CLIENT_ESPECES)
-							.findFirst().orElse(null);
+					// CLIENT_ESPECES: one line per customer, summed per customer
+					List<Payment> newCashPayments = paymentGroup.stream()
+							.filter(p -> !existingPaymentIds.contains(p.getId()))
+							.collect(Collectors.toList());
 
-					if (existingClientEspecesLine == null) {
-						// Get all CLIENT_ESPECES payments from the current batch that aren't in
-						// existing lines
-						List<Payment> newCashPayments = paymentGroup.stream()
-								.filter(p -> !existingPaymentIds.contains(p.getId())).collect(Collectors.toList());
+					// Group new payments by customer code
+					Map<String, List<Payment>> byCustomer = newCashPayments.stream()
+							.filter(p -> p.getSalesHeader().getCustomer() != null)
+							.collect(Collectors.groupingBy(
+									p -> p.getSalesHeader().getCustomer().getCustomerCode()));
 
-						if (!newCashPayments.isEmpty()) {
-							// For CLIENT_ESPECES, sum all payments in the current batch
-							double totalAmount = newCashPayments.stream()
-									.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+					for (Map.Entry<String, List<Payment>> custEntry : byCustomer.entrySet()) {
+						String custNo = custEntry.getKey();
+						List<Payment> custPayments = custEntry.getValue();
 
-							totalAmount = (totalAmount - salesHeader.getChangeAmount()) > 0
-									? (totalAmount - salesHeader.getChangeAmount())
-									: totalAmount;
+						double newAmount = custPayments.stream()
+								.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
+						double adjustedAmount = (newAmount - salesHeader.getChangeAmount()) > 0
+								? (newAmount - salesHeader.getChangeAmount())
+								: newAmount;
 
-							// Get customer code from first payment's ticket
-							String custNo = newCashPayments.get(0).getSalesHeader().getCustomer() != null
-									? newCashPayments.get(0).getSalesHeader().getCustomer().getCustomerCode()
-									: null;
-							String fenceNo = session.getSessionNumber();
-							String ticketNo = newCashPayments.get(0).getSalesHeader().getSalesNumber();
+						// Look for an existing line for this customer in this header
+						PaymentLine existingLine = existingLines.stream()
+								.filter(line -> custNo.equals(line.getCustNo()))
+								.findFirst().orElse(null);
 
-							if (custNo != null) {
-								PaymentLine paymentLine = new PaymentLine();
-								paymentLine.setPaymentHeader(paymentHeader);
-								paymentLine.setPayment(newCashPayments.get(0)); // Reference to first payment
-								paymentLine.setCustNo(custNo);
-								paymentLine.setAmount(totalAmount);
-								paymentLine.setFenceNo(fenceNo);
-								paymentLine.setTicketNo(ticketNo);
-								paymentLine.setTitleNumber(null);
-								paymentLine.setDueDate(null);
-								paymentLine.setDrawerName(null);
-								paymentLine.setSynched(false);
-								paymentLineRepository.save(paymentLine);
-								LOGGER.info("Created payment line for CLIENT_ESPECES with amount {} for {} payments",
-										totalAmount, newCashPayments.size());
-							}
-						}
-					} else {
-//						// Update existing CLIENT_ESPECES line: get all CLIENT_ESPECES payments for this
-//						// session and recalculate total
-//						List<SalesHeader> tickets = salesHeaderRepository.findByCashierSession(session);
-//						List<Payment> allClientEspecesPayments = tickets.stream()
-//								.flatMap(ticket -> paymentRepository.findBySalesHeader(ticket).stream())
-//								.filter(p -> p.getPaymentMethod().getType() == PaymentMethodType.CLIENT_ESPECES)
-//								.collect(Collectors.toList());
-//
-//						double totalAmount = allClientEspecesPayments.stream()
-//								.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
-//
-//						// Update the existing line with the new total amount
-//						existingClientEspecesLine.setAmount(totalAmount);
-//						// Update ticket number to the latest one (or keep the first one - your choice)
-//						if (!allClientEspecesPayments.isEmpty()) {
-//							String latestTicketNo = allClientEspecesPayments.get(allClientEspecesPayments.size() - 1)
-//									.getSalesHeader().getSalesNumber();
-//							existingClientEspecesLine.setTicketNo(latestTicketNo);
-//						}
-//						paymentLineRepository.save(existingClientEspecesLine);
-//						LOGGER.info(
-//								"Updated existing CLIENT_ESPECES line amount to {} for {} total payments in session {}",
-//								totalAmount, allClientEspecesPayments.size(), session.getSessionNumber());
-
-						// Update existing CLIENT_ESPECES line: add only new payments from current batch
-						// Get the current amount from the existing line
-						double currentAmount = existingClientEspecesLine.getAmount() != null
-								? existingClientEspecesLine.getAmount()
-								: 0.0;
-
-						// Get only new CLIENT_ESPECES payments from the current batch that aren't
-						// already in existing lines
-						List<Payment> newCashPayments = paymentGroup.stream()
-								.filter(p -> !existingPaymentIds.contains(p.getId())).collect(Collectors.toList());
-
-						if (!newCashPayments.isEmpty()) {
-							// Sum only the new payments from the current batch
-							double newAmount = newCashPayments.stream()
-									.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
-
-							// Subtract change amount if applicable (same logic as creation)
-							double adjustedNewAmount = (newAmount - salesHeader.getChangeAmount()) > 0
-									? (newAmount - salesHeader.getChangeAmount())
-									: newAmount;
-
-							// Add to existing amount
-							double totalAmount = currentAmount + adjustedNewAmount;
-
-							// Update the existing line with the new total amount
-							existingClientEspecesLine.setAmount(totalAmount);
-
-							// Update ticket number to the latest one from the new batch
-							String latestTicketNo = newCashPayments.get(newCashPayments.size() - 1).getSalesHeader()
-									.getSalesNumber();
-							existingClientEspecesLine.setTicketNo(latestTicketNo);
-
-							paymentLineRepository.save(existingClientEspecesLine);
-							LOGGER.info(
-									"Updated existing CLIENT_ESPECES line: added {} from {} new payments. New total: {}",
-									adjustedNewAmount, newCashPayments.size(), totalAmount);
+						if (existingLine == null) {
+							PaymentLine paymentLine = new PaymentLine();
+							paymentLine.setPaymentHeader(paymentHeader);
+							paymentLine.setPayment(custPayments.get(0));
+							paymentLine.setCustNo(custNo);
+							paymentLine.setAmount(adjustedAmount);
+							paymentLine.setFenceNo(session.getSessionNumber());
+							paymentLine.setTicketNo(custPayments.get(0).getSalesHeader().getSalesNumber());
+							paymentLine.setTitleNumber(null);
+							paymentLine.setDueDate(null);
+							paymentLine.setDrawerName(null);
+							paymentLine.setSynched(false);
+							paymentLineRepository.save(paymentLine);
+							LOGGER.info("Created CLIENT_ESPECES line for customer {} amount {}", custNo, adjustedAmount);
 						} else {
-							LOGGER.debug("No new CLIENT_ESPECES payments to add to existing line");
+							existingLine.setAmount(existingLine.getAmount() + adjustedAmount);
+							existingLine.setTicketNo(custPayments.get(custPayments.size() - 1).getSalesHeader().getSalesNumber());
+							paymentLineRepository.save(existingLine);
+							LOGGER.info("Updated CLIENT_ESPECES line for customer {} new total {}", custNo, existingLine.getAmount());
 						}
 					}
 
@@ -582,91 +463,6 @@ public class SessionExportService {
 
 		Exception ex) {
 			LOGGER.error("Error creating payment headers and lines asynchronously: {}", ex.getMessage(), ex);
-		}
-	}
-
-	/**
-	 * Create PaymentHeader and PaymentLine records for session payments grouped by
-	 * payment class
-	 */
-	private void createPaymentHeadersAndLines(CashierSession session, Map<String, List<Payment>> paymentsByClass) {
-		// Create PaymentHeader and PaymentLine for each payment class
-		for (Map.Entry<String, List<Payment>> entry : paymentsByClass.entrySet()) {
-			String paymentClass = entry.getKey();
-			List<Payment> paymentGroup = entry.getValue();
-
-			if (paymentGroup.isEmpty()) {
-				continue;
-			}
-
-			// Use first payment's date as postDate
-			LocalDate postDate = paymentGroup.get(0).getPaymentDate().toLocalDate();
-
-			// Determine payment type from first payment
-			PaymentMethodType paymentType = paymentGroup.get(0).getPaymentMethod().getType();
-
-			// Create PaymentHeader
-			PaymentHeader paymentHeader = new PaymentHeader();
-			paymentHeader.setCashierSession(session);
-			paymentHeader.setPaymentClass(paymentClass);
-			paymentHeader.setPostDate(postDate);
-			paymentHeader.setSynchronizationStatus(SynchronizationStatus.NOT_SYNCHED);
-			paymentHeader = paymentHeaderRepository.save(paymentHeader);
-
-			// Create PaymentLines
-			if (paymentType == PaymentMethodType.CLIENT_ESPECES) {
-				// CLIENT_ESPECES: create exactly 1 line with summed amount
-				double totalAmount = paymentGroup.stream()
-						.mapToDouble(p -> p.getTotalAmount() != null ? p.getTotalAmount() : 0.0).sum();
-
-				// Get customer code from first payment's ticket
-				String custNo = paymentGroup.get(0).getSalesHeader().getCustomer() != null
-						? paymentGroup.get(0).getSalesHeader().getCustomer().getCustomerCode()
-						: null;
-				String fenceNo = session.getSessionNumber();
-				String ticketNo = paymentGroup.get(0).getSalesHeader().getSalesNumber();
-
-				if (custNo != null) {
-					PaymentLine paymentLine = new PaymentLine();
-					paymentLine.setPaymentHeader(paymentHeader);
-					paymentLine.setPayment(paymentGroup.get(0)); // Reference to first payment
-					paymentLine.setCustNo(custNo);
-					paymentLine.setAmount(totalAmount);
-					paymentLine.setFenceNo(fenceNo);
-					paymentLine.setTicketNo(ticketNo);
-					paymentLine.setTitleNumber(null);
-					paymentLine.setDueDate(null);
-					paymentLine.setDrawerName(null);
-					paymentLine.setSynched(false);
-					paymentLineRepository.save(paymentLine);
-				}
-			} else {
-				// Other payment classes: create one line per payment
-				for (Payment payment : paymentGroup) {
-					SalesHeader ticket = payment.getSalesHeader();
-					String custNo = ticket.getCustomer() != null ? ticket.getCustomer().getCustomerCode() : null;
-					String fenceNo = session.getSessionNumber();
-					String ticketNo = ticket.getSalesNumber();
-
-					if (custNo != null) {
-						PaymentLine paymentLine = new PaymentLine();
-						paymentLine.setPaymentHeader(paymentHeader);
-						paymentLine.setPayment(payment);
-						paymentLine.setCustNo(custNo);
-						paymentLine.setAmount(payment.getTotalAmount() != null ? payment.getTotalAmount() : 0.0);
-						paymentLine.setFenceNo(fenceNo);
-						paymentLine.setTicketNo(ticketNo);
-						paymentLine.setTitleNumber(payment.getTitleNumber());
-						paymentLine.setDueDate(payment.getDueDate());
-						paymentLine.setDrawerName(payment.getDrawerName());
-						paymentLine.setSynched(false);
-						paymentLineRepository.save(paymentLine);
-					}
-				}
-			}
-
-			LOGGER.info("Created payment header {} with {} lines for payment class {}", paymentHeader.getId(),
-					paymentType == PaymentMethodType.CLIENT_ESPECES ? 1 : paymentGroup.size(), paymentClass);
 		}
 	}
 

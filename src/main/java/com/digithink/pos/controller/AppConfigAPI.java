@@ -46,6 +46,8 @@ public class AppConfigAPI {
 		boolean loyaltyEnabled = loyaltyService.isLoyaltyEnabled();
 		String posShowImagesVal = generalSetupService.findValueByCode("POS_SHOW_IMAGES");
 		boolean posShowImages = posShowImagesVal == null || !"false".equalsIgnoreCase(posShowImagesVal);
+		String posShowStockVal = generalSetupService.findValueByCode("POS_SHOW_STOCK");
+		boolean posShowStock = "true".equalsIgnoreCase(posShowStockVal);
 		String tableEnabledVal = generalSetupService.findValueByCode("TABLE_MANAGEMENT_ENABLED");
 		boolean tableManagementEnabled = "true".equalsIgnoreCase(tableEnabledVal);
 		String tableCountVal = generalSetupService.findValueByCode("TABLE_MANAGEMENT_TABLE_COUNT");
@@ -63,6 +65,7 @@ public class AppConfigAPI {
 				licenseService.getStatus().name(),
 				licenseService.getDaysUntilExpiry(),
 				posShowImages,
+				posShowStock,
 				tableManagementEnabled,
 				tableManagementTableCount,
 				appVersion

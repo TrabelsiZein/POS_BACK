@@ -196,6 +196,8 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			ticketSummary.put("salesNumber", salesHeader.getSalesNumber());
 			ticketSummary.put("salesDate", salesHeader.getSalesDate());
 			ticketSummary.put("totalAmount", salesHeader.getTotalAmount());
+			ticketSummary.put("discountAmount", salesHeader.getDiscountAmount());
+			ticketSummary.put("discountPercentage", salesHeader.getDiscountPercentage());
 			ticketSummary.put("status", salesHeader.getStatus());
 			if (salesHeader.getCustomer() != null) {
 				ticketSummary.put("customerId", salesHeader.getCustomer().getId());

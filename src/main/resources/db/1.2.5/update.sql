@@ -62,31 +62,7 @@ SET    [config_type]    = 'SELECT',
        [config_options] = 'ERRORS_ONLY,ERRORS_AND_WARNINGS,ALL'
 WHERE  [code] = 'ERP_SYNC_TRACKING_LEVEL';
 
--- ── Version tracking tables ───────────────────────────────────
-IF OBJECT_ID('APP_VERSION', 'U') IS NULL
-BEGIN
-    CREATE TABLE APP_VERSION (
-        version VARCHAR(20) NOT NULL
-    );
-    INSERT INTO APP_VERSION (version) VALUES ('1.2.5');
-    PRINT 'APP_VERSION table created and seeded with 1.2.5';
-END
-ELSE
-BEGIN
-    UPDATE APP_VERSION SET version = '1.2.5';
-END
-
-IF OBJECT_ID('APP_RELEASE_NOTES', 'U') IS NULL
-BEGIN
-    CREATE TABLE APP_RELEASE_NOTES (
-        id          INT IDENTITY(1,1) PRIMARY KEY,
-        version     VARCHAR(20)   NOT NULL,
-        type        VARCHAR(20)   NOT NULL,   -- NEW | FIX | IMPROVE
-        description NVARCHAR(MAX) NOT NULL,
-        released_at DATETIME DEFAULT GETDATE()
-    );
-    PRINT 'APP_RELEASE_NOTES table created';
-END
+UPDATE APP_VERSION SET version = '1.2.5';
 
 INSERT INTO APP_RELEASE_NOTES (version, type, description) VALUES
 ('1.2.5', 'NEW',     'Initial versioned release — version control system introduced'),

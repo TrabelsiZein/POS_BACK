@@ -76,6 +76,11 @@ public class ZZDataInitializer {
 		// Always run on startup — idempotent (each key guarded by findByCode check)
 		ensureAllGeneralSetupConfigs();
 
+		// Standalone first-run: auto-create passenger customer and wire its code in config
+		if (applicationModeService.isStandalone() && customerRepository.count() == 0) {
+			ensurePassengerCustomer();
+		}
+
 		// ERP-related configs and sync jobs only when not in standalone mode
 		if (!applicationModeService.isStandalone()) {
 			ensureErpSyncCheckpointConfigs();
@@ -108,7 +113,7 @@ public class ZZDataInitializer {
 		admin.setUsername("admin");
 		admin.setFullName("System Administrator");
 		admin.setPassword(passwordEncoder.encode("P@ssw0rd"));
-		admin.setEmail("admin@hammai-group.tn");
+		admin.setEmail("admin@zsretail.tn");
 		admin.setActive(true);
 		admin.setRole(Role.ADMIN);
 		admin.setCreatedBy("System");
@@ -119,8 +124,8 @@ public class ZZDataInitializer {
 		UserAccount responsible = new UserAccount();
 		responsible.setUsername("responsible");
 		responsible.setFullName("Responsible Manager");
-		responsible.setPassword(passwordEncoder.encode("admin@123.0"));
-		responsible.setEmail("responsible@hammai-group.tn");
+		responsible.setPassword(passwordEncoder.encode("123.0"));
+		responsible.setEmail("responsible@zsretail.tn");
 		responsible.setActive(true);
 		responsible.setRole(Role.RESPONSIBLE);
 		// Assign default badge code and all permissions to RESPONSIBLE role
@@ -137,7 +142,7 @@ public class ZZDataInitializer {
 		posUser.setUsername("cashier");
 		posUser.setFullName("Cashier User");
 		posUser.setPassword(passwordEncoder.encode("cashier"));
-		posUser.setEmail("cashier@hammai-group.tn");
+		posUser.setEmail("123");
 		posUser.setActive(true);
 		posUser.setRole(Role.POS_USER);
 		posUser.setCreatedBy("System");
@@ -253,6 +258,18 @@ public class ZZDataInitializer {
 		returnVoucher.setCreatedBy("System");
 		returnVoucher.setUpdatedBy("System");
 		paymentMethodRepository.save(returnVoucher);
+
+		// Virement Bancaire - Order 9
+		PaymentMethod virementBancaire = new PaymentMethod();
+		virementBancaire.setCode("VIREMENT_BANCAIRE");
+		virementBancaire.setName("Virement Bancaire");
+		virementBancaire.setType(PaymentMethodType.VIREMENT_BANCAIRE);
+		virementBancaire.setDescription("Paiement par virement bancaire");
+		virementBancaire.setActive(true);
+		virementBancaire.setDisplayOrder(9);
+		virementBancaire.setCreatedBy("System");
+		virementBancaire.setUpdatedBy("System");
+		paymentMethodRepository.save(virementBancaire);
 	}
 
 	/**
@@ -663,6 +680,33 @@ public class ZZDataInitializer {
 //		locationRepository.save(warehouse);
 //	}
 
+	/**
+	 * Standalone first-run: creates the "Passenger Customer" and writes its code
+	 * into the PASSENGER_CUSTOMER general-setup entry so the POS can use it
+	 * immediately without any manual configuration.
+	 */
+	private void ensurePassengerCustomer() {
+		final String code = "PASSENGER";
+		if (customerRepository.findByCustomerCode(code).isPresent()) {
+			return;
+		}
+		com.digithink.pos.model.Customer passenger = new com.digithink.pos.model.Customer();
+		passenger.setCustomerCode(code);
+		passenger.setName("Passenger Customer");
+		passenger.setPhone("00000000");
+		passenger.setActive(true);
+		passenger.setCreatedBy("System");
+		passenger.setUpdatedBy("System");
+		customerRepository.save(passenger);
+
+		// Wire the code into PASSENGER_CUSTOMER config (override the empty default)
+		generalSetupRepository.findByCode("PASSENGER_CUSTOMER").ifPresent(cfg -> {
+			cfg.setValeur(code);
+			cfg.setUpdatedBy("System");
+			generalSetupRepository.save(cfg);
+		});
+	}
+
 	// ─────────────────────────────────────────────────────────────────────────
 	// General Setup — idempotent ensure (runs on every startup)
 	// ─────────────────────────────────────────────────────────────────────────
@@ -685,6 +729,9 @@ public class ZZDataInitializer {
 				false, ConfigType.BOOLEAN);
 		ensureConfig("POS_SHOW_IMAGES", "true",
 				"Show product/family/subfamily images in POS cashier screen. Set to false to disable images if the system is slow.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("POS_SHOW_STOCK", "false",
+				"Show stock quantity on item cards in the POS cashier screen. Only relevant in standalone/franchise mode.",
 				false, ConfigType.BOOLEAN);
 
 		// ── Table management ──────────────────────────────────────────────────
@@ -710,7 +757,7 @@ public class ZZDataInitializer {
 		ensureConfig("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE", "true",
 				"If true, automatically add empty \"Client Espèce\" payment method when opening payment page. If false, keep payment page empty with no selected payment method.",
 				false, ConfigType.BOOLEAN);
-		ensureConfig("ENABLE_CASH_DISCREPANCY_CHECK", "true",
+		ensureConfig("ENABLE_CASH_DISCREPANCY_CHECK", "false",
 				"Enable cash discrepancy check when closing session. If true, system validates closing amount matches expected real cash.",
 				false, ConfigType.BOOLEAN);
 		ensureConfig("PLAFOND_ESPECE", "",
@@ -746,7 +793,7 @@ public class ZZDataInitializer {
 				false, ConfigType.BOOLEAN);
 
 		// ── Stock ─────────────────────────────────────────────────────────────
-		ensureConfig("ALLOW_NEGATIVE_STOCK", "false",
+		ensureConfig("ALLOW_NEGATIVE_STOCK", "true",
 				"Allow stock to go negative during sales. Applies only in standalone/franchise mode. When false, sale is blocked if stock is insufficient.",
 				false, ConfigType.BOOLEAN);
 

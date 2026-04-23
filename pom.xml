@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.digithink</groupId>
 	<artifactId>pos</artifactId>
-	<version>1.2.5</version>
+	<version>1.6.1</version>
 	<name>pos</name>
 	<description></description>
 	<packaging>war</packaging>
@@ -248,6 +248,33 @@
 		</plugins>
 		<finalName>posws</finalName>
 	</build>
+
+	<!--
+		Customer delivery WAR: strips selected classpath profile files so they are not on the server.
+		Build: mvn clean package -Pcustomer-war
+		Edit packagingExcludes below to match what each customer should not receive.
+	-->
+	<profiles>
+		<profile>
+			<id>customer-war</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-war-plugin</artifactId>
+						<configuration>
+							<packagingExcludes>
+							WEB-INF/classes/application-dynamics-dev.properties,
+								WEB-INF/classes/application-franchise-admin.properties,
+								WEB-INF/classes/application-franchise-customer.properties,
+								WEB-INF/classes/application-standalone-dev.properties								
+							</packagingExcludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
 

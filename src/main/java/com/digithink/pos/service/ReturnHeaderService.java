@@ -245,21 +245,30 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			totalReturnAmount += lineTotalTTC;
 		}
 
-		// If original ticket had a header discount (e.g. 10%), apply same ratio to return amount
-		// so voucher and return total reflect what the customer actually paid (discounted).
-		// Use sum of lines TTC (not header subtotal which is HT) so ratio is totalAmount/ticketTtcBeforeDiscount.
+		// Apply the original ticket's header discount to the return amount so the voucher
+		// refunds exactly what the customer paid for the returned lines.
+		// Prefer the stored discountPercentage (the exact rate applied at checkout to
+		// non-tax-stamp lines) over a ratio derived from header totals — a ratio including
+		// the non-discounted tax stamp would dilute the rate and overpay the customer.
 		double effectiveTotalReturnAmount = totalReturnAmount;
-		double ticketTtcBeforeDiscount = 0.0;
-		for (SalesLine line : originalSalesLines) {
-			if (line.getLineTotalIncludingVat() != null) {
-				ticketTtcBeforeDiscount += line.getLineTotalIncludingVat();
+		Double headerDiscountPct = originalSalesHeader.getDiscountPercentage();
+		if (headerDiscountPct != null && headerDiscountPct > 0) {
+			effectiveTotalReturnAmount = totalReturnAmount * (1.0 - headerDiscountPct / 100.0);
+			log.info("Applied ticket discountPercentage to return amount: pct={}, totalReturnAmount={}, effectiveTotalReturnAmount={}",
+					headerDiscountPct, totalReturnAmount, effectiveTotalReturnAmount);
+		} else {
+			double ticketTtcBeforeDiscount = 0.0;
+			for (SalesLine line : originalSalesLines) {
+				if (line.getLineTotalIncludingVat() != null) {
+					ticketTtcBeforeDiscount += line.getLineTotalIncludingVat();
+				}
 			}
-		}
-		if (ticketTtcBeforeDiscount > 0 && originalSalesHeader.getTotalAmount() != null && originalSalesHeader.getTotalAmount() >= 0) {
-			double ratio = originalSalesHeader.getTotalAmount() / ticketTtcBeforeDiscount;
-			effectiveTotalReturnAmount = totalReturnAmount * ratio;
-			log.info("Applied original ticket discount to return amount: ticketTtcBeforeDiscount={}, ratio={}, totalReturnAmount={}, effectiveTotalReturnAmount={}",
-					ticketTtcBeforeDiscount, ratio, totalReturnAmount, effectiveTotalReturnAmount);
+			if (ticketTtcBeforeDiscount > 0 && originalSalesHeader.getTotalAmount() != null && originalSalesHeader.getTotalAmount() >= 0) {
+				double ratio = originalSalesHeader.getTotalAmount() / ticketTtcBeforeDiscount;
+				effectiveTotalReturnAmount = totalReturnAmount * ratio;
+				log.info("Applied ticket discount ratio fallback to return amount: ticketTtcBeforeDiscount={}, ratio={}, totalReturnAmount={}, effectiveTotalReturnAmount={}",
+						ticketTtcBeforeDiscount, ratio, totalReturnAmount, effectiveTotalReturnAmount);
+			}
 		}
 
 		// Generate return number
