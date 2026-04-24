@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.digithink.pos.model.LoyaltyMember;
+import com.digithink.pos.model.LoyaltyProgram;
 import com.digithink.pos.model.LoyaltyTransaction;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.enumeration.LoyaltyTransactionType;
@@ -24,6 +25,8 @@ public interface LoyaltyTransactionRepository extends _BaseRepository<LoyaltyTra
 			LoyaltyMember member, SalesHeader salesHeader, LoyaltyTransactionType type);
 
 	List<LoyaltyTransaction> findByLoyaltyMemberAndType(LoyaltyMember member, LoyaltyTransactionType type);
+
+	long countByLoyaltyProgram(LoyaltyProgram program);
 
 	/**
 	 * Cross-member paginated transaction query with optional filters.

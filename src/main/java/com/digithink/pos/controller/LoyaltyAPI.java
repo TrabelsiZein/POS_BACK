@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,7 @@ import com.digithink.pos.dto.CreateLoyaltyMemberRequestDTO;
 import com.digithink.pos.dto.LoyaltyAdjustmentRequestDTO;
 import com.digithink.pos.dto.LoyaltyConfigDTO;
 import com.digithink.pos.dto.LoyaltyMemberDTO;
+import com.digithink.pos.dto.LoyaltyProgramDTO;
 import com.digithink.pos.dto.LoyaltyTransactionDTO;
 import com.digithink.pos.model.LoyaltyProgram;
 import com.digithink.pos.security.CurrentUserProvider;
@@ -279,12 +281,60 @@ public class LoyaltyAPI {
 				// Auto-generate code if not provided
 				newProgram.setProgramCode("PROG-" + LocalDate.now().getYear() + "-" + System.currentTimeMillis() % 10000);
 			}
-			LoyaltyProgram created = loyaltyService.activateNewProgram(newProgram);
+			LoyaltyProgramDTO created = loyaltyService.activateNewProgram(newProgram);
 			return ResponseEntity.status(HttpStatus.CREATED).body(created);
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
 		} catch (Exception e) {
 			log.error("Error creating loyalty program", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", e.getMessage()));
+		}
+	}
+
+	@PutMapping("/programs/{id}")
+	public ResponseEntity<?> updateProgram(@PathVariable Long id, @RequestBody LoyaltyProgram patch) {
+		try {
+			LoyaltyProgramDTO updated = loyaltyService.updateProgram(id, patch);
+			return ResponseEntity.ok(updated);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+		} catch (IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+		} catch (Exception e) {
+			log.error("Error updating loyalty program {}", id, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", e.getMessage()));
+		}
+	}
+
+	@DeleteMapping("/programs/{id}")
+	public ResponseEntity<?> deleteProgram(@PathVariable Long id) {
+		try {
+			loyaltyService.deleteProgram(id);
+			return ResponseEntity.noContent().build();
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+		} catch (IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+		} catch (Exception e) {
+			log.error("Error deleting loyalty program {}", id, e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", e.getMessage()));
+		}
+	}
+
+	@PostMapping("/programs/{id}/deactivate")
+	public ResponseEntity<?> deactivateProgram(@PathVariable Long id) {
+		try {
+			LoyaltyProgramDTO updated = loyaltyService.deactivateProgram(id);
+			return ResponseEntity.ok(updated);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+		} catch (IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+		} catch (Exception e) {
+			log.error("Error deactivating loyalty program {}", id, e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(Map.of("error", e.getMessage()));
 		}

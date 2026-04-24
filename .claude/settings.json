@@ -16,7 +16,13 @@
       "Bash(grep -iE \"~\\\\\\\\\\\\$|DOC_FID\")",
       "Bash(powershell -Command \"Get-Process winword -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2; Get-Process winword -ErrorAction SilentlyContinue | Select-Object Id,ProcessName\")",
       "Bash(powershell -Command 'Get-Process winword,powershell -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $PID } | Stop-Process -Force')",
-      "Bash(rm -f 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/~$C_FIDELITE_POS.docx' 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/bonus_section.html' 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/append_bonus.ps1')"
+      "Bash(rm -f 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/~$C_FIDELITE_POS.docx' 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/bonus_section.html' 'D:/Business Management/Apps/POS/Apps/Cursor Workspace/append_bonus.ps1')",
+      "Bash(mvn -q -DskipTests compile)",
+      "Bash(mvn -q -o -DskipTests compile)",
+      "Bash(python -c \"import docx; print\\('python-docx', docx.__version__\\)\")",
+      "PowerShell($word = New-Object -ComObject Word.Application -ErrorAction SilentlyContinue; if \\($word\\) { Write-Output \"Word available\"; $word.Quit\\(\\) } else { Write-Output \"Word not available\" })",
+      "PowerShell(& \"D:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\Cursor Workspace\\\\md-to-docx.ps1\")",
+      "Read(//d/Business Management/Apps/POS/Apps/Cursor Workspace/**)"
     ],
     "additionalDirectories": [
       "D:\\Business Management\\Apps\\POS\\Apps\\Cursor Workspace"

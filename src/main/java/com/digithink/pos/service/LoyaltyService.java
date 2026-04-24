@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.digithink.pos.dto.CreateLoyaltyMemberRequestDTO;
 import com.digithink.pos.dto.LoyaltyConfigDTO;
 import com.digithink.pos.dto.LoyaltyMemberDTO;
+import com.digithink.pos.dto.LoyaltyProgramDTO;
 import com.digithink.pos.dto.LoyaltyTransactionDTO;
 import com.digithink.pos.model.CashierSession;
 import com.digithink.pos.model.Customer;
@@ -64,7 +65,7 @@ public class LoyaltyService {
 	}
 
 	public Optional<LoyaltyProgram> getActiveProgram() {
-		return loyaltyProgramRepository.findByActiveTrueAndEndDateIsNull();
+		return loyaltyProgramRepository.findCurrentActivePrograms(LocalDate.now()).stream().findFirst();
 	}
 
 	public LoyaltyConfigDTO getLoyaltyConfig() {
@@ -419,33 +420,166 @@ public class LoyaltyService {
 	// Loyalty Programs
 	// ───────────────────────────────────────────────────────────────
 
-	public List<LoyaltyProgram> getAllPrograms() {
-		return loyaltyProgramRepository.findAllByOrderByStartDateDesc();
+	public List<LoyaltyProgramDTO> getAllPrograms() {
+		LocalDate today = LocalDate.now();
+		return loyaltyProgramRepository.findAllByOrderByStartDateDesc().stream()
+				.map(p -> toProgramDTO(p, today))
+				.collect(Collectors.toList());
 	}
 
 	@Transactional
-	public LoyaltyProgram activateNewProgram(LoyaltyProgram newProgram) {
-		// Close current active program
-		loyaltyProgramRepository.findByActiveTrueAndEndDateIsNull().ifPresent(current -> {
-			current.setEndDate(LocalDate.now());
+	public LoyaltyProgramDTO activateNewProgram(LoyaltyProgram newProgram) {
+		LocalDate today = LocalDate.now();
+
+		// Close any currently-active programs (ignore endDate — may be null or set in future)
+		for (LoyaltyProgram current : loyaltyProgramRepository.findByActiveTrue()) {
+			LocalDate closeOn = today;
+			if (newProgram.getStartDate() != null && !newProgram.getStartDate().isAfter(today)) {
+				closeOn = newProgram.getStartDate().minusDays(1);
+				if (closeOn.isBefore(current.getStartDate() != null ? current.getStartDate() : closeOn)) {
+					closeOn = today;
+				}
+			}
+			current.setEndDate(closeOn);
 			current.setActive(false);
 			current.setUpdatedBy("System");
 			loyaltyProgramRepository.save(current);
-			log.info("Closed loyalty program: {}", current.getProgramCode());
-		});
+			log.info("Closed loyalty program: {} (endDate={})", current.getProgramCode(), closeOn);
+		}
 
 		newProgram.setActive(true);
-		newProgram.setEndDate(null);
 		newProgram.setCreatedBy("System");
 		newProgram.setUpdatedBy("System");
 
 		if (newProgram.getStartDate() == null) {
-			newProgram.setStartDate(LocalDate.now());
+			newProgram.setStartDate(today);
 		}
 
 		LoyaltyProgram saved = loyaltyProgramRepository.save(newProgram);
 		log.info("Activated new loyalty program: {}", saved.getProgramCode());
-		return saved;
+		return toProgramDTO(saved, today);
+	}
+
+	@Transactional
+	public LoyaltyProgramDTO updateProgram(Long id, LoyaltyProgram patch) {
+		LoyaltyProgram existing = loyaltyProgramRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Loyalty program not found: " + id));
+
+		long txCount = loyaltyTransactionRepository.countByLoyaltyProgram(existing);
+		boolean canEditAll = (txCount == 0);
+
+		// Always-editable (safe) fields
+		if (patch.getName() != null && !patch.getName().isBlank()) {
+			existing.setName(patch.getName());
+		}
+		existing.setDescription(patch.getDescription());
+		existing.setEndDate(patch.getEndDate());
+
+		// Rate / policy fields — only when no transactions reference this program
+		if (canEditAll) {
+			if (patch.getProgramCode() != null && !patch.getProgramCode().isBlank()) {
+				existing.setProgramCode(patch.getProgramCode());
+			}
+			if (patch.getStartDate() != null) {
+				existing.setStartDate(patch.getStartDate());
+			}
+			if (patch.getPointsPerDinar() != null) {
+				existing.setPointsPerDinar(patch.getPointsPerDinar());
+			}
+			if (patch.getPointValueMillimes() != null) {
+				existing.setPointValueMillimes(patch.getPointValueMillimes());
+			}
+			if (patch.getMinimumRedemptionPoints() != null) {
+				existing.setMinimumRedemptionPoints(patch.getMinimumRedemptionPoints());
+			}
+			if (patch.getMaximumRedemptionPercentage() != null) {
+				existing.setMaximumRedemptionPercentage(patch.getMaximumRedemptionPercentage());
+			}
+			existing.setPointsExpiryDays(patch.getPointsExpiryDays());
+		} else {
+			// Reject if the caller tried to change a locked field (value differs from existing)
+			rejectLockedChange("programCode", existing.getProgramCode(), patch.getProgramCode());
+			rejectLockedChange("startDate", existing.getStartDate(), patch.getStartDate());
+			rejectLockedChange("pointsPerDinar", existing.getPointsPerDinar(), patch.getPointsPerDinar());
+			rejectLockedChange("pointValueMillimes", existing.getPointValueMillimes(), patch.getPointValueMillimes());
+			rejectLockedChange("minimumRedemptionPoints", existing.getMinimumRedemptionPoints(), patch.getMinimumRedemptionPoints());
+			rejectLockedChange("maximumRedemptionPercentage", existing.getMaximumRedemptionPercentage(), patch.getMaximumRedemptionPercentage());
+			rejectLockedChange("pointsExpiryDays", existing.getPointsExpiryDays(), patch.getPointsExpiryDays());
+		}
+
+		existing.setUpdatedBy("System");
+		LoyaltyProgram saved = loyaltyProgramRepository.save(existing);
+		log.info("Updated loyalty program: {} (canEditAll={})", saved.getProgramCode(), canEditAll);
+		return toProgramDTO(saved, LocalDate.now());
+	}
+
+	@Transactional
+	public void deleteProgram(Long id) {
+		LoyaltyProgram existing = loyaltyProgramRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Loyalty program not found: " + id));
+		long txCount = loyaltyTransactionRepository.countByLoyaltyProgram(existing);
+		if (txCount > 0) {
+			throw new IllegalStateException(
+					"Cannot delete program '" + existing.getProgramCode() + "': it has " + txCount + " related transaction(s).");
+		}
+		loyaltyProgramRepository.delete(existing);
+		log.info("Deleted loyalty program: {}", existing.getProgramCode());
+	}
+
+	@Transactional
+	public LoyaltyProgramDTO deactivateProgram(Long id) {
+		LoyaltyProgram existing = loyaltyProgramRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Loyalty program not found: " + id));
+		LocalDate today = LocalDate.now();
+		if (!Boolean.TRUE.equals(existing.getActive())
+				&& existing.getEndDate() != null && existing.getEndDate().isBefore(today)) {
+			throw new IllegalStateException("Program is already inactive.");
+		}
+		existing.setActive(false);
+		if (existing.getEndDate() == null || existing.getEndDate().isAfter(today)) {
+			existing.setEndDate(today);
+		}
+		existing.setUpdatedBy("System");
+		LoyaltyProgram saved = loyaltyProgramRepository.save(existing);
+		log.info("Deactivated loyalty program: {}", saved.getProgramCode());
+		return toProgramDTO(saved, today);
+	}
+
+	private void rejectLockedChange(String field, Object current, Object patched) {
+		if (patched == null) return;
+		if (current == null || !current.equals(patched)) {
+			throw new IllegalStateException(
+					"Field '" + field + "' is locked: this program already has loyalty transactions.");
+		}
+	}
+
+	private LoyaltyProgramDTO toProgramDTO(LoyaltyProgram p, LocalDate today) {
+		long txCount = loyaltyTransactionRepository.countByLoyaltyProgram(p);
+		boolean started = p.getStartDate() != null && !p.getStartDate().isAfter(today);
+		boolean notEnded = p.getEndDate() == null || !p.getEndDate().isBefore(today);
+		boolean current = Boolean.TRUE.equals(p.getActive()) && started && notEnded;
+		boolean ended = p.getEndDate() != null && p.getEndDate().isBefore(today);
+
+		LoyaltyProgramDTO dto = new LoyaltyProgramDTO();
+		dto.setId(p.getId());
+		dto.setProgramCode(p.getProgramCode());
+		dto.setName(p.getName());
+		dto.setDescription(p.getDescription());
+		dto.setStartDate(p.getStartDate() != null ? p.getStartDate().toString() : null);
+		dto.setEndDate(p.getEndDate() != null ? p.getEndDate().toString() : null);
+		dto.setPointsPerDinar(p.getPointsPerDinar());
+		dto.setPointValueMillimes(p.getPointValueMillimes());
+		dto.setMinimumRedemptionPoints(p.getMinimumRedemptionPoints());
+		dto.setMaximumRedemptionPercentage(p.getMaximumRedemptionPercentage());
+		dto.setPointsExpiryDays(p.getPointsExpiryDays());
+		dto.setActive(p.getActive());
+		dto.setTransactionCount(txCount);
+		dto.setCurrent(current);
+		dto.setCanEditAll(txCount == 0);
+		dto.setCanEditSafe(!ended);
+		dto.setCanDelete(txCount == 0);
+		dto.setCanDeactivate(current);
+		return dto;
 	}
 
 	// ───────────────────────────────────────────────────────────────
