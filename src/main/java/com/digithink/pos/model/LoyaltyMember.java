@@ -47,6 +47,10 @@ public class LoyaltyMember extends _BaseEntity {
 	@JoinColumn(name = "customer_id")
 	private Customer customer;
 
+	@ManyToOne
+	@JoinColumn(name = "member_function_id")
+	private MemberFunction memberFunction;
+
 	@Column(name = "loyalty_points", nullable = false)
 	private Integer loyaltyPoints = 0;
 

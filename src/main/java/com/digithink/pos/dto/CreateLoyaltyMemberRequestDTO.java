@@ -16,4 +16,6 @@ public class CreateLoyaltyMemberRequestDTO {
 
 	/** Optional: link to an existing Customer by ID */
 	private Long customerId;
+
+	private Long memberFunctionId;
 }

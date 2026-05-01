@@ -622,6 +622,10 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			ticketMap.put("fiscalRegistration", ticket.getFiscalRegistration());
 			ticketMap.put("salesLines", salesLines);
 			ticketMap.put("payments", payments);
+			ticketMap.put("loyaltyDeductionAmount", ticket.getLoyaltyDeductionAmount());
+			ticketMap.put("loyaltyPointsRedeemed", ticket.getLoyaltyPointsRedeemed());
+			ticketMap.put("loyaltyPointsEarned", ticket.getLoyaltyPointsEarned());
+			ticketMap.put("loyaltyMember", ticket.getLoyaltyMember());
 
 			return ResponseEntity.ok(ticketMap);
 		} catch (Exception e) {

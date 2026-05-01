@@ -222,9 +222,14 @@ public class TicketExportService {
 			dto.setCashierSessionId(ticket.getCashierSession().getSessionNumber());
 		}
 
-		// Set discount percentage
-		if (ticket.getDiscountPercentage() != null) {
-			dto.setDiscountPercentage(ticket.getDiscountPercentage());
+		// Set discount percentage — combines header discount + loyalty deduction into
+		// a single Discount_Percent so NAV can reconcile: gross × (1 − pct/100) = Ticket_Amount
+		double gross = (ticket.getSubtotal() != null ? ticket.getSubtotal() : 0.0)
+				+ (ticket.getTaxAmount() != null ? ticket.getTaxAmount() : 0.0);
+		double totalDeduction = (ticket.getDiscountAmount() != null ? ticket.getDiscountAmount() : 0.0)
+				+ (ticket.getLoyaltyDeductionAmount() != null ? ticket.getLoyaltyDeductionAmount() : 0.0);
+		if (totalDeduction > 0 && gross > 0) {
+			dto.setDiscountPercentage(totalDeduction / gross * 100.0);
 		}
 
 		// Set total amount
@@ -271,8 +276,19 @@ public class TicketExportService {
 		dto.setQuantity(BigDecimal.valueOf(line.getQuantity()));
 		dto.setUnitPrice(BigDecimal.valueOf(line.getUnitPrice()));
 
+		// Use stored discount % when available; otherwise derive it from lineTotal vs
+		// grossHT (fixed-amount promotions store discount_amount only, % stays null)
 		if (line.getDiscountPercentage() != null) {
 			dto.setDiscountPercentage(BigDecimal.valueOf(line.getDiscountPercentage()));
+		} else if (line.getDiscountAmount() != null && line.getDiscountAmount() > 0
+				&& line.getUnitPrice() != null && line.getUnitPrice() > 0
+				&& line.getQuantity() != null && line.getQuantity() > 0
+				&& line.getLineTotal() != null) {
+			double grossHT = line.getUnitPrice() * line.getQuantity();
+			double pct = (1.0 - line.getLineTotal() / grossHT) * 100.0;
+			if (pct > 0 && pct < 100) {
+				dto.setDiscountPercentage(BigDecimal.valueOf(pct));
+			}
 		}
 
 		if (line.getDiscountAmount() != null) {

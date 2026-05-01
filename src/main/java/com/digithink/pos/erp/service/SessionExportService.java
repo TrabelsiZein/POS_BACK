@@ -2,6 +2,7 @@ package com.digithink.pos.erp.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -234,11 +235,17 @@ private final PaymentHeaderRepository paymentHeaderRepository;
 							paymentLine.setSynched(true);
 							paymentLineRepository.save(paymentLine);
 
-							if (paymentLine.getPayment() != null) {
-								Payment payment = paymentLine.getPayment();
-								payment.setSynched(true);
-								paymentRepository.save(payment);
+							// Mark all grouped payments synced; fall back to legacy single ref
+						List<Payment> linkedPayments = paymentLine.getPayments();
+						if (!linkedPayments.isEmpty()) {
+							for (Payment p : linkedPayments) {
+								p.setSynched(true);
+								paymentRepository.save(p);
 							}
+						} else if (paymentLine.getPayment() != null) {
+							paymentLine.getPayment().setSynched(true);
+							paymentRepository.save(paymentLine.getPayment());
+						}
 
 							LOGGER.info("Payment line {} exported to ERP", paymentLine.getId());
 						} else {
@@ -413,11 +420,17 @@ private final PaymentHeaderRepository paymentHeaderRepository;
 							paymentLine.setDueDate(null);
 							paymentLine.setDrawerName(null);
 							paymentLine.setSynched(false);
+							paymentLine.setPayments(new ArrayList<>(custPayments));
 							paymentLineRepository.save(paymentLine);
 							LOGGER.info("Created CLIENT_ESPECES line for customer {} amount {}", custNo, adjustedAmount);
 						} else {
 							existingLine.setAmount(existingLine.getAmount() + adjustedAmount);
 							existingLine.setTicketNo(custPayments.get(custPayments.size() - 1).getSalesHeader().getSalesNumber());
+							List<Long> alreadyLinked = existingLine.getPayments().stream()
+									.map(Payment::getId).collect(Collectors.toList());
+							custPayments.stream()
+									.filter(p -> !alreadyLinked.contains(p.getId()))
+									.forEach(existingLine.getPayments()::add);
 							paymentLineRepository.save(existingLine);
 							LOGGER.info("Updated CLIENT_ESPECES line for customer {} new total {}", custNo, existingLine.getAmount());
 						}

@@ -24,6 +24,7 @@ import com.digithink.pos.model.Customer;
 import com.digithink.pos.model.LoyaltyMember;
 import com.digithink.pos.model.LoyaltyProgram;
 import com.digithink.pos.model.LoyaltyTransaction;
+import com.digithink.pos.model.MemberFunction;
 import com.digithink.pos.model.ReturnHeader;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.enumeration.LoyaltyTransactionType;
@@ -32,6 +33,7 @@ import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.LoyaltyMemberRepository;
 import com.digithink.pos.repository.LoyaltyProgramRepository;
 import com.digithink.pos.repository.LoyaltyTransactionRepository;
+import com.digithink.pos.repository.MemberFunctionRepository;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -53,6 +55,9 @@ public class LoyaltyService {
 
 	@Autowired
 	private CustomerRepository customerRepository;
+
+	@Autowired
+	private MemberFunctionRepository memberFunctionRepository;
 
 	// ───────────────────────────────────────────────────────────────
 	// Configuration
@@ -120,12 +125,19 @@ public class LoyaltyService {
 
 	@Transactional
 	public LoyaltyMemberDTO createMember(CreateLoyaltyMemberRequestDTO request) {
+		if (request.getMemberFunctionId() == null) {
+			throw new IllegalArgumentException("La fonction du membre est obligatoire");
+		}
+		MemberFunction memberFunction = memberFunctionRepository.findById(request.getMemberFunctionId())
+				.orElseThrow(() -> new IllegalArgumentException("Fonction du membre introuvable: " + request.getMemberFunctionId()));
+
 		LoyaltyMember member = new LoyaltyMember();
 		member.setCardNumber(generateCardNumber());
 		member.setFirstName(request.getFirstName());
 		member.setLastName(request.getLastName());
 		member.setPhone(request.getPhone());
 		member.setEmail(request.getEmail());
+		member.setMemberFunction(memberFunction);
 		member.setActive(true);
 		member.setCreatedBy("System");
 		member.setUpdatedBy("System");
@@ -153,10 +165,17 @@ public class LoyaltyService {
 		LoyaltyMember member = loyaltyMemberRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Loyalty member not found: " + id));
 
+		if (request.getMemberFunctionId() == null) {
+			throw new IllegalArgumentException("La fonction du membre est obligatoire");
+		}
+		MemberFunction memberFunction = memberFunctionRepository.findById(request.getMemberFunctionId())
+				.orElseThrow(() -> new IllegalArgumentException("Fonction du membre introuvable: " + request.getMemberFunctionId()));
+
 		member.setFirstName(request.getFirstName());
 		member.setLastName(request.getLastName());
 		member.setPhone(request.getPhone());
 		member.setEmail(request.getEmail());
+		member.setMemberFunction(memberFunction);
 		member.setUpdatedBy("System");
 
 		if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
@@ -644,6 +663,10 @@ public class LoyaltyService {
 			dto.setCustomerId(m.getCustomer().getId());
 			dto.setCustomerCode(m.getCustomer().getCustomerCode());
 			dto.setCustomerName(m.getCustomer().getName());
+		}
+		if (m.getMemberFunction() != null) {
+			dto.setMemberFunctionId(m.getMemberFunction().getId());
+			dto.setMemberFunctionName(m.getMemberFunction().getName());
 		}
 		return dto;
 	}

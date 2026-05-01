@@ -322,8 +322,9 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 				// Redeem points first (if requested)
 				int pointsToRedeem = request.getLoyaltyPointsToRedeem() != null ? request.getLoyaltyPointsToRedeem() : 0;
 				if (pointsToRedeem > 0) {
-					loyaltyService.redeemPoints(loyaltyMember.getId(), pointsToRedeem, salesHeader, currentSession);
+					double deduction = loyaltyService.redeemPoints(loyaltyMember.getId(), pointsToRedeem, salesHeader, currentSession);
 					salesHeader.setLoyaltyPointsRedeemed(pointsToRedeem);
+					salesHeader.setLoyaltyDeductionAmount(deduction);
 				}
 
 				// Earn points on the sale total (always, after redemption)

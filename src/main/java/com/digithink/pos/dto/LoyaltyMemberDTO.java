@@ -31,4 +31,8 @@ public class LoyaltyMemberDTO {
 	private Long customerId;
 	private String customerCode;
 	private String customerName;
+
+	// Member function
+	private Long memberFunctionId;
+	private String memberFunctionName;
 }
