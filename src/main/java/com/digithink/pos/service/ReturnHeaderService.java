@@ -285,6 +285,7 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 		returnHeader.setStatus(TransactionStatus.COMPLETED);
 		returnHeader.setTotalReturnAmount(effectiveTotalReturnAmount);
 		returnHeader.setNotes(request.getNotes());
+		returnHeader.setDiscountPercentage(originalSalesHeader.getDiscountPercentage());
 
 		// Save return header
 		returnHeader = save(returnHeader);

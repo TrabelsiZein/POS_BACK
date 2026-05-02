@@ -37,6 +37,9 @@ public class DynamicsNavReturnHeaderDTO {
 	@JsonProperty("POS_Order")
 	private Boolean posOrder;
 
+	@JsonProperty("Discount_Percent")
+	private Double discountPercent;
+
 	// Getters and setters
 	public String getDocumentType() {
 		return documentType;
@@ -111,5 +114,12 @@ public class DynamicsNavReturnHeaderDTO {
 	public void setPosOrder(Boolean posOrder) {
 		this.posOrder = posOrder;
 	}
-}
 
+	public Double getInvoiceDiscountPercent() {
+		return discountPercent;
+	}
+
+	public void setInvoiceDiscountPercent(Double discountPercent) {
+		this.discountPercent = discountPercent;
+	}
+}

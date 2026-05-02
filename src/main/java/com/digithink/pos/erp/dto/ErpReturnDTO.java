@@ -20,6 +20,7 @@ public class ErpReturnDTO {
 	private String responsibilityCenter;
 	private String cashierSessionId;
 	private String originalSalesNumber; // Reference to original sales header
+	private Double discountPercentage;
 
 	public String getExternalId() {
 		return externalId;
@@ -107,5 +108,13 @@ public class ErpReturnDTO {
 
 	public void setOriginalSalesNumber(String originalSalesNumber) {
 		this.originalSalesNumber = originalSalesNumber;
+	}
+
+	public Double getDiscountPercentage() {
+		return discountPercentage;
+	}
+
+	public void setDiscountPercentage(Double discountPercentage) {
+		this.discountPercentage = discountPercentage;
 	}
 }

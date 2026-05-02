@@ -232,6 +232,8 @@ public class ReturnExportService {
 			dto.setTotalReturnAmount(BigDecimal.valueOf(returnHeader.getTotalReturnAmount()));
 		}
 
+		dto.setDiscountPercentage(returnHeader.getDiscountPercentage());
+
 		// Convert lines
 		List<ReturnLine> returnLines = returnLineRepository.findByReturnHeader(returnHeader);
 		for (ReturnLine returnLine : returnLines) {

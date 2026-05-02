@@ -15,6 +15,7 @@ public class SessionDashboardDTO {
 
 	private Long id;
 	private String sessionNumber;
+	private Long cashierId;
 	private String cashierName;
 	private String cashierUsername;
 	private LocalDateTime openedAt;
@@ -55,7 +56,8 @@ public class SessionDashboardDTO {
 		dto.setSessionNumber(session.getSessionNumber());
 		
 		if (session.getCashier() != null) {
-			dto.setCashierName(session.getCashier().getFullName() != null ? 
+			dto.setCashierId(session.getCashier().getId());
+			dto.setCashierName(session.getCashier().getFullName() != null ?
 				session.getCashier().getFullName() : session.getCashier().getUsername());
 			dto.setCashierUsername(session.getCashier().getUsername());
 		}

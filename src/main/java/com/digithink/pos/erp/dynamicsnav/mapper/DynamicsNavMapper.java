@@ -521,6 +521,10 @@ public class DynamicsNavMapper {
 			dto.setTicketAmount(returnDTO.getTotalReturnAmount().doubleValue());
 		}
 
+		if (returnDTO.getDiscountPercentage() != null) {
+			dto.setInvoiceDiscountPercent(returnDTO.getDiscountPercentage());
+		}
+
 		return dto;
 	}
 

@@ -525,6 +525,7 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 				ticketMap.put("subtotal", ticket.getSubtotal());
 				ticketMap.put("taxAmount", ticket.getTaxAmount());
 				ticketMap.put("discountAmount", ticket.getDiscountAmount());
+				ticketMap.put("discountPercentage", ticket.getDiscountPercentage());
 				ticketMap.put("totalAmount", ticket.getTotalAmount());
 				ticketMap.put("paidAmount", ticket.getPaidAmount());
 				ticketMap.put("changeAmount", ticket.getChangeAmount());
@@ -607,6 +608,7 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			ticketMap.put("subtotal", ticket.getSubtotal());
 			ticketMap.put("taxAmount", ticket.getTaxAmount());
 			ticketMap.put("discountAmount", ticket.getDiscountAmount());
+			ticketMap.put("discountPercentage", ticket.getDiscountPercentage());
 			ticketMap.put("totalAmount", ticket.getTotalAmount());
 			ticketMap.put("paidAmount", ticket.getPaidAmount());
 			ticketMap.put("changeAmount", ticket.getChangeAmount());

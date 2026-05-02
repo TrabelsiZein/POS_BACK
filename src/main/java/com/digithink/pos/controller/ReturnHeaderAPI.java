@@ -83,6 +83,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 		map.put("status", h.getStatus());
 		map.put("synchronizationStatus", h.getSynchronizationStatus());
 		map.put("erpNo", h.getErpNo());
+		map.put("discountPercentage", h.getDiscountPercentage());
 		if (h.getOriginalSalesHeader() != null) {
 			SalesHeader sh = h.getOriginalSalesHeader();
 			Map<String, Object> sales = new HashMap<>();
@@ -264,6 +265,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			returnResponse.put("totalReturnAmount", returnHeader.getTotalReturnAmount());
 			returnResponse.put("notes", returnHeader.getNotes());
 			returnResponse.put("status", returnHeader.getStatus());
+			returnResponse.put("discountPercentage", returnHeader.getDiscountPercentage());
 
 			// Add original sales header info (avoiding circular references)
 			if (returnHeader.getOriginalSalesHeader() != null) {
@@ -361,6 +363,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			returnHeaderInfo.put("status", returnHeader.getStatus());
 			returnHeaderInfo.put("synchronizationStatus", returnHeader.getSynchronizationStatus());
 			returnHeaderInfo.put("erpNo", returnHeader.getErpNo());
+			returnHeaderInfo.put("discountPercentage", returnHeader.getDiscountPercentage());
 
 			if (returnHeader.getOriginalSalesHeader() != null) {
 				Map<String, Object> originalSalesHeaderInfo = new HashMap<>();

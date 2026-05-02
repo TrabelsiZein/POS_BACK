@@ -64,5 +64,7 @@ public class ReturnHeader extends _BaseEntity {
 	private SynchronizationStatus synchronizationStatus = SynchronizationStatus.NOT_SYNCHED;
 
 	private String erpNo; // Document_No from Dynamics NAV
+
+	private Double discountPercentage;
 }
 

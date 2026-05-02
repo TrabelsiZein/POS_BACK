@@ -3,7 +3,8 @@
     "allow": [
       "Read(//d/Business Management/Apps/POS/Apps/Cursor Workspace/**)",
       "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
-      "Bash(grep -r '$http' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')"
+      "Bash(grep -r '$http' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')",
+      "Bash(grep -r '$router\\\\.push.*ticket\\\\|$router\\\\.push.*sale' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')"
     ],
     "additionalDirectories": [
       "D:\\Business Management\\Apps\\POS\\Apps\\Cursor Workspace"
