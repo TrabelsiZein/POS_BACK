@@ -752,6 +752,9 @@ public class ZZDataInitializer {
 		ensureConfig("RETURN_VOUCHER_VALIDITY_DAYS", "30",
 				"Number of days a return voucher remains valid",
 				false, ConfigType.NUMBER);
+		ensureConfig("BLOCK_RETURN_FOR_PROMOTION", "false",
+				"Block returns for items sold via a promotion. When enabled: lines with discount source PROMOTION cannot be returned; tickets with a cart-level promotion are fully blocked.",
+				false, ConfigType.BOOLEAN);
 
 		// ── Payment methods ───────────────────────────────────────────────────
 		ensureConfig("AUTO_ADD_CASH_PAYMENT_ON_PAYMENT_PAGE", "true",
@@ -790,6 +793,12 @@ public class ZZDataInitializer {
 		// ── Loyalty ───────────────────────────────────────────────────────────
 		ensureConfig("LOYALTY_ENABLED", "false",
 				"Enable the loyalty (fidélité) program. When true, cashiers can attach loyalty cards to sales and customers earn/redeem points. Configure rates in Loyalty Programs admin page.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("TICKET_SHOW_LOYALTY_BALANCE", "true",
+				"Show the loyalty points balance (Solde points) on the printed sales ticket when a loyalty member is attached.",
+				false, ConfigType.BOOLEAN);
+		ensureConfig("TICKET_SHOW_LOYALTY_EARNED", "true",
+				"Show the points earned from the current purchase (Points gagnés) on the printed sales ticket.",
 				false, ConfigType.BOOLEAN);
 
 		// ── Stock ─────────────────────────────────────────────────────────────

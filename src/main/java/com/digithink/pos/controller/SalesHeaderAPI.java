@@ -20,6 +20,7 @@ import com.digithink.pos.model.Payment;
 import com.digithink.pos.model.SalesHeader;
 import com.digithink.pos.model.SalesLine;
 import com.digithink.pos.model.UserAccount;
+import com.digithink.pos.repository.GeneralSetupRepository;
 import com.digithink.pos.repository.PaymentRepository;
 import com.digithink.pos.repository.SalesLineRepository;
 import com.digithink.pos.security.CurrentUserProvider;
@@ -40,6 +41,15 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 
 	@Autowired
 	private PaymentRepository paymentRepository;
+
+	@Autowired
+	private GeneralSetupRepository generalSetupRepository;
+
+	private boolean getLoyaltyConfigFlag(String code) {
+		return generalSetupRepository.findByCode(code)
+				.map(s -> Boolean.parseBoolean(s.getValeur()))
+				.orElse(true);
+	}
 
 	/**
 	 * Process complete sale (header + lines + payment + ticket)
@@ -96,6 +106,12 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			saleResponse.put("customer", salesHeader.getCustomer());
 			saleResponse.put("salesLines", salesLines);
 			saleResponse.put("paymentHeaders", payments);
+			saleResponse.put("loyaltyMember", salesHeader.getLoyaltyMember());
+			saleResponse.put("loyaltyPointsEarned", salesHeader.getLoyaltyPointsEarned());
+			saleResponse.put("loyaltyPointsRedeemed", salesHeader.getLoyaltyPointsRedeemed());
+			saleResponse.put("loyaltyDeductionAmount", salesHeader.getLoyaltyDeductionAmount());
+			saleResponse.put("showLoyaltyBalance", getLoyaltyConfigFlag("TICKET_SHOW_LOYALTY_BALANCE"));
+			saleResponse.put("showLoyaltyEarned", getLoyaltyConfigFlag("TICKET_SHOW_LOYALTY_EARNED"));
 
 			return ResponseEntity.ok(saleResponse);
 
@@ -628,6 +644,8 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			ticketMap.put("loyaltyPointsRedeemed", ticket.getLoyaltyPointsRedeemed());
 			ticketMap.put("loyaltyPointsEarned", ticket.getLoyaltyPointsEarned());
 			ticketMap.put("loyaltyMember", ticket.getLoyaltyMember());
+			ticketMap.put("showLoyaltyBalance", getLoyaltyConfigFlag("TICKET_SHOW_LOYALTY_BALANCE"));
+			ticketMap.put("showLoyaltyEarned", getLoyaltyConfigFlag("TICKET_SHOW_LOYALTY_EARNED"));
 
 			return ResponseEntity.ok(ticketMap);
 		} catch (Exception e) {

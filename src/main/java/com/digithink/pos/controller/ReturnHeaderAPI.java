@@ -186,6 +186,14 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 					lineData.put("lineTotalIncludingVat", salesLine.getLineTotalIncludingVat());
 					lineData.put("returnedQuantity", returnedQuantity); // Already returned
 					lineData.put("remainingQuantity", remainingQuantity); // Can still be returned
+					lineData.put("discountSource", salesLine.getDiscountSource());
+					if (salesLine.getPromotion() != null) {
+						Map<String, Object> promoData = new HashMap<>();
+						promoData.put("id", salesLine.getPromotion().getId());
+						promoData.put("code", salesLine.getPromotion().getCode());
+						promoData.put("name", salesLine.getPromotion().getName());
+						lineData.put("promotion", promoData);
+					}
 
 					salesLinesWithRemaining.add(lineData);
 				}
@@ -199,6 +207,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			ticketSummary.put("totalAmount", salesHeader.getTotalAmount());
 			ticketSummary.put("discountAmount", salesHeader.getDiscountAmount());
 			ticketSummary.put("discountPercentage", salesHeader.getDiscountPercentage());
+			ticketSummary.put("discountSource", salesHeader.getDiscountSource());
 			ticketSummary.put("status", salesHeader.getStatus());
 			if (salesHeader.getCustomer() != null) {
 				ticketSummary.put("customerId", salesHeader.getCustomer().getId());
@@ -210,6 +219,7 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 			response.put("salesLines", salesLinesWithRemaining);
 			response.put("canReturn", canReturn);
 			response.put("isSimpleReturnEnabled", service.isSimpleReturnEnabled());
+			response.put("blockReturnForPromotion", service.isBlockReturnForPromotion());
 
 			return ResponseEntity.ok(response);
 

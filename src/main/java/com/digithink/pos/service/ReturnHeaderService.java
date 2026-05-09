@@ -123,6 +123,17 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 	}
 
 	/**
+	 * Check if returns for promoted items are blocked
+	 */
+	public boolean isBlockReturnForPromotion() {
+		Optional<GeneralSetup> config = generalSetupRepository.findByCode("BLOCK_RETURN_FOR_PROMOTION");
+		if (!config.isPresent()) {
+			return false;
+		}
+		return Boolean.parseBoolean(config.get().getValeur());
+	}
+
+	/**
 	 * Get return voucher validity days
 	 */
 	public int getReturnVoucherValidityDays() {
@@ -177,6 +188,11 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 			throw new IllegalArgumentException("At least one return line is required");
 		}
 
+		// Block return if the ticket had a cart-level promotion
+		if (isBlockReturnForPromotion() && "PROMOTION".equals(originalSalesHeader.getDiscountSource())) {
+			throw new IllegalStateException("Ce ticket bénéficie d'une promotion globale. Aucun retour n'est autorisé pour les articles en promotion.");
+		}
+
 		// Get all sales lines for the original ticket
 		List<SalesLine> originalSalesLines = salesLineRepository.findBySalesHeader(originalSalesHeader);
 
@@ -205,6 +221,12 @@ public class ReturnHeaderService extends _BaseService<ReturnHeader, Long> {
 					.filter(line -> line.getId().equals(returnLineDTO.getSalesLineId())).findFirst()
 					.orElseThrow(() -> new IllegalArgumentException(
 							"Sales line not found: " + returnLineDTO.getSalesLineId()));
+
+			// Block return if this line was sold via a promotion
+			if (isBlockReturnForPromotion() && "PROMOTION".equals(originalSalesLine.getDiscountSource())) {
+				String itemName = originalSalesLine.getItem() != null ? originalSalesLine.getItem().getName() : "Article";
+				throw new IllegalStateException("L'article '" + itemName + "' a été vendu en promotion et ne peut pas être retourné.");
+			}
 
 			// Validate quantity
 			if (returnLineDTO.getQuantity() == null || returnLineDTO.getQuantity() <= 0) {

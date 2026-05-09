@@ -32,10 +32,11 @@ import lombok.extern.log4j.Log4j2;
 /**
  * Core POS calculation engine.
  *
- * Precedence per item (mutually exclusive for item level):
- *   1. SalesPrice  → use it, done
- *   2. SalesDiscount (no SalesPrice) → use it, done
- *   3. Promotion   (no SalesPrice, no SalesDiscount) → find best match
+ * Precedence per item:
+ *   1. Effective unit price = SalesPrice if found, else item base price.
+ *   2. FREE_QUANTITY promotion: always applied on the effective price.
+ *   3. PERCENTAGE/FIXED promotion vs SalesDiscount: best discount wins (higher % applied).
+ *   4. No promotion: ERP pricing (SalesPrice / SalesDiscount) applied as-is.
  *
  * Cart promotions (CART scope) are independent and always considered.
  *
@@ -95,45 +96,76 @@ public class PromotionCalculationService {
 		response.setItemId(itemId);
 		response.setPriceIncludesVat(pricingResult.getPriceIncludesVat());
 
-		// Step 2: SalesPrice found → use it, skip promotions entirely
-		if ("SALES_PRICE".equals(pricingResult.getSource())) {
-			response.setUnitPrice(pricingResult.getUnitPrice());
-			response.setDiscountPercentage(pricingResult.getDiscountPercentage());
-			response.setSource("SALES_PRICE");
-			log.debug("calculateItemPrice: item={} → SALES_PRICE price={}", itemId, pricingResult.getUnitPrice());
-			return response;
-		}
+		// Effective unit price: SalesPrice if found, else item base price
+		boolean hasSalesPrice = "SALES_PRICE".equals(pricingResult.getSource());
+		Double salesDiscountPct = pricingResult.getDiscountPercentage();
+		boolean hasSalesDiscount = salesDiscountPct != null && salesDiscountPct > 0;
+		Double effectiveUnitPrice = pricingResult.getUnitPrice();
 
-		// Step 3: SalesDiscount found (no SalesPrice) → apply discount, skip promotions
-		if (pricingResult.getDiscountPercentage() != null && pricingResult.getDiscountPercentage() > 0) {
-			response.setUnitPrice(pricingResult.getUnitPrice());
-			response.setDiscountPercentage(pricingResult.getDiscountPercentage());
-			response.setSource("SALES_DISCOUNT");
-			log.debug("calculateItemPrice: item={} → SALES_DISCOUNT {}%", itemId, pricingResult.getDiscountPercentage());
-			return response;
-		}
-
-		// Step 4: No SalesPrice/SalesDiscount → find best promotion
-		Double basePrice = item.getUnitPrice() != null ? item.getUnitPrice() : 0.0;
+		// Always look for the best promotion
 		Promotion bestPromotion = findBestItemPromotion(item, qty, codes);
 
+		// No promotion found → apply ERP pricing as-is (unchanged behavior)
 		if (bestPromotion == null) {
-			response.setUnitPrice(basePrice);
-			response.setSource("BASE_PRICE");
-			log.debug("calculateItemPrice: item={} → BASE_PRICE={}", itemId, basePrice);
+			response.setUnitPrice(effectiveUnitPrice);
+			if (hasSalesDiscount) {
+				response.setDiscountPercentage(salesDiscountPct);
+				response.setSource(hasSalesPrice ? "SALES_PRICE" : "SALES_DISCOUNT");
+			} else {
+				response.setSource(hasSalesPrice ? "SALES_PRICE" : "BASE_PRICE");
+			}
+			log.debug("calculateItemPrice: item={} → {} price={}", itemId, response.getSource(), effectiveUnitPrice);
 			return response;
 		}
 
-		// Step 5: Apply promotion benefit
-		applyItemPromotionBenefit(response, bestPromotion, basePrice);
-		response.setPromotionId(bestPromotion.getId());
-		response.setPromotionName(bestPromotion.getName());
-		response.setPromotionCode(bestPromotion.getCode());
-		response.setPromotionType(bestPromotion.getPromotionType().name());
-		response.setSource("PROMOTION");
+		// FREE_QUANTITY: always apply on effective price — quantity benefit, no comparison needed
+		if (bestPromotion.getBenefitType() == PromotionBenefitType.FREE_QUANTITY) {
+			applyItemPromotionBenefit(response, bestPromotion, effectiveUnitPrice);
+			response.setPromotionId(bestPromotion.getId());
+			response.setPromotionName(bestPromotion.getName());
+			response.setPromotionCode(bestPromotion.getCode());
+			response.setPromotionType(bestPromotion.getPromotionType().name());
+			response.setSource("PROMOTION");
+			log.debug("calculateItemPrice: item={} → FREE_QUANTITY promotion '{}' on price={}", itemId,
+					bestPromotion.getName(), effectiveUnitPrice);
+			return response;
+		}
 
-		log.debug("calculateItemPrice: item={} → PROMOTION '{}' ({})", itemId,
-				bestPromotion.getName(), bestPromotion.getBenefitType());
+		// Compute promotion's effective discount % for comparison with SalesDiscount
+		double promotionEffectivePct;
+		if (bestPromotion.getBenefitType() == PromotionBenefitType.PERCENTAGE_DISCOUNT) {
+			promotionEffectivePct = bestPromotion.getDiscountPercentage() != null
+					? bestPromotion.getDiscountPercentage() : 0.0;
+		} else { // FIXED_DISCOUNT: convert to % based on effective unit price
+			promotionEffectivePct = (effectiveUnitPrice != null && effectiveUnitPrice > 0
+					&& bestPromotion.getDiscountAmount() != null)
+					? (bestPromotion.getDiscountAmount() / effectiveUnitPrice) * 100.0
+					: 0.0;
+		}
+
+		double salesDiscountValue = hasSalesDiscount ? salesDiscountPct : 0.0;
+
+		// Apply whichever gives the best discount
+		if (promotionEffectivePct > salesDiscountValue) {
+			// Promotion wins — applied on the effective price (base or SalesPrice)
+			applyItemPromotionBenefit(response, bestPromotion, effectiveUnitPrice);
+			response.setPromotionId(bestPromotion.getId());
+			response.setPromotionName(bestPromotion.getName());
+			response.setPromotionCode(bestPromotion.getCode());
+			response.setPromotionType(bestPromotion.getPromotionType().name());
+			response.setSource("PROMOTION");
+			log.debug("calculateItemPrice: item={} → PROMOTION '{}' ({}%) beats SalesDiscount ({}%)", itemId,
+					bestPromotion.getName(), promotionEffectivePct, salesDiscountValue);
+		} else {
+			// SalesDiscount is better or equal — keep ERP pricing
+			response.setUnitPrice(effectiveUnitPrice);
+			if (hasSalesDiscount) {
+				response.setDiscountPercentage(salesDiscountPct);
+			}
+			response.setSource(hasSalesPrice ? "SALES_PRICE" : (hasSalesDiscount ? "SALES_DISCOUNT" : "BASE_PRICE"));
+			log.debug("calculateItemPrice: item={} → {} ({}%) beats PROMOTION ({}%)", itemId,
+					response.getSource(), salesDiscountValue, promotionEffectivePct);
+		}
 
 		return response;
 	}
