@@ -286,7 +286,7 @@ public class TicketExportService {
 				&& line.getLineTotal() != null) {
 			double grossHT = line.getUnitPrice() * line.getQuantity();
 			double pct = (1.0 - line.getLineTotal() / grossHT) * 100.0;
-			if (pct > 0 && pct < 100) {
+			if (pct > 0 && pct <= 100) {
 				dto.setDiscountPercentage(BigDecimal.valueOf(pct));
 			}
 		}
