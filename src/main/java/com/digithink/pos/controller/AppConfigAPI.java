@@ -55,6 +55,7 @@ public class AppConfigAPI {
 		if (tableCountVal != null) {
 			try { tableManagementTableCount = Integer.parseInt(tableCountVal); } catch (NumberFormatException ignored) {}
 		}
+		boolean tombolaEnabled = "true".equalsIgnoreCase(generalSetupService.findValueByCode("TOMBOLA_ENABLED"));
 		return ResponseEntity.ok(new AppConfigDTO(
 				applicationModeService.isStandalone(),
 				enableSalesPriceGroup,
@@ -68,7 +69,8 @@ public class AppConfigAPI {
 				posShowStock,
 				tableManagementEnabled,
 				tableManagementTableCount,
-				appVersion
+				appVersion,
+				tombolaEnabled
 		));
 	}
 }

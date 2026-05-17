@@ -320,13 +320,15 @@ private final PaymentHeaderRepository paymentHeaderRepository;
 				return;
 			}
 
-			// Filter out RETURN_VOUCHER payments
+			// Filter out RETURN_VOUCHER payments and optionally CLIENT_CHEQUE payments
+			boolean skipCheque = "true".equalsIgnoreCase(generalSetupService.findValueByCode("ERP_SKIP_CHEQUE_PAYMENTS"));
 			List<Payment> paymentsToProcess = payments.stream()
 					.filter(payment -> payment.getPaymentMethod().getType() != PaymentMethodType.RETURN_VOUCHER)
+					.filter(payment -> !skipCheque || payment.getPaymentMethod().getType() != PaymentMethodType.CLIENT_CHEQUE)
 					.collect(Collectors.toList());
 
 			if (paymentsToProcess.isEmpty()) {
-				LOGGER.debug("No payments to process after filtering RETURN_VOUCHER payments");
+				LOGGER.debug("No payments to process after filtering payments");
 				return;
 			}
 

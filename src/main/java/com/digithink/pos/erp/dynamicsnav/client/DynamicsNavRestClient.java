@@ -463,7 +463,7 @@ public class DynamicsNavRestClient {
 	 * method to update only the POS_Order field
 	 */
 	public DynamicsNavSalesOrderHeaderDTO updateSalesOrderHeaderPosOrder(String documentNo, boolean posOrder) {
-		return updateSalesOrderHeaderStatus(documentNo, posOrder, null, null);
+		return updateSalesOrderHeaderStatus(documentNo, posOrder, null, null, null);
 	}
 
 	/**
@@ -471,7 +471,7 @@ public class DynamicsNavRestClient {
 	 * Fiscal_Registration). Only non-null invoice fields are included in the PATCH.
 	 */
 	public DynamicsNavSalesOrderHeaderDTO updateSalesOrderHeaderStatus(String documentNo, boolean posOrder,
-			Boolean posInvoice, String fiscalRegistration) {
+			Boolean posInvoice, String fiscalRegistration, String billToName2) {
 		try {
 			// Build URL for specific document - escape the document number for URL
 			String escapedDocNo = documentNo.replace("'", "''");
@@ -485,6 +485,9 @@ public class DynamicsNavRestClient {
 			}
 			if (fiscalRegistration != null) {
 				node.put("Fiscal_Registration", fiscalRegistration);
+			}
+			if (billToName2 != null) {
+				node.put("Bill_to_Name_2", billToName2);
 			}
 			String jsonPayload = objectMapper.writeValueAsString(node);
 

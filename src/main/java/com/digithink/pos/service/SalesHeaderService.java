@@ -695,7 +695,12 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		splitHeader.setDiscountAmount(0.0);
 		splitHeader.setTotalAmount(request.getTotalAmount());
 		splitHeader.setPaidAmount(request.getPaidAmount());
-		splitHeader.setChangeAmount(request.getChangeAmount() != null ? request.getChangeAmount() : 0.0);
+		boolean splitHasCash = request.getPayments() != null && request.getPayments().stream().anyMatch(p -> {
+			PaymentMethod pm = paymentMethodRepository.findById(p.getPaymentMethodId()).orElse(null);
+			return pm != null && pm.getType() == PaymentMethodType.CLIENT_ESPECES;
+		});
+		double splitChange = request.getChangeAmount() != null ? request.getChangeAmount() : 0.0;
+		splitHeader.setChangeAmount((splitChange > 0 && splitHasCash) ? splitChange : 0.0);
 		splitHeader.setCompletedDate(LocalDateTime.now());
 		splitHeader.setNotes("Split from " + original.getSalesNumber());
 		splitHeader.setTableNumber(original.getTableNumber());
@@ -855,8 +860,11 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		}
 
 		salesHeader.setPaidAmount(totalPaid);
+		boolean hasCashPayment = payments.stream()
+				.anyMatch(p -> p.getPaymentMethod() != null
+						&& p.getPaymentMethod().getType() == PaymentMethodType.CLIENT_ESPECES);
 		double change = totalPaid - request.getTotalAmount();
-		salesHeader.setChangeAmount(change > 0 ? change : 0.0);
+		salesHeader.setChangeAmount((change > 0 && hasCashPayment) ? change : 0.0);
 		return payments;
 	}
 
@@ -1064,27 +1072,38 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 	/**
 	 * Get tickets history with filters
 	 */
-	public java.util.List<SalesHeader> getTicketsHistory(String dateFromStr, String dateToStr, String statusStr,
-			String syncStatusStr, String paymentMethodIdStr, String searchStr) {
-		// Parse date from (start of day)
+	public org.springframework.data.domain.Page<SalesHeader> getTicketsHistory(
+			String dateFromStr, String dateToStr, String statusStr,
+			String syncStatusStr, String paymentMethodIdStr, String searchStr,
+			String minPriceStr, String maxPriceStr, String familyIdStr, String subFamilyIdStr,
+			String cashierIdStr, String sessionNumberStr, int page, int size) {
+		// Parse date from — supports datetime (2026-05-16T08:00) and date-only (2026-05-16)
 		java.time.LocalDateTime dateFrom = null;
 		if (dateFromStr != null && !dateFromStr.trim().isEmpty()) {
 			try {
-				java.time.LocalDate date = java.time.LocalDate.parse(dateFromStr);
-				dateFrom = date.atStartOfDay();
-			} catch (Exception e) {
-				log.warn("Invalid dateFrom format: " + dateFromStr);
+				dateFrom = java.time.LocalDateTime.parse(dateFromStr.trim(),
+						java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+			} catch (Exception e1) {
+				try {
+					dateFrom = java.time.LocalDate.parse(dateFromStr.trim()).atStartOfDay();
+				} catch (Exception e2) {
+					log.warn("Invalid dateFrom format: " + dateFromStr);
+				}
 			}
 		}
 
-		// Parse date to (end of day)
+		// Parse date to — supports datetime (2026-05-16T20:00) and date-only (2026-05-16)
 		java.time.LocalDateTime dateTo = null;
 		if (dateToStr != null && !dateToStr.trim().isEmpty()) {
 			try {
-				java.time.LocalDate date = java.time.LocalDate.parse(dateToStr);
-				dateTo = date.atTime(23, 59, 59);
-			} catch (Exception e) {
-				log.warn("Invalid dateTo format: " + dateToStr);
+				dateTo = java.time.LocalDateTime.parse(dateToStr.trim(),
+						java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+			} catch (Exception e1) {
+				try {
+					dateTo = java.time.LocalDate.parse(dateToStr.trim()).atTime(23, 59, 59);
+				} catch (Exception e2) {
+					log.warn("Invalid dateTo format: " + dateToStr);
+				}
 			}
 		}
 
@@ -1120,6 +1139,26 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 			}
 		}
 
+		// Parse min/max price
+		Double minPrice = null;
+		if (minPriceStr != null && !minPriceStr.trim().isEmpty()) {
+			try { minPrice = Double.parseDouble(minPriceStr.trim()); } catch (Exception e) { log.warn("Invalid minPrice: " + minPriceStr); }
+		}
+		Double maxPrice = null;
+		if (maxPriceStr != null && !maxPriceStr.trim().isEmpty()) {
+			try { maxPrice = Double.parseDouble(maxPriceStr.trim()); } catch (Exception e) { log.warn("Invalid maxPrice: " + maxPriceStr); }
+		}
+
+		// Parse family / subfamily
+		Long familyId = null;
+		if (familyIdStr != null && !familyIdStr.trim().isEmpty() && !familyIdStr.equalsIgnoreCase("all")) {
+			try { familyId = Long.parseLong(familyIdStr.trim()); } catch (Exception e) { log.warn("Invalid familyId: " + familyIdStr); }
+		}
+		Long subFamilyId = null;
+		if (subFamilyIdStr != null && !subFamilyIdStr.trim().isEmpty() && !subFamilyIdStr.equalsIgnoreCase("all")) {
+			try { subFamilyId = Long.parseLong(subFamilyIdStr.trim()); } catch (Exception e) { log.warn("Invalid subFamilyId: " + subFamilyIdStr); }
+		}
+
 		// Capture variables for lambda (effectively final)
 		final java.time.LocalDateTime finalDateFrom = dateFrom;
 		final java.time.LocalDateTime finalDateTo = dateTo;
@@ -1127,6 +1166,17 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 		final com.digithink.pos.model.enumeration.SynchronizationStatus finalSyncStatus = syncStatus;
 		final Long finalPaymentMethodId = paymentMethodId;
 		final String finalSearchStr = searchStr;
+		final Double finalMinPrice = minPrice;
+		final Double finalMaxPrice = maxPrice;
+		final Long finalFamilyId = familyId;
+		final Long finalSubFamilyId = subFamilyId;
+
+		Long cashierId = null;
+		if (cashierIdStr != null && !cashierIdStr.trim().isEmpty() && !cashierIdStr.equalsIgnoreCase("all")) {
+			try { cashierId = Long.parseLong(cashierIdStr.trim()); } catch (Exception e) { log.warn("Invalid cashierId: " + cashierIdStr); }
+		}
+		final Long finalCashierId = cashierId;
+		final String finalSessionNumber = sessionNumberStr != null && !sessionNumberStr.trim().isEmpty() ? sessionNumberStr.trim() : null;
 
 		// Build specification for filtering
 		org.springframework.data.jpa.domain.Specification<SalesHeader> spec = (root, query, criteriaBuilder) -> {
@@ -1171,18 +1221,59 @@ public class SalesHeaderService extends _BaseService<SalesHeader, Long> {
 				javax.persistence.criteria.Predicate salesNumberPredicate = criteriaBuilder
 						.like(criteriaBuilder.lower(root.get("salesNumber")), searchPattern);
 				javax.persistence.criteria.Predicate customerNamePredicate = criteriaBuilder
-						.like(criteriaBuilder.lower(root.join("customer").get("name")), searchPattern);
+						.like(criteriaBuilder.lower(root.join("customer", javax.persistence.criteria.JoinType.LEFT).get("name")), searchPattern);
 				predicates.add(criteriaBuilder.or(salesNumberPredicate, customerNamePredicate));
+			}
+
+			// Price range filter
+			if (finalMinPrice != null) {
+				predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("totalAmount"), finalMinPrice));
+			}
+			if (finalMaxPrice != null) {
+				predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("totalAmount"), finalMaxPrice));
+			}
+
+			// Cashier filter
+			if (finalCashierId != null) {
+				predicates.add(criteriaBuilder.equal(
+						root.get("cashierSession").get("cashier").get("id"), finalCashierId));
+			}
+
+			// Session number filter
+			if (finalSessionNumber != null) {
+				predicates.add(criteriaBuilder.equal(
+						root.get("cashierSession").get("sessionNumber"), finalSessionNumber));
+			}
+
+			// Family filter — ticket must have at least one line with item in this family
+			if (finalFamilyId != null) {
+				javax.persistence.criteria.Subquery<Long> familySubquery = query.subquery(Long.class);
+				javax.persistence.criteria.Root<com.digithink.pos.model.SalesLine> lineRoot = familySubquery.from(com.digithink.pos.model.SalesLine.class);
+				familySubquery.select(lineRoot.get("salesHeader").get("id"));
+				familySubquery.where(criteriaBuilder.and(
+						criteriaBuilder.equal(lineRoot.get("salesHeader").get("id"), root.get("id")),
+						criteriaBuilder.equal(lineRoot.get("item").get("itemFamily").get("id"), finalFamilyId)));
+				predicates.add(criteriaBuilder.exists(familySubquery));
+			}
+
+			// Subfamily filter
+			if (finalSubFamilyId != null) {
+				javax.persistence.criteria.Subquery<Long> subFamilySubquery = query.subquery(Long.class);
+				javax.persistence.criteria.Root<com.digithink.pos.model.SalesLine> lineRoot2 = subFamilySubquery.from(com.digithink.pos.model.SalesLine.class);
+				subFamilySubquery.select(lineRoot2.get("salesHeader").get("id"));
+				subFamilySubquery.where(criteriaBuilder.and(
+						criteriaBuilder.equal(lineRoot2.get("salesHeader").get("id"), root.get("id")),
+						criteriaBuilder.equal(lineRoot2.get("item").get("itemSubFamily").get("id"), finalSubFamilyId)));
+				predicates.add(criteriaBuilder.exists(subFamilySubquery));
 			}
 
 			return criteriaBuilder.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
 		};
 
-		// Find all matching tickets, sorted by date descending (newest first)
-		java.util.List<SalesHeader> tickets = salesHeaderRepository.findAll(spec, org.springframework.data.domain.Sort
-				.by(org.springframework.data.domain.Sort.Direction.DESC, "salesDate"));
-
-		return tickets;
+		org.springframework.data.domain.PageRequest pageRequest = org.springframework.data.domain.PageRequest.of(
+				page, size, org.springframework.data.domain.Sort.by(
+						org.springframework.data.domain.Sort.Direction.DESC, "salesDate"));
+		return salesHeaderRepository.findAll(spec, pageRequest);
 	}
 
 	/**

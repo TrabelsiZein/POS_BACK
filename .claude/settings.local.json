@@ -4,7 +4,16 @@
       "Read(//d/Business Management/Apps/POS/Apps/Cursor Workspace/**)",
       "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
       "Bash(grep -r '$http' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')",
-      "Bash(grep -r '$router\\\\.push.*ticket\\\\|$router\\\\.push.*sale' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')"
+      "Bash(grep -r '$router\\\\.push.*ticket\\\\|$router\\\\.push.*sale' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src' '--include=*.vue' '--include=*.js')",
+      "Bash(Sort)",
+      "Bash(findstr /V update)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Back\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Format-Table FullName)",
+      "Bash(Get-ChildItem \"d:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Back\\\\src\" -Recurse)",
+      "Bash(grep -n '$http\\\\.post' 'd:\\\\Business Management\\\\Apps\\\\POS\\\\Apps\\\\POS_Front\\\\src\\\\views\\\\pos\\\\Payment.vue')",
+      "Bash(grep -rn \"totalAmount.*changeAmount\\\\|ticketTotal.*changeAmount\" \"d:\\\\Business Management\\\\Apps\\\\POS\" --include=\"*.java\" --include=\"*.js\" --include=\"*.vue\" 2>&1 | head -30)",
+      "Read(//d/Business Management/Apps/POS/**)"
     ],
     "additionalDirectories": [
       "D:\\Business Management\\Apps\\POS\\Apps\\Cursor Workspace"

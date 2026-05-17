@@ -123,11 +123,11 @@ public class ErpSynchronizationManager {
 	}
 
 	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
-		return updateTicketStatus(externalReference, posOrder, null, null);
+		return updateTicketStatus(externalReference, posOrder, null, null, null);
 	}
 
 	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice,
-			String fiscalRegistration) {
+			String fiscalRegistration, String billToName2) {
 		Object payload = new Object() {
 			public String getExternalReference() {
 				return externalReference;
@@ -144,9 +144,13 @@ public class ErpSynchronizationManager {
 			public String getFiscalRegistration() {
 				return fiscalRegistration;
 			}
+
+			public String getBillToName2() {
+				return billToName2;
+			}
 		};
 		return executePushOperation(ErpSyncOperation.UPDATE_TICKET, payload,
-				() -> erpConnector.updateTicketStatus(externalReference, posOrder, posInvoice, fiscalRegistration));
+				() -> erpConnector.updateTicketStatus(externalReference, posOrder, posInvoice, fiscalRegistration, billToName2));
 	}
 
 	public ErpOperationResult pushPaymentHeader(ErpPaymentHeaderDTO headerDTO) {

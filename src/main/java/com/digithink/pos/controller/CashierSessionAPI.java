@@ -1,5 +1,6 @@
 package com.digithink.pos.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.digithink.pos.model.CashierSession;
@@ -341,13 +343,49 @@ public class CashierSessionAPI extends _BaseController<CashierSession, Long, Cas
 
 			String verificationNotes = (String) request.get("verificationNotes");
 
-			CashierSession verifiedSession = service.verifySession(sessionId, responsibleClosureCash, verificationNotes, currentUser);
+			@SuppressWarnings("unchecked")
+			List<Map<String, Object>> paymentDetails = request.get("paymentDetails") instanceof List
+				? (List<Map<String, Object>>) request.get("paymentDetails") : null;
+
+			CashierSession verifiedSession = service.verifySession(sessionId, responsibleClosureCash, verificationNotes, currentUser, paymentDetails);
 			return ResponseEntity.ok(verifiedSession);
 		} catch (IllegalStateException e) {
 			log.error("CashierSessionAPI::verifySession:error: " + e.getMessage(), e);
 			return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
 		} catch (Exception e) {
 			log.error("CashierSessionAPI::verifySession:error: " + e.getMessage(), e);
+			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
+	 * Get paginated session history with filters (admin & responsible)
+	 */
+	@GetMapping("/history")
+	public ResponseEntity<?> getSessionHistory(
+			@RequestParam(required = false) String search,
+			@RequestParam(required = false) String dateFrom,
+			@RequestParam(required = false) String dateTo,
+			@RequestParam(required = false) String status,
+			@RequestParam(required = false) String syncStatus,
+			@RequestParam(required = false) String cashierId,
+			@RequestParam(required = false) String minTotalSales,
+			@RequestParam(required = false) String maxTotalSales,
+			@RequestParam(required = false) String minSalesCount,
+			@RequestParam(required = false) String maxSalesCount,
+			@RequestParam(required = false) String differenceSign,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		try {
+			log.info("CashierSessionAPI::getSessionHistory");
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+			if (currentUser.getRole() != com.digithink.pos.model.enumeration.Role.ADMIN &&
+					currentUser.getRole() != com.digithink.pos.model.enumeration.Role.RESPONSIBLE) {
+				return ResponseEntity.status(403).body(createErrorResponse("Only administrators and responsible users can access this resource"));
+			}
+			return ResponseEntity.ok(service.getSessionHistory(search, dateFrom, dateTo, status, syncStatus, cashierId, minTotalSales, maxTotalSales, minSalesCount, maxSalesCount, differenceSign, page, size));
+		} catch (Exception e) {
+			log.error("CashierSessionAPI::getSessionHistory:error: " + e.getMessage(), e);
 			return ResponseEntity.status(500).body(createErrorResponse(getDetailedMessage(e)));
 		}
 	}

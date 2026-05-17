@@ -509,20 +509,13 @@ public class DynamicsNavMapper {
 			dto.setPosDocumentNo(returnDTO.getReturnNumber());
 		}
 
-		// Set Ticket_Amount (total return TTC - total including VAT)
-		// Always calculate from lines to ensure we use TTC (total including VAT)
-		if (returnDTO.getLines() != null && !returnDTO.getLines().isEmpty()) {
-			// Calculate total from lines (TTC - total including VAT)
-			double total = returnDTO.getLines().stream().filter(line -> line.getLineTotalIncludingVat() != null)
-					.mapToDouble(line -> line.getLineTotalIncludingVat().doubleValue()).sum();
-			dto.setTicketAmount(total);
-		} else if (returnDTO.getTotalReturnAmount() != null) {
-			// Fallback to header total if no lines available
+		// Set Ticket_Amount — use the pre-computed net total (discount already applied)
+		if (returnDTO.getTotalReturnAmount() != null) {
 			dto.setTicketAmount(returnDTO.getTotalReturnAmount().doubleValue());
 		}
 
 		if (returnDTO.getDiscountPercentage() != null) {
-			dto.setInvoiceDiscountPercent(returnDTO.getDiscountPercentage());
+			dto.setDiscountPercent(returnDTO.getDiscountPercentage());
 		}
 
 		return dto;

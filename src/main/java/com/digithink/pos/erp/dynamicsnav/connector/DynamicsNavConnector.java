@@ -296,7 +296,7 @@ public class DynamicsNavConnector implements ErpConnector {
 	}
 
 	@Override
-	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration, String billToName2) {
 		ObjectMapper objectMapper = new ObjectMapper();
 		ObjectNode updatePayload = objectMapper.createObjectNode();
 		updatePayload.put("POS_Order", posOrder);
@@ -306,13 +306,16 @@ public class DynamicsNavConnector implements ErpConnector {
 		if (fiscalRegistration != null) {
 			updatePayload.put("Fiscal_Registration", fiscalRegistration);
 		}
+		if (billToName2 != null) {
+			updatePayload.put("Bill_to_Name_2", billToName2);
+		}
 
 		String escapedDocNo = externalReference != null ? externalReference.replace("'", "''") : "";
 		String url = buildSalesOrdersPosUrl() + "(No='" + escapedDocNo + "',Document_Type='Order')";
 
 		try {
 			DynamicsNavSalesOrderHeaderDTO responseDto = restClient.updateSalesOrderHeaderStatus(externalReference,
-					posOrder, posInvoice, fiscalRegistration);
+					posOrder, posInvoice, fiscalRegistration, billToName2);
 			return ErpOperationResult.success(externalReference, updatePayload, responseDto, url);
 		} catch (HttpClientErrorException | HttpServerErrorException ex) {
 			String cleanErrorMessage = extractCleanErrorMessage(ex);

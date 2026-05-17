@@ -90,9 +90,15 @@ public class TicketExportService {
 			if (ticket.getErpNo() != null) {
 				try {
 					Boolean posInvoice = Boolean.TRUE.equals(ticket.getInvoiced()) ? true : null;
-					String fiscalRegistration = (ticket.getFiscalRegistration() != null && !ticket.getFiscalRegistration().trim().isEmpty())
-							? ticket.getFiscalRegistration().trim() : null;
-					ErpOperationResult result = synchronizationManager.updateTicketStatus(ticket.getErpNo(), true, posInvoice, fiscalRegistration);
+					String fiscalRegistration = (ticket.getFiscalRegistration() != null
+							&& !ticket.getFiscalRegistration().trim().isEmpty()) ? ticket.getFiscalRegistration().trim()
+									: null;
+					String billToName2 = (ticket.getInvoiceCustomerName() != null
+							&& !ticket.getInvoiceCustomerName().trim().isEmpty())
+									? ticket.getInvoiceCustomerName().trim()
+									: null;
+					ErpOperationResult result = synchronizationManager.updateTicketStatus(ticket.getErpNo(), true,
+							posInvoice, fiscalRegistration, billToName2);
 					if (result.isSuccess()) {
 						// After POS_Order update succeeds, mark ticket as totally synchronized
 						ticket.setSynchronizationStatus(SynchronizationStatus.TOTALLY_SYNCHED);
@@ -223,7 +229,8 @@ public class TicketExportService {
 		}
 
 		// Set discount percentage — combines header discount + loyalty deduction into
-		// a single Discount_Percent so NAV can reconcile: gross × (1 − pct/100) = Ticket_Amount
+		// a single Discount_Percent so NAV can reconcile: gross × (1 − pct/100) =
+		// Ticket_Amount
 		double gross = (ticket.getSubtotal() != null ? ticket.getSubtotal() : 0.0)
 				+ (ticket.getTaxAmount() != null ? ticket.getTaxAmount() : 0.0);
 		double totalDeduction = (ticket.getDiscountAmount() != null ? ticket.getDiscountAmount() : 0.0)
@@ -264,7 +271,8 @@ public class TicketExportService {
 		ErpTicketLineDTO dto = new ErpTicketLineDTO();
 
 		if (line.getItem() != null) {
-			// Tax stamp item: export using ERP code from GeneralSetup so ERP recognizes the line
+			// Tax stamp item: export using ERP code from GeneralSetup so ERP recognizes the
+			// line
 			if ("TAX_STAMP".equals(line.getItem().getItemCode())) {
 				String erpCode = generalSetupService.findValueByCode("TAX_STAMP_ERP_ITEM_CODE");
 				dto.setItemExternalId(erpCode != null && !erpCode.isEmpty() ? erpCode : "TAX_STAMP");
@@ -280,9 +288,8 @@ public class TicketExportService {
 		// grossHT (fixed-amount promotions store discount_amount only, % stays null)
 		if (line.getDiscountPercentage() != null) {
 			dto.setDiscountPercentage(BigDecimal.valueOf(line.getDiscountPercentage()));
-		} else if (line.getDiscountAmount() != null && line.getDiscountAmount() > 0
-				&& line.getUnitPrice() != null && line.getUnitPrice() > 0
-				&& line.getQuantity() != null && line.getQuantity() > 0
+		} else if (line.getDiscountAmount() != null && line.getDiscountAmount() > 0 && line.getUnitPrice() != null
+				&& line.getUnitPrice() > 0 && line.getQuantity() != null && line.getQuantity() > 0
 				&& line.getLineTotal() != null) {
 			double grossHT = line.getUnitPrice() * line.getQuantity();
 			double pct = (1.0 - line.getLineTotal() / grossHT) * 100.0;

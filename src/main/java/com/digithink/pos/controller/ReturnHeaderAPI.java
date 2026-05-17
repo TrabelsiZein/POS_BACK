@@ -113,6 +113,102 @@ public class ReturnHeaderAPI extends _BaseController<ReturnHeader, Long, ReturnH
 	}
 
 	/**
+	 * Paginated, filtered list for the Returns History admin page.
+	 */
+	@GetMapping("/history")
+	public ResponseEntity<?> getHistory(
+			@RequestParam(required = false) String search,
+			@RequestParam(required = false) String dateFrom,
+			@RequestParam(required = false) String dateTo,
+			@RequestParam(required = false) String returnType,
+			@RequestParam(required = false) String voucherStatus,
+			@RequestParam(required = false) String syncStatus,
+			@RequestParam(required = false) String sessionNumber,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		try {
+			// Parse dates (supports yyyy-MM-dd'T'HH:mm and yyyy-MM-dd)
+			java.time.LocalDateTime from = null;
+			if (dateFrom != null && !dateFrom.trim().isEmpty()) {
+				try { from = java.time.LocalDateTime.parse(dateFrom.trim(), java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")); }
+				catch (Exception e1) { try { from = java.time.LocalDate.parse(dateFrom.trim()).atStartOfDay(); } catch (Exception e2) {} }
+			}
+			java.time.LocalDateTime to = null;
+			if (dateTo != null && !dateTo.trim().isEmpty()) {
+				try { to = java.time.LocalDateTime.parse(dateTo.trim(), java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")); }
+				catch (Exception e1) { try { to = java.time.LocalDate.parse(dateTo.trim()).atTime(23, 59, 59); } catch (Exception e2) {} }
+			}
+
+			final java.time.LocalDateTime finalFrom = from;
+			final java.time.LocalDateTime finalTo = to;
+			final String finalSearch = search;
+			final String finalReturnType = returnType;
+			final String finalVoucherStatus = voucherStatus;
+			final String finalSyncStatus = syncStatus;
+			final String finalSessionNumber = sessionNumber != null && !sessionNumber.trim().isEmpty() ? sessionNumber.trim() : null;
+
+			org.springframework.data.jpa.domain.Specification<ReturnHeader> spec = (root, query, cb) -> {
+				List<javax.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+				// Pre-create LEFT JOINs (reused for both filtering and search)
+				javax.persistence.criteria.Join<?, ?> shJoin = root.join("originalSalesHeader", javax.persistence.criteria.JoinType.LEFT);
+				javax.persistence.criteria.Join<?, ?> vJoin  = root.join("returnVoucher",         javax.persistence.criteria.JoinType.LEFT);
+
+				if (finalFrom != null) predicates.add(cb.greaterThanOrEqualTo(root.get("returnDate"), finalFrom));
+				if (finalTo   != null) predicates.add(cb.lessThanOrEqualTo(root.get("returnDate"), finalTo));
+
+				if (finalReturnType != null && !finalReturnType.trim().isEmpty())
+					predicates.add(cb.equal(root.get("returnType"), finalReturnType));
+
+				if (finalSyncStatus != null && !finalSyncStatus.equalsIgnoreCase("all") && !finalSyncStatus.trim().isEmpty()) {
+					try {
+						predicates.add(cb.equal(root.get("synchronizationStatus"),
+								com.digithink.pos.model.enumeration.SynchronizationStatus.valueOf(finalSyncStatus.toUpperCase())));
+					} catch (Exception ignored) {}
+				}
+
+				if (finalVoucherStatus != null && !finalVoucherStatus.trim().isEmpty()) {
+					predicates.add(cb.isNotNull(vJoin.get("id")));
+					predicates.add(cb.equal(vJoin.get("status"), finalVoucherStatus));
+				}
+
+				if (finalSearch != null && !finalSearch.trim().isEmpty()) {
+					query.distinct(true);
+					String p = "%" + finalSearch.trim().toLowerCase() + "%";
+					predicates.add(cb.or(
+							cb.like(cb.lower(root.get("returnNumber")), p),
+							cb.like(cb.lower(shJoin.get("salesNumber")), p),
+							cb.like(cb.lower(vJoin.get("voucherNumber")), p)));
+				}
+
+				if (finalSessionNumber != null) {
+					predicates.add(cb.equal(root.get("cashierSession").get("sessionNumber"), finalSessionNumber));
+				}
+
+				return cb.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
+			};
+
+			org.springframework.data.domain.Page<ReturnHeader> resultPage = returnHeaderRepository.findAll(
+					spec, org.springframework.data.domain.PageRequest.of(page, size,
+							org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "returnDate")));
+
+			List<Map<String, Object>> content = new ArrayList<>();
+			for (ReturnHeader h : resultPage.getContent()) content.add(toListMap(h));
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", content);
+			response.put("totalElements", resultPage.getTotalElements());
+			response.put("totalPages", resultPage.getTotalPages());
+			response.put("number", resultPage.getNumber());
+			response.put("size", resultPage.getSize());
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			log.error("ReturnHeaderAPI::getHistory:error: " + getDetailedMessage(e), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(getDetailedMessage(e)));
+		}
+	}
+
+	/**
 	 * Get ticket details by ticket number (for return processing)
 	 */
 	@GetMapping("/ticket-details")

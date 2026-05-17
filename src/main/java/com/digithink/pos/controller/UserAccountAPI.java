@@ -60,6 +60,42 @@ public class UserAccountAPI {
 		}
 	}
 
+	private boolean isAdminOrResponsible() {
+		try {
+			UserAccount currentUser = currentUserProvider.getCurrentUser();
+			return currentUser != null && (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.RESPONSIBLE);
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Get minimal cashier list (id + names) — accessible to ADMIN and RESPONSIBLE for filter dropdowns
+	 */
+	@GetMapping("/cashiers")
+	public ResponseEntity<?> getCashierList() {
+		try {
+			if (!isAdminOrResponsible()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("Only administrators can access this resource"));
+			}
+			List<Map<String, Object>> result = accountRepository.findAll().stream()
+				.filter(u -> !Boolean.FALSE.equals(u.getActive()))
+				.map(u -> {
+					Map<String, Object> m = new HashMap<>();
+					m.put("id", u.getId());
+					m.put("username", u.getUsername());
+					m.put("fullName", u.getFullName());
+					m.put("role", u.getRole());
+					return m;
+				})
+				.collect(Collectors.toList());
+			return ResponseEntity.ok(result);
+		} catch (Exception e) {
+			log.error("UserAccountAPI::getCashierList:error: " + e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse(e.getMessage()));
+		}
+	}
+
 	/**
 	 * Get all users (admin only)
 	 */

@@ -115,11 +115,11 @@ public class DynamicsNavReturnHeaderDTO {
 		this.posOrder = posOrder;
 	}
 
-	public Double getInvoiceDiscountPercent() {
+	public Double getDiscountPercent() {
 		return discountPercent;
 	}
 
-	public void setInvoiceDiscountPercent(Double discountPercent) {
+	public void setDiscountPercent(Double discountPercent) {
 		this.discountPercent = discountPercent;
 	}
 }

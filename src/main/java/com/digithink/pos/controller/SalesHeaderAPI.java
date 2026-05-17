@@ -519,18 +519,22 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String status,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String syncStatus,
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String paymentMethodId,
-			@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String search,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String minPrice,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String maxPrice,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String familyId,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String subFamilyId,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String cashierId,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) String sessionNumber,
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
 		try {
-			log.info("SalesHeaderAPI::getTicketsHistory: dateFrom=" + dateFrom + ", dateTo=" + dateTo + ", status="
-					+ status + ", syncStatus=" + syncStatus + ", paymentMethodId=" + paymentMethodId + ", search="
-					+ search);
+			org.springframework.data.domain.Page<SalesHeader> ticketPage = service.getTicketsHistory(
+					dateFrom, dateTo, status, syncStatus, paymentMethodId, search,
+					minPrice, maxPrice, familyId, subFamilyId, cashierId, sessionNumber, page, size);
 
-			java.util.List<SalesHeader> tickets = service.getTicketsHistory(dateFrom, dateTo, status, syncStatus,
-					paymentMethodId, search);
-
-			// Convert to response format with related data
-			java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
-			for (SalesHeader ticket : tickets) {
+			java.util.List<Map<String, Object>> content = new java.util.ArrayList<>();
+			for (SalesHeader ticket : ticketPage.getContent()) {
 				java.util.List<SalesLine> salesLines = salesLineRepository.findBySalesHeader(ticket);
 				java.util.List<Payment> payments = paymentRepository.findBySalesHeader(ticket);
 
@@ -557,10 +561,17 @@ public class SalesHeaderAPI extends _BaseController<SalesHeader, Long, SalesHead
 				ticketMap.put("invoiced", ticket.getInvoiced());
 				ticketMap.put("fiscalRegistration", ticket.getFiscalRegistration());
 
-				result.add(ticketMap);
+				content.add(ticketMap);
 			}
 
-			return ResponseEntity.ok(result);
+			Map<String, Object> response = new HashMap<>();
+			response.put("content", content);
+			response.put("totalElements", ticketPage.getTotalElements());
+			response.put("totalPages", ticketPage.getTotalPages());
+			response.put("number", ticketPage.getNumber());
+			response.put("size", ticketPage.getSize());
+
+			return ResponseEntity.ok(response);
 		} catch (Exception e) {
 			log.error("SalesHeaderAPI::getTicketsHistory:error: " + getDetailedMessage(e), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

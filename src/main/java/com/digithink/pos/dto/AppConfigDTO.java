@@ -89,4 +89,12 @@ public class AppConfigDTO {
 	 * Displayed in the frontend footer.
 	 */
 	private String appVersion;
+
+	/**
+	 * True when tombola printing is enabled. When true, a small tombola slip
+	 * (ticket number + barcode + customer name + phone) is automatically printed
+	 * alongside the main receipt for tickets attached to a loyalty member.
+	 * Controlled by GeneralSetup TOMBOLA_ENABLED.
+	 */
+	private boolean tombolaEnabled;
 }

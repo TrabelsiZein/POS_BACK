@@ -800,6 +800,9 @@ public class ZZDataInitializer {
 		ensureConfig("TICKET_SHOW_LOYALTY_EARNED", "true",
 				"Show the points earned from the current purchase (Points gagnés) on the printed sales ticket.",
 				false, ConfigType.BOOLEAN);
+		ensureConfig("TOMBOLA_ENABLED", "false",
+				"When enabled, a small tombola slip (ticket number + barcode + customer name + phone) is automatically printed alongside the main receipt for tickets attached to a loyalty member.",
+				false, ConfigType.BOOLEAN);
 
 		// ── Stock ─────────────────────────────────────────────────────────────
 		ensureConfig("ALLOW_NEGATIVE_STOCK", "true",
@@ -811,6 +814,9 @@ public class ZZDataInitializer {
 			ensureConfigWithOptions("ERP_SYNC_TRACKING_LEVEL", "ALL",
 					"ERP communication tracking level (ERRORS_ONLY | ERRORS_AND_WARNINGS | ALL)",
 					false, ConfigType.SELECT, "ERRORS_ONLY,ERRORS_AND_WARNINGS,ALL");
+			ensureConfig("ERP_SKIP_CHEQUE_PAYMENTS", "false",
+					"When enabled, cheque payments (CLIENT_CHEQUE) are excluded from ERP session synchronization. Payment headers and lines for cheques will not be sent to NAV.",
+					false, ConfigType.BOOLEAN);
 		}
 
 		// ── Franchise client configs ──────────────────────────────────────────

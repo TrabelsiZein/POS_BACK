@@ -83,13 +83,18 @@ public interface ErpConnector {
 	ErpOperationResult pushTicketLine(ErpTicketDTO ticket, String externalReference, ErpTicketLineDTO line);
 
 	/**
-	 * Update ticket status in ERP (e.g., POS_Order flag). Optional POS_Invoice and Fiscal_Registration when preparing invoice.
+	 * Update ticket status in ERP (e.g., POS_Order flag). Optional POS_Invoice, Fiscal_Registration and Bill_to_Name_2 when preparing invoice.
 	 */
-	ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration);
+	ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration, String billToName2);
 
-	/** Delegates to {@link #updateTicketStatus(String, boolean, Boolean, String)} with null invoice fields */
+	/** Delegates to full signature with null invoice fields */
 	default ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder) {
-		return updateTicketStatus(externalReference, posOrder, null, null);
+		return updateTicketStatus(externalReference, posOrder, null, null, null);
+	}
+
+	/** Delegates to full signature with null billToName2 */
+	default ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
+		return updateTicketStatus(externalReference, posOrder, posInvoice, fiscalRegistration, null);
 	}
 
 	/**

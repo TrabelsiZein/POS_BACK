@@ -99,7 +99,7 @@ public class NoOpErpConnector implements ErpConnector {
 	}
 
 	@Override
-	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration) {
+	public ErpOperationResult updateTicketStatus(String externalReference, boolean posOrder, Boolean posInvoice, String fiscalRegistration, String billToName2) {
 		return ErpOperationResult.failure("ERP connector not configured");
 	}
 

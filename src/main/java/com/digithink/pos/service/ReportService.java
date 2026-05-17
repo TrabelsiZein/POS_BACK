@@ -389,22 +389,49 @@ public class ReportService {
         List<SessionReportRowDTO> result = new ArrayList<>();
 
         if ("PAYMENT_METHOD".equalsIgnoreCase(groupBy)) {
-            String jpql =
-                    "SELECT pm.name, " +
-                    "COUNT(DISTINCT p.salesHeader.cashierSession.id), " +
-                    "COUNT(DISTINCT p.salesHeader.id), " +
-                    "SUM(p.totalAmount) " +
+            // Use SalesHeader.totalAmount as base — avoids ESPECE inflation (change tendered)
+            double totalRevenue = toDouble(em.createQuery(
+                    "SELECT COALESCE(SUM(sh.totalAmount), 0.0) FROM SalesHeader sh " +
+                    "WHERE sh.status = 'COMPLETED' AND sh.salesDate BETWEEN :from AND :to")
+                    .setParameter("from", from).setParameter("to", to).getSingleResult());
+
+            long totalSessions = toLong(em.createQuery(
+                    "SELECT COUNT(DISTINCT sh.cashierSession.id) FROM SalesHeader sh " +
+                    "WHERE sh.status = 'COMPLETED' AND sh.salesDate BETWEEN :from AND :to")
+                    .setParameter("from", from).setParameter("to", to).getSingleResult());
+
+            // Non-cash types: Payment.totalAmount is accurate (no change given for these)
+            double nonCashTotal = 0.0;
+            for (Object[] r : (List<Object[]>) em.createQuery(
+                    "SELECT pm.name, COUNT(DISTINCT p.salesHeader.cashierSession.id), " +
+                    "COUNT(DISTINCT p.salesHeader.id), SUM(p.totalAmount) " +
                     "FROM Payment p JOIN p.paymentMethod pm " +
                     "WHERE p.salesHeader.status = 'COMPLETED' " +
                     "AND p.salesHeader.salesDate BETWEEN :from AND :to " +
-                    "GROUP BY pm.name " +
-                    "ORDER BY SUM(p.totalAmount) DESC";
-            for (Object[] r : (List<Object[]>) em.createQuery(jpql)
+                    "AND pm.type <> 'CLIENT_ESPECES' " +
+                    "GROUP BY pm.name ORDER BY SUM(p.totalAmount) DESC")
                     .setParameter("from", from).setParameter("to", to).getResultList()) {
+                double amt = toDouble(r[3]);
+                nonCashTotal += amt;
                 long nbTx = toLong(r[2]);
-                double total = toDouble(r[3]);
-                result.add(new SessionReportRowDTO(str(r[0]), toLong(r[1]), nbTx, total, nbTx > 0 ? total / nbTx : 0.0));
+                result.add(new SessionReportRowDTO(str(r[0]), toLong(r[1]), nbTx, amt, nbTx > 0 ? amt / nbTx : 0.0));
             }
+
+            // ESPECE = totalRevenue - nonCashTotal (correct; includes PASSENGER cash)
+            List<?> pmNames = em.createQuery(
+                    "SELECT pm.name FROM PaymentMethod pm WHERE pm.type = 'CLIENT_ESPECES'")
+                    .setMaxResults(1).getResultList();
+            String especeName = pmNames.isEmpty() ? "Espèce" : (String) pmNames.get(0);
+            long especeNbTx = toLong(em.createQuery(
+                    "SELECT COUNT(DISTINCT p.salesHeader.id) FROM Payment p JOIN p.paymentMethod pm " +
+                    "WHERE pm.type = 'CLIENT_ESPECES' AND p.salesHeader.status = 'COMPLETED' " +
+                    "AND p.salesHeader.salesDate BETWEEN :from AND :to")
+                    .setParameter("from", from).setParameter("to", to).getSingleResult());
+            double especeAmt = Math.max(0.0, totalRevenue - nonCashTotal);
+            result.add(new SessionReportRowDTO(especeName, totalSessions, especeNbTx, especeAmt,
+                    especeNbTx > 0 ? especeAmt / especeNbTx : 0.0));
+
+            result.sort((a, b) -> Double.compare(b.getTotalAmount(), a.getTotalAmount()));
         } else {
             String selectLabel;
             String groupByClause;
@@ -423,9 +450,9 @@ public class ReportService {
                     nbSessionsExpr = "COUNT(DISTINCT sh.cashierSession.id)";
                     break;
                 default: // CASHIER
-                    extraJoin      = "JOIN sh.cashierSession cs JOIN cs.cashier u ";
-                    selectLabel    = "u.username";
-                    groupByClause  = "u.username";
+                    extraJoin      = "LEFT JOIN sh.cashierSession cs LEFT JOIN cs.cashier u ";
+                    selectLabel    = "COALESCE(u.username, '(no cashier)')";
+                    groupByClause  = "COALESCE(u.username, '(no cashier)')";
                     nbSessionsExpr = "COUNT(DISTINCT cs.id)";
                     break;
             }
